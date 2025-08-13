@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - N/B CHART 0.9 ver</title>
+  <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.0.2/css/bootstrap.min.css'><link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<div class="container-fluid mt-5 dark-theme">
+        <h2 id="title">KRW-BTC 1분봉 차트</h2>
+        <div class="row" id="imgContainer">
+            <div class="col-12">
+                <!-- Table for Volume N/B Max and N/B Min -->
+                <table class="table table-bordered" id="volumeTable" style="background-color: #42546700; color: #ffffff; margin-top: 20px;">
+                    <thead>
+                        <tr>
+                            <th>Volume N/B Max</th>
+                            <th>Volume N/B Min</th>
+                            <th>Volume Up/Down</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td id="volumeNbMax"></td>
+                            <td id="volumeNbMin"></td>
+                            <td id="volumeUpDown"></td>
+                        </tr>
+                    </tbody>
+                </table>
+              
+                <table class="table table-bordered" style="background-color: #42546700; color: #ffffff;">
+                    <thead>
+                        <tr>
+                            <th>라인</th>
+                            <th>최대 값</th>
+                            <th>최소 값</th>
+                            <th>현재 추세</th>
+                            <th>저항선 개수</th>
+                            <th>골든 크로스</th>
+                            <th>데드 크로스</th>
+                            <th>N/B Max</th>
+                            <th>N/B Min</th>
+                            <th>더 높은 값</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineAnalysisTable">
+                        <tr>
+                            <td>추가 라인 1</td>
+                            <td><div class="additionalLine1-nb-max"></div></td>
+                            <td><div class="additionalLine1-nb-min"></div></td>
+                            <td><div class="additionalLine1-trend"></div></td>
+                            <td><div class="additionalLine1-resistance"></div></td>
+                            <td><div class="additionalLine1-golden-cross"></div></td>
+                            <td><div class="additionalLine1-dead-cross"></div></td>
+                            <td><div class="additionalLine1-nb-max-value"></div></td>
+                            <td><div class="additionalLine1-nb-min-value"></div></td>
+                            <td><div class="additionalLine1-higher-value"></div></td>
+                        </tr>
+                        <tr>
+                            <td>추가 라인 2</td>
+                            <td><div class="additionalLine2-nb-max"></div></td>
+                            <td><div class="additionalLine2-nb-min"></div></td>
+                            <td><div class="additionalLine2-trend"></div></td>
+                            <td><div class="additionalLine2-resistance"></div></td>
+                            <td><div class="additionalLine2-golden-cross"></div></td>
+                            <td><div class="additionalLine2-dead-cross"></div></td>
+                            <td><div class="additionalLine2-nb-max-value"></div></td>
+                            <td><div class="additionalLine2-nb-min-value"></div></td>
+                            <td><div class="additionalLine2-higher-value"></div></td>
+                        </tr>
+                        <tr>
+                            <td>추가 라인 3</td>
+                            <td><div class="additionalLine3-nb-max"></div></td>
+                            <td><div class="additionalLine3-nb-min"></div></td>
+                            <td><div class="additionalLine3-trend"></div></td>
+                            <td><div class="additionalLine3-resistance"></div></td>
+                            <td><div class="additionalLine3-golden-cross"></div></td>
+                            <td><div class="additionalLine3-dead-cross"></div></td>
+                            <td><div class="additionalLine3-nb-max-value"></div></td>
+                            <td><div class="additionalLine3-nb-min-value"></div></td>
+                            <td><div class="additionalLine3-higher-value"></div></td>
+                        </tr>
+                        <tr>
+                            <td>추가 라인 4</td>
+                            <td><div class="additionalLine4-nb-max"></div></td>
+                            <td><div class="additionalLine4-nb-min"></div></td>
+                            <td><div class="additionalLine4-trend"></div></td>
+                            <td><div class="additionalLine4-resistance"></div></td>
+                            <td><div class="additionalLine4-golden-cross"></div></td>
+                            <td><div class="additionalLine4-dead-cross"></div></td>
+                            <td><div class="additionalLine4-nb-max-value"></div></td>
+                            <td><div class="additionalLine4-nb-min-value"></div></td>
+                            <td><div class="additionalLine4-higher-value"></div></td>
+                        </tr>
+                        <tr>
+                            <td>추가 라인 5</td>
+                            <td><div class="additionalLine5-nb-max"></div></td>
+                            <td><div class="additionalLine5-nb-min"></div></td>
+                            <td><div class="additionalLine5-trend"></div></td>
+                            <td><div class="additionalLine5-resistance"></div></td>
+                            <td><div class="additionalLine5-golden-cross"></div></td>
+                            <td><div class="additionalLine5-dead-cross"></div></td>
+                            <td><div class="additionalLine5-nb-max-value"></div></td>
+                            <td><div class="additionalLine5-nb-min-value"></div></td>
+                            <td><div class="additionalLine5-higher-value"></div></td>
+                        </tr>
+                        <tr>
+                            <td>추가 라인 6</td>
+                            <td><div class="additionalLine6-nb-max"></div></td>
+                            <td><div class="additionalLine6-nb-min"></div></td>
+                            <td><div class="additionalLine6-trend"></div></td>
+                            <td><div class="additionalLine6-resistance"></div></td>
+                            <td><div class="additionalLine6-golden-cross"></div></td>
+                            <td><div class="additionalLine6-dead-cross"></div></td>
+                            <td><div class="additionalLine6-nb-max-value"></div></td>
+                            <td><div class="additionalLine6-nb-min-value"></div></td>
+                            <td><div class="additionalLine6-higher-value"></div></td>
+                        </tr>
+                        <tr>
+                            <td>추가 라인 7</td>
+                            <td><div class="additionalLine7-nb-max"></div></td>
+                            <td><div class="additionalLine7-nb-min"></div></td>
+                            <td><div class="additionalLine7-trend"></div></td>
+                            <td><div class="additionalLine7-resistance"></div></td>
+                            <td><div class="additionalLine7-golden-cross"></div></td>
+                            <td><div class="additionalLine7-dead-cross"></div></td>
+                            <td><div class="additionalLine7-nb-max-value"></div></td>
+                            <td><div class="additionalLine7-nb-min-value"></div></td>
+                            <td><div class="additionalLine7-higher-value"></div></td>
+                        </tr>
+                        <tr>
+                            <td>추가 라인 8</td>
+                            <td><div class="additionalLine8-nb-max"></div></td>
+                            <td><div class="additionalLine8-nb-min"></div></td>
+                            <td><div class="additionalLine8-trend"></div></td>
+                            <td><div class="additionalLine8-resistance"></div></td>
+                            <td><div class="additionalLine8-golden-cross"></div></td>
+                            <td><div class="additionalLine8-dead-cross"></div></td>
+                            <td><div class="additionalLine8-nb-max-value"></div></td>
+                            <td><div class="additionalLine8-nb-min-value"></div></td>
+                            <td><div class="additionalLine8-higher-value"></div></td>
+                        </tr>
+                    </tbody>
+                </table>
+              
+                <!-- New table for overall trend analysis -->
+                <table class="table table-bordered" style="background-color: #42546700; color: #ffffff; margin-top: 20px;">
+                  <thead>
+                    <tr>
+                      <th>라인 3 ~ 8 <br> 전체 추세</th>
+                      <th>매수세 <br> 상승 개수</th>
+                      <th>매수세 <br> 하락 개수</th>
+                      <th>매도세 <br> 상승 개수</th>
+                      <th>매도세 <br> 하락 개수</th>
+                      <th>저항선 상태</th>
+                    </tr>
+                  </thead>
+                  <tbody id="trendAnalysisTable">
+                    <tr>
+                      <td id="trend3to8"></td>
+                      <td id="buyRisingCount"></td>
+                      <td id="buyFallingCount"></td>
+                      <td id="sellRisingCount"></td>
+                      <td id="sellFallingCount"></td>
+                      <td id="resistanceStatus"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              
+                <table class="table table-bordered" id="calculatedTable" style="background-color: #42546700; color: #ffffff;">
+                  <thead>
+                    <tr>
+                      <th>라인 3 ~ 5 <br> 매도세 N/B Max</th>
+                      <th>라인 3 ~ 5 <br> 매도세 N/B Min</th>
+                      <th>라인 6 ~ 8 <br> 매수세 N/B Max</th>
+                      <th>라인 6 ~ 8<br> 매수세 N/B Min</th>
+                      <th>State True / False</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- 계산된 결과가 여기 추가됩니다 -->
+                  </tbody>
+                </table>
+              
+            </div>
+          
+            <div class="col-8">
+                <div class="custom-chart-container">
+                    <canvas id="krwBtcChart" class="custom-chart" width="800" height="400"></canvas>
+                </div>
+              
+                <div id="analysisSummary" style="background-color: #425467ad; color: #ffffff; padding: 20px; border-radius: 5px;">
+                  <!-- 분석 요약 내용이 여기에 출력됩니다 -->
+                </div>
+            </div>
+          
+            <div class="col-4">
+              <!-- AI Trading ON/OFF button and profit calculation table -->
+              <div class="mt-4">
+                  <button id="aiTradingButton" class="btn btn-warning btn-block">A.I 트레이딩 ON</button>
+              </div>
+
+              <div id="profitCalculation">
+                <h3>예상 수익 계산</h3>
+                <table class="table table-bordered" style="background-color: #425467ad; color: #ffffff;">
+                  <thead>
+                    <tr>
+                      <th>항목</th>
+                      <th>값</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>현재 가격:</td>
+                      <td><span id="currentPrice">98010000</span></td>
+                    </tr>
+                    <tr>
+                      <td>평균 가격:</td>
+                      <td><span id="averagePrice">96011620.00</span></td>
+                    </tr>
+                    <tr>
+                      <td>매수 수량 (5,000원 기준):</td>
+                      <td id="buyAmount">0.000052 BTC</td>
+                    </tr>
+                    <tr>
+                      <td>하락 시 예상 수익 (%):</td>
+                      <td><span id="fallProfitPercent">0%</span></td>
+                    </tr>
+                    <tr>
+                      <td>상승 시 예상 수익 (%):</td>
+                      <td><span id="riseProfitPercent">0%</span></td>
+                    </tr>
+                    <tr>
+                      <td>현재 가격 상태:</td>
+                      <td><span id="priceStatus">Down</span></td>
+                    </tr>
+                    <tr>
+                      <td>변동률 등급:</td>
+                      <td><span id="volatilityLevel">10</span></td>
+                    </tr>
+                    <tr>
+                      <td>매수/매도 결정:</td>
+                      <td><span id="aiDecision">Hold</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Overall strategy table -->
+              <table class="table table-bordered" style="background-color: #425467ad; color: #ffffff; margin-top: 20px;">
+                <thead>
+                  <tr>
+                    <th>전체 매수 비율 (%)</th>
+                    <th>전체 매도 비율 (%)</th>
+                    <th>전체 저항선 개수</th>
+                  </tr>
+                </thead>
+                <tbody id="overallStrategyTable">
+                  <tr>
+                    <td id="totalBuyRatio"></td>
+                    <td id="totalSellRatio"></td>
+                    <td id="totalResistanceCount"></td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <!-- Breakthrough table -->
+              <table class="table table-bordered" style="background-color: #425467ad; color: #ffffff; margin-top: 20px;">
+                  <thead>
+                      <tr>
+                          <th>저항선 돌파 여부</th>
+                          <th>매수세 최고 가격</th>
+                          <th>매도세 최저 가격</th>
+                      </tr>
+                  </thead>
+                  <tbody id="breakthroughTable">
+                      <tr>
+                          <td id="breakthroughStatus"></td>
+                          <td id="highestBuyPrice"></td>
+                          <td id="lowestSellPrice"></td>
+                      </tr>
+                  </tbody>
+              </table>
+              
+               <h3>지지선 정보</h3>
+              <table class="table table-bordered" style="background-color: #425467ad; color: #ffffff;">
+                  <thead>
+                      <tr>
+                          <th>지지선</th>
+                          <th>가격</th>
+                      </tr>
+                  </thead>
+                  <tbody id="supportLineTable">
+                      <tr>
+                          <td>현재 지지선</td>
+                          <td id="supportLevel"></td>
+                      </tr>
+                  </tbody>
+              </table>
+
+          </div>
+          
+          <div class="col-12">
+                 <button id="playAudioButton" style="margin-top: 20px;">재생 시작</button>
+                <h1 class="my-4 d-none">Crypto Assets</h1>
+                <table id="cryptoAssetsTable" class="table table-bordered" style="background-color: #343a40; color: #ffffff;">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Currency</th>
+                            <th>Balance</th>
+                            <th>Locked</th>
+                            <th>Avg Buy Price</th>
+                            <th>Asset Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                <tr>
+                    <td>보유자산</td>
+                    <td>BTC</td>
+                    <td>0.00038002</td>
+                    <td>0.0011304</td>
+                    <td>98049001.12413161</td>
+                    <td>142391.1512758249</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>KRW</td>
+                    <td>4558.65118219</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>LTC</td>
+                    <td>0.04360703</td>
+                    <td>0</td>
+                    <td>60085.42717859</td>
+                    <td>2620.1470255395893</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>USDT</td>
+                    <td>0.00000001</td>
+                    <td>0</td>
+                    <td>1210.24174337</td>
+                    <td>0.0000121024174337</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>GAS</td>
+                    <td>0.00004481</td>
+                    <td>0</td>
+                    <td>3930</td>
+                    <td>0.1761033</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>DTA</td>
+                    <td>33268.33333333</td>
+                    <td>0</td>
+                    <td>2.01414</td>
+                    <td>67007.08089999329</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>VTHO</td>
+                    <td>121.80286985</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>XTZ</td>
+                    <td>0.07625583</td>
+                    <td>0</td>
+                    <td>1640.36792521</td>
+                    <td>125.08761764226648</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>META</td>
+                    <td>3.20840598</td>
+                    <td>0</td>
+                    <td>47.50647175</td>
+                    <td>152.4200480514011</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>MARO</td>
+                    <td>5.31515658</td>
+                    <td>0</td>
+                    <td>34.81328</td>
+                    <td>185.0380342633824</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>TT</td>
+                    <td>205.18955737</td>
+                    <td>0</td>
+                    <td>7.30803795</td>
+                    <td>1499.5330722036622</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>OGN</td>
+                    <td>2.00671488</td>
+                    <td>0</td>
+                    <td>440.54701034</td>
+                    <td>884.0522409887918</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>APENFT</td>
+                    <td>4655.17807968</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>LPT</td>
+                    <td>0.02094818</td>
+                    <td>0</td>
+                    <td>11258.86910843</td>
+                    <td>235.85281667983116</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>RLY</td>
+                    <td>3.1399234</td>
+                    <td>0</td>
+                    <td>50.13768904</td>
+                    <td>157.4285030386195</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>BOBA</td>
+                    <td>1</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>SOLO</td>
+                    <td>0.92873122</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>APE</td>
+                    <td>0.1484372</td>
+                    <td>0</td>
+                    <td>6479.64048999</td>
+                    <td>961.8196913407436</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>OGV</td>
+                    <td>2.00671488</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>ICZ</td>
+                    <td>1.31027935</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>XCORE</td>
+                    <td>0.11584435</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            
+                <tr>
+                    <td>보유자산</td>
+                    <td>STRK</td>
+                    <td>2.706635</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            </tbody>
+                </table>
+                <div id="profitDetails" class="mt-4">
+            <p>수익 실현 %: 0.902</p>
+            <p>BTC 자산의 총 가치: 146949.8024580149</p>
+            <p>BTC 자산의 0.902% 가치: 1325.4872181712944</p>
+        </div>
+            </div>
+          
+          <div class="col-12">
+              
+              <div id="breakthroughTimesContainer" style="max-height: 150px; overflow-y: auto;">
+                  <table class="table table-bordered" style="background-color: #42546700; color: #ffffff; margin-top: 20px;">
+                      <thead>
+                          <tr>
+                              <th>돌파 유형</th>
+                              <th>시간</th>
+                          </tr>
+                      </thead>
+                      <tbody id="breakthroughTimesTable">
+                          <!-- 돌파 시점 행이 여기 추가됩니다 -->
+                      </tbody>
+                  </table>
+              </div>
+            
+              <!-- Trading strategy table -->
+              <table class="table table-bordered" style="background-color: #42546700; color: #ffffff; margin-top: 20px;">
+                <thead>
+                  <tr>
+                    <th>라인</th>
+                    <th>매수 비율 (%)</th>
+                    <th>매도 비율 (%)</th>
+                    <th>저항선 개수</th>
+                    <th>라인 가격 (종가)</th>
+                  </tr>
+                </thead>
+                <tbody id="tradingStrategyTable"></tbody>
+              </table>
+            
+            
+            <!-- Historical data table -->
+            <table class="table table-bordered" style="background-color: #42546700; color: #ffffff; margin-top: 20px;">
+              <thead>
+                <tr>
+                  <th>시간</th>
+                  <th>매수 비율 (%)</th>
+                  <th>매도 비율 (%)</th>
+                  <th>저항선 개수</th>
+                  <th>라인 가격 (종가)</th>
+                </tr>
+              </thead>
+              <tbody id="historicalDataTable"></tbody>
+            </table>
+          </div>
+      </div>
+</div>
+<!-- partial -->
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.0/dist/chartjs-plugin-annotation.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/hammerjs'></script>
+<script src='https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/simple-statistics/7.8.3/simple-statistics.min.js'></script>
+<script src='https://unpkg.com/wavesurfer.js'></script>
+<script src='https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.minimap.js'></script>
+<script src='https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.regions.js'></script>
+<script src='https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.timeline.js'></script>
+<script src='https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.microphone.js'></script>
+<script src='https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.spectrogram.js'></script>
+<script src='https://unpkg.com/wavesurfer.js/dist/plugin/wavesurfer.analyser.js'></script><script  src="./script.js"></script>
+
+</body>
+</html>

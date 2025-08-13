@@ -1,0 +1,20 @@
+.dark-theme {
+    background-color: #343a40;
+    color: #ffffff;
+}
+
+.custom-chart-container {
+    position: relative;
+}
+
+#imgContainer {
+  background-size: above;
+  background-position: center;
+  transition: background-image 1s ease-in-out;
+  background-image: url();
+  border: 1px solid black; /* 컨테이너 시각적 확인을 위해 추가 */
+}
+
+#waveCanvas {
+  position: absolute;
+}
