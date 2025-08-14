@@ -15,6 +15,8 @@ class TradeConfig:
     # Optional: profit-driven BUY scaling and loss-driven SELL scaling
     pnl_profit_ratio: float = 0.0
     pnl_loss_ratio: float = 0.0
+    # Keep at least this KRW notional of coin after SELL (to avoid full liquidation)
+    min_coin_reserve_krw: float = 5000.0
 
 
 class Trader:
@@ -71,7 +73,12 @@ class Trader:
                 self._position_size_estimate += float(amount_krw) / float(price) if price > 0 else 0.0
             except Exception:
                 pass
-            return self.upbit.buy_market_order(self.cfg.market, amount_krw)
+            o = self.upbit.buy_market_order(self.cfg.market, amount_krw)
+            try:
+                if isinstance(o, dict): o['live_ok'] = True
+            except Exception:
+                pass
+            return o
         ticker = self.cfg.market.split("-")[-1]
         # Live balance
         balance_size = float(self.upbit.get_balance(ticker) or 0)
@@ -84,11 +91,21 @@ class Trader:
         if ratio > 0:
             size = balance_size * (ratio / 100.0)
         else:
-            # Default: sell up to our estimated open position, not entire balance
+            # Default: sell estimated open position; if estimate unknown/zero, fallback to full balance
             try:
-                size = min(balance_size, float(self._position_size_estimate))
+                est = float(self._position_size_estimate)
             except Exception:
-                size = min(balance_size, size)
+                est = 0.0
+            size = balance_size if est <= 0.0 else min(balance_size, est)
+        # Enforce coin reserve: keep at least min_coin_reserve_krw worth after SELL
+        try:
+            min_reserve_krw = float(getattr(self.cfg, 'min_coin_reserve_krw', 5000.0))
+            if price > 0 and min_reserve_krw > 0:
+                min_reserve_size = float(min_reserve_krw) / float(price)
+                max_sell = max(0.0, balance_size - min_reserve_size)
+                size = min(size, max_sell)
+        except Exception:
+            pass
         # Ensure minimum sell notional ≈ 5,000 KRW; otherwise skip to avoid API error
         # Round size to 8 decimals per Upbit precision
         size = math.floor(float(size) * 1e8) / 1e8
@@ -101,6 +118,10 @@ class Trader:
             return None
         try:
             o = self.upbit.sell_market_order(self.cfg.market, size)
+            try:
+                if isinstance(o, dict): o['live_ok'] = True
+            except Exception:
+                pass
         finally:
             # Reduce estimated position
             try:

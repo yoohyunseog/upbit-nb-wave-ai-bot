@@ -24,6 +24,16 @@
     try{
       const ins = j && j.insight ? j.insight : {};
       try{ window.lastInsight = ins; }catch(_){ }
+      // Show model's zone-aware intent summary
+      try{
+        const zact = j && j.zone_actions ? j.zone_actions : {};
+        const badge = document.getElementById('miZone');
+        if (badge){
+          const hint = (zact.buy_in_blue ? 'BUY@BLUE' : (zact.sell_in_orange ? 'SELL@ORANGE' : '-'));
+          badge.textContent = hint || String(ins.zone||'-');
+          badge.className = 'badge bg-white text-dark';
+        }
+      }catch(_){ }
       if (miZone){ miZone.textContent = String(ins.zone||'-'); miZone.className = 'badge bg-white text-dark'; }
       // reflect current zone majority on Win% card header and background
       try{
@@ -42,7 +52,16 @@
         const orangeAdj = (ins.pct_orange||0);
         const blueRaw = (ins.pct_blue_raw!=null? ins.pct_blue_raw : blueAdj);
         const orangeRaw = (ins.pct_orange_raw!=null? ins.pct_orange_raw : orangeAdj);
-        miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | zone=${String(ins.zone||'-')} | conf=${(ins.zone_conf||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)} | w=${(ins.w||0).toFixed(3)}<br/>`+
+        let slopeLine = '';
+        try{
+          const st = j && j.steep ? j.steep : null;
+          if (st && (st.blue_up_slope!=null || st.orange_down_slope!=null)){
+            const up = st.blue_up_slope!=null ? Number(st.blue_up_slope*10000).toFixed(2) : '-';
+            const dn = st.orange_down_slope!=null ? Number(st.orange_down_slope*10000).toFixed(2) : '-';
+            slopeLine = ` | upSlope@BLUE=${up}bp/bar | downSlope@ORANGE=${dn}bp/bar`;
+          }
+        }catch(_){ }
+        miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | zone=${String(ins.zone||'-')} | conf=${(ins.zone_conf||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)} | w=${(ins.w||0).toFixed(3)}${slopeLine}<br/>`+
           `dist_high=${(ins.dist_high||0).toFixed(3)} | dist_low=${(ins.dist_low||0).toFixed(3)} | gap=${(ins.extreme_gap||0).toFixed(3)} | ema_diff=${(ins.ema_diff||0).toFixed(1)}<br/>`+
           `zone_min_r=${(ins.zone_min_r!=null? ins.zone_min_r: ins.r||0).toFixed(3)} | zone_max_r=${(ins.zone_max_r!=null? ins.zone_max_r: ins.r||0).toFixed(3)} | zone_extreme_r=${(ins.zone_extreme_r!=null? ins.zone_extreme_r: ins.r||0).toFixed(3)}<br/>`+
           `blue_min_cur=${(ins.blue_min_cur!=null? ins.blue_min_cur: ins.zone_min_r||0).toFixed(3)} | blue_min_last=${(ins.blue_min_last!=null? ins.blue_min_last: ins.zone_min_r||0).toFixed(3)} | orange_max_cur=${(ins.orange_max_cur!=null? ins.orange_max_cur: ins.zone_max_r||0).toFixed(3)} | orange_max_last=${(ins.orange_max_last!=null? ins.orange_max_last: ins.zone_max_r||0).toFixed(3)}`;
@@ -82,6 +101,18 @@
   const orderLog = document.getElementById('orderLog');
   const orderClearBtn = document.getElementById('btnOrderClear');
   const orderExportBtn = document.getElementById('btnOrderExport');
+  const btnBuy = document.getElementById('btnBuy');
+  const btnSell = document.getElementById('btnSell');
+  const tradeReadyMeta = document.getElementById('tradeReadyMeta');
+  const miniWinZone = document.getElementById('miniWinZone');
+  const miniWinBaseBar = document.getElementById('miniWinBaseBar');
+  const miniWinOverlayBar = document.getElementById('miniWinOverlayBar');
+  const autoPending = document.getElementById('autoPending');
+  const autoPendingBar = document.getElementById('autoPendingBar');
+  const btnCancelPending = document.getElementById('btnCancelPending');
+  let autoPendingTimer = null;
+  const btnPreflight = document.getElementById('btnPreflight');
+  const tradeReadyBox = document.getElementById('tradeReadyBox');
   let orderKeys = new Set();
   const mlMetricsBox = document.getElementById('mlMetricsBox');
   const emaFilterEl = document.getElementById('emaFilter');
@@ -162,6 +193,8 @@
   const pnlRight = document.getElementById('pnlRightBar');
   const pnlLeftLabel = document.getElementById('pnlLeftLabel');
   const pnlRightLabel = document.getElementById('pnlRightLabel');
+  const autoGaugeBar = document.getElementById('autoGaugeBar');
+  const autoGaugeText = document.getElementById('autoGaugeText');
   let lastAggPct = 0;
   // Track last live BUY to compute realized PnL on SELL
   let liveLastBuyPrice = 0;
@@ -240,7 +273,7 @@
     const dup = Array.from(winListEl.children).find(el=> el.dataset && el.dataset.key === key);
     if (dup){
       const timeStr = new Date(ts).toLocaleTimeString();
-      const zDup = (zone|| (window.lastInsight && window.lastInsight.zone)) || '-';
+      const zDup = (dup.dataset && dup.dataset.zone) || (zone) || '-';
       const meta = dup.querySelector('.meta'); if (meta) meta.textContent = `${timeStr} ${String(zDup).toUpperCase()}`;
       const val = dup.querySelector('.val'); if (val) try{ val.remove(); }catch(_){ }
       winListEl.prepend(dup);
@@ -251,10 +284,11 @@
     item.type = 'button';
     item.className = 'win-chip btn btn-sm';
     const timeStr = new Date(ts).toLocaleTimeString();
-    const z = (zone|| (window.lastInsight && window.lastInsight.zone)) || '-';
+    const z = (zone || (typeof window !== 'undefined' && window.zoneNow) || (window.lastInsight && window.lastInsight.zone)) || '-';
     item.title = `${timeStr}  ${z && z!=='-'? `Zone ${String(z).toUpperCase()}`:'-'}`;
     item.innerHTML = `<div class='meta'>${timeStr} ${String(z).toUpperCase()}</div>`;
     item.dataset.key = key;
+    item.dataset.zone = String(z).toUpperCase();
     winListEl.prepend(item);
     // keep last 25
     while (winListEl.childElementCount>25){ const last = winListEl.lastElementChild; if (last && last.dataset && last.dataset.key) winKeys.delete(last.dataset.key); winListEl.removeChild(last); }
@@ -333,9 +367,9 @@
     const ct = (r.headers.get('content-type')||'').toLowerCase();
     const text = await r.text();
     if (!ct.includes('application/json')){
-      throw new Error('API 응답이 JSON이 아닙니다. Flask UI에서 여세요: http://127.0.0.1:5057/ui');
+      throw new Error('API response is not JSON. Open the Flask UI at: http://127.0.0.1:5057/ui');
     }
-    try{ return JSON.parse(text); }catch(_){ throw new Error('JSON 파싱 실패: ' + text.slice(0,120)); }
+    try{ return JSON.parse(text); }catch(_){ throw new Error('Failed to parse JSON: ' + text.slice(0,120)); }
   }
 
   const sleep = (ms)=> new Promise(res=>setTimeout(res, ms));
@@ -365,6 +399,7 @@
       ema_fast: emaFastEl ? parseInt(emaFastEl.value||'10',10) : 10,
       ema_slow: emaSlowEl ? parseInt(emaSlowEl.value||'30',10) : 30,
       candle: getInterval(),
+      nb_window: nbWindowEl ? parseInt(nbWindowEl.value||'50',10) : undefined,
       enforce_zone_side: enforceZoneSideEl ? !!enforceZoneSideEl.checked : undefined,
     };
   }
@@ -543,7 +578,7 @@
         const denomL = (hiL - loL) || 1;
         let rLast = ((outWave[outWave.length-1]?.value ?? loL) - loL) / denomL;
         rLast = clamp(rLast, 0, 1);
-        uiLog('NB 업데이트', `윈도우=${n}, r(마지막)=${(rLast||0).toFixed(3)}`);
+        uiLog('NB update', `window=${n}, r(last)=${(rLast||0).toFixed(3)}`);
         // Backfill signals with hysteresis: only BUY in BLUE zone, only SELL in ORANGE zone
         nbMarkers = [];
         window.lastNbSignals = [];
@@ -558,6 +593,7 @@
         });
         const HIGH = 0.55, LOW = 0.45; // hysteresis to avoid chattering
         let zone = null; // 'BLUE'|'ORANGE'
+        let lastReady = 0; // readiness percentage
         for (let i=0;i<outWave.length;i++){
           const r = rArr[i] ?? 0.5;
           const tm = outWave[i].time;
@@ -579,14 +615,29 @@
             zone = 'ORANGE';
             pushNBSignal(tm, 'SELL');
             try{ window.lastNbSignals.push({ time: tm, side: 'SELL' }); }catch(_){ }
-            uiLog('SELL 신호', `구간전환: BLUE→ORANGE, r=${r.toFixed(3)} (상단 우세 구간으로 전환되어 매도)`);
+            uiLog('SELL signal', `zone switch: BLUE→ORANGE, r=${r.toFixed(3)} (switched to top-dominant zone)`);
           } else if (zone === 'ORANGE' && r <= LOW && emaOkBuy){
             zone = 'BLUE';
             pushNBSignal(tm, 'BUY');
             try{ window.lastNbSignals.push({ time: tm, side: 'BUY' }); }catch(_){ }
-            uiLog('BUY 신호', `구간전환: ORANGE→BLUE, r=${r.toFixed(3)} (하단 우세 구간으로 전환되어 매수)`);
+            uiLog('BUY signal', `zone switch: ORANGE→BLUE, r=${r.toFixed(3)} (switched to bottom-dominant zone)`);
+          }
+          // readiness (simple): distance to threshold within current zone
+          if (zone==='BLUE'){
+            const d = Math.max(0, Math.min(1, (HIGH - r) / Math.max(1e-6, HIGH-LOW)));
+            lastReady = Math.round((1-d)*100);
+          }else{
+            const d = Math.max(0, Math.min(1, (r - LOW) / Math.max(1e-6, HIGH-LOW)));
+            lastReady = Math.round((d)*100);
           }
         }
+        // expose latest chart-derived zone for other UI (e.g., Win buttons)
+        try{ window.zoneNow = zone; }catch(_){ }
+        // reflect readiness gauge
+        try{
+          if (autoGaugeBar){ autoGaugeBar.style.width = `${Math.max(0, Math.min(100, lastReady))}%`; }
+          if (autoGaugeText){ autoGaugeText.textContent = `${Math.max(0, Math.min(100, lastReady))}%`; autoGaugeText.className = 'badge ' + (lastReady>=99? 'bg-success': 'bg-secondary'); }
+        }catch(_){ }
         // update live PnL display
         if (sEntry) sEntry.textContent = liveEntry? liveEntry.toLocaleString(): '-';
         if (sPnl) sPnl.textContent = livePnl.toLocaleString();
@@ -612,6 +663,9 @@
 
   // -------- Forecast (gray dashed) ---------
   const forecastSeries = chart.addLineSeries({ color:'rgba(200,200,200,0.95)', lineStyle: 2, lineWidth: 3 });
+  // Predicted path series
+  const predSeries = chart.addLineSeries({ color:'#ffffff', lineStyle: 0, lineWidth: 2 });
+  const predMarkerSeries = chart.addLineSeries({ color:'rgba(0,0,0,0)', lineWidth: 0, priceLineVisible:false });
   function updateForecast(){
     try{
       if (!fcToggleEl || !fcToggleEl.checked){ forecastSeries.setData([]); return; }
@@ -656,6 +710,78 @@
     }catch(_){ forecastSeries.setData([]); }
   }
 
+  async function drawPredictedPath(){
+    try{
+      const j = await fetchJsonStrict('/api/ml/predict');
+      if (!j || !j.ok) {
+        // Always show narrative even if prediction not available
+        predSeries.setData([]);
+        try{
+          const box = document.getElementById('nbNarrative');
+          const badge = document.getElementById('nbNarrativeBadge');
+          if (box){
+            const zone = (typeof window!=='undefined' && window.zoneNow) ? String(window.zoneNow).toUpperCase() : '-';
+            const line = `Current zone: ${zone}. Model prediction not available yet. Waiting for training/prediction...`;
+            box.textContent = line;
+            if (badge) { badge.textContent = zone; badge.className = 'badge bg-white text-dark'; }
+          }
+        }catch(_){ }
+        return;
+      }
+      const steep = j.steep || {};
+      const ins = j.insight || {};
+      const data = candle.data(); if (!data || data.length < 5){ predSeries.setData([]); return; }
+      const last = data[data.length-1];
+      const times = data.map(d=>d.time);
+      const closeNow = last.close ?? last.value;
+      const interval = j.interval || getInterval();
+      const horizon = Math.max(1, Number(j.horizon||5));
+      const bpPerBar = (ins.zone==='BLUE' ? steep.blue_up_slope : steep.orange_down_slope);
+      let v = closeNow;
+      if (bpPerBar==null){
+        // No slope yet → keep path empty but still update narrative below
+        predSeries.setData([]);
+      } else {
+        // bp/bar → fractional slope per bar
+        const k = Number(bpPerBar)/10000.0;
+        const dt = (times[times.length-1] - times[times.length-2]) || 60; // seconds
+        const step = dt; // seconds per bar
+        const proj = [{ time: last.time, value: closeNow }];
+        for (let i=1;i<=horizon;i++){
+          v = v * (1 + k); // geometric per bar
+          proj.push({ time: last.time + i*step, value: v });
+        }
+        predSeries.setData(proj);
+      }
+      // NB signal marker at predicted flip time
+      try{
+        const nb = j.pred_nb;
+        if (nb && nb.ts){
+          const m = [{ time: msToSec(nb.ts), value: v }];
+          predMarkerSeries.setData(m);
+          candle.setMarkers([
+            { time: msToSec(nb.ts), position: nb.side==='BUY'?'belowBar':'aboveBar', color: nb.side==='BUY'?'#ffd166':'#00d1ff', shape:'circle', text:`ML NB ${nb.side}` }
+          ]);
+        }
+      }catch(_){}
+      // English narrative using current NB/zone and predicted path
+      try{
+        const box = document.getElementById('nbNarrative');
+        const badge = document.getElementById('nbNarrativeBadge');
+        if (box){
+          const zone = (j.insight?.zone||'-').toUpperCase();
+          const slope = (j.steep && (j.steep.blue_up_slope!=null ? j.steep.blue_up_slope : j.steep.orange_down_slope));
+          const slopeBp = (slope!=null) ? (slope*10000).toFixed(2) : '-';
+          const nb = j.pred_nb || null;
+          const nbTxt = (nb && nb.side) ? `${nb.side} in ~${nb.bars} bars` : 'no flip expected soon';
+          const line = `Current zone: ${zone}. Model projects a ${slope!=null ? (zone==='ORANGE'?'down':'up') : 'flat'} slope of ${slopeBp} bp/bar. Expected NB flip: ${nbTxt}.`;
+          box.textContent = line;
+          if (badge) { badge.textContent = zone; badge.className = 'badge bg-white text-dark'; }
+        }
+      }catch(_){ }
+    }catch(_){ predSeries.setData([]); }
+  }
+
   function ema(values, period){
     if (!values.length) return [];
     const k = 2/(period+1); const out=[]; let prev = values[0];
@@ -680,7 +806,7 @@
       const t = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const pred = await fetchJsonStrict('/api/ml/predict');
       if (mlCountEl && t && t.ok) mlCountEl.textContent = `(train# ${t.train_count||0})`;
-      if (pred && pred.ok){ uiLog('ML Auto 예측', `action=${pred.action}, pred=${pred.pred}`); }
+      if (pred && pred.ok){ uiLog('ML Auto predict', `action=${pred.action}, pred=${pred.pred}`); }
     }catch(_){ }
   }
 
@@ -740,9 +866,19 @@
             line += ` | r=${r} | zone=${zone} | BLUE=${cb}% | ORANGE=${co}% | min_r=${minr} | max_r=${maxr} | ex_r=${exr} | age=${age}`;
           }
         }catch(_){ }
+        // NB trade signal context
+        try{
+          const nbSig = String(o.nb_signal||'').toUpperCase();
+          const nbWin = Number(o.nb_window||0);
+          const nbR = (o.nb_r!=null) ? Number(o.nb_r).toFixed(3) : undefined;
+          if (nbSig){ line += ` | NB=${nbSig}${nbWin? ' w='+nbWin:''}${(nbR!==undefined)? ' r='+nbR:''}`; }
+        }catch(_){ }
         const div = document.createElement('div');
-        div.textContent = line;
-        orderLog.prepend(div);
+        // Only log when an actual order happened: in paper mode always, in live only if o.live_ok
+        try{
+          const liveOk = (!o.paper) ? !!o.live_ok : true;
+          if (liveOk){ div.textContent = line; orderLog.prepend(div); }
+        }catch(_){ div.textContent = line; orderLog.prepend(div); }
         // keep last 200
         while (orderLog.childElementCount>200){ orderLog.removeChild(orderLog.lastElementChild); }
       }
@@ -771,7 +907,7 @@
       const e26 = ema(closes,26).map((v,i)=>({ time: times[i], value:v }));
       if (showEMA9El && showEMA9El.checked){ ema9Series.setData(e9); ema12Series.setData(e12); ema26Series.setData(e26); }
       else { ema9Series.setData([]); ema12Series.setData([]); ema26Series.setData([]); }
-      // Ichimoku Tenkan/Kijun (단순 고저 평균)
+      // Ichimoku Tenkan/Kijun (simple high-low average)
       function highLowAvg(rowsArr, period){ const out=[]; for(let i=0;i<rowsArr.length;i++){ const start=Math.max(0,i-period+1); let hi=-Infinity, lo=Infinity; for(let j=start;j<=i;j++){ hi=Math.max(hi, rowsArr[j].high); lo=Math.min(lo, rowsArr[j].low); } out.push((hi+lo)/2); } return out; }
       try {
         const tenkanN = Number(ichiTenkanEl?.value||9), kijunN = Number(ichiKijunEl?.value||26);
@@ -846,6 +982,8 @@
   })();
 
   seed(getInterval());
+  // periodic prediction path
+  setInterval(()=>{ drawPredictedPath(); }, 3000);
   if (tfEl) tfEl.addEventListener('change', ()=>{ seed(getInterval()); pushConfig(); });
   if (nbWindowEl) nbWindowEl.addEventListener('change', ()=>{ updateNB(); updateForecast(); saveOpts(); });
   if (nbToggleEl) nbToggleEl.addEventListener('change', ()=>{ updateNB(); updateForecast(); saveOpts(); });
@@ -956,27 +1094,31 @@
           await sleep(400);
           const payload = { window, ema_fast, ema_slow, horizon: 5, tau: 0.002, count: 1200, interval };
           const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-          if (!(j && j.ok)) { uiLog('ML Auto 랜덤 학습 실패', JSON.stringify(j)); return; }
+          if (!(j && j.ok)) { uiLog('ML Auto random train failed', JSON.stringify(j)); }
+          // Ensure narrative renders even during training gaps
+          try{ await drawPredictedPath(); }catch(_){ }
           if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
           await backtestAfterReady(6000);
           await sleep(800);
           await backtestAfterReady(3000);
           const pred = await fetchJsonStrict('/api/ml/predict');
           if (pred && pred.ok){
-            uiLog('ML Auto 랜덤 예측', `action=${pred.action}, pred=${pred.pred}`);
+            uiLog('ML Auto random predict', `action=${pred.action}, pred=${pred.pred}`);
             if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`;
             updateModelInsight(pred);
           }
+          // Update narrative regardless
+          try{ await drawPredictedPath(); }catch(_){ }
         }catch(_){ }
       };
       const sec = Math.max(5, parseInt(autoBtSecEl?.value||'15',10));
-      uiLog('ML Auto 랜덤 켜짐', `주기=${sec}s`);
-      // 자동 매매: ML Auto 시작 시 봇도 자동 시작
+      uiLog('ML Auto random ON', `interval=${sec}s`);
+      // Auto-trade: start bot when ML Auto starts
       try{ postJson('/api/bot/start', {}).then(()=>{ if (sBot) sBot.textContent='running'; }).catch(()=>{}); }catch(_){ }
       run();
       mlAutoTimer = setInterval(run, sec*1000);
     } else {
-      uiLog('ML Auto 랜덤 꺼짐');
+      uiLog('ML Auto random OFF');
     }
   });
 
@@ -1036,7 +1178,7 @@
   if (mlMetricsBtn) mlMetricsBtn.addEventListener('click', async ()=>{
     try{
       const j = await fetchJsonStrict('/api/ml/metrics');
-      if (!(j && j.ok)){ uiLog('ML Metrics 실패', JSON.stringify(j)); return; }
+      if (!(j && j.ok)){ uiLog('ML Metrics failed', JSON.stringify(j)); return; }
       const cv = j.metrics?.cv || {}; const inr = j.metrics?.in_sample || {};
       const acc = inr.report?.accuracy ? (inr.report.accuracy*100).toFixed(1)+'%' : '-';
       const f1 = cv.f1_macro ? (cv.f1_macro*100).toFixed(1)+'%' : '-';
@@ -1054,7 +1196,7 @@
         </div>`;
       if (mlMetricsBox) mlMetricsBox.innerHTML = html;
       uiLog('ML Metrics', `acc=${acc}, f1=${f1}, pnl=${pnl}`);
-    }catch(e){ uiLog('ML Metrics 에러', String(e)); }
+    }catch(e){ uiLog('ML Metrics error', String(e)); }
   });
 
   // -------- Backtest using NB signals on current chart data --------
@@ -1078,17 +1220,17 @@
             prev = diff;
           }
           raw = sigs;
-          if (!raw.length){ uiLog('백테스트 취소', '신호 없음'); return; }
-          uiLog('NB 신호 없음 → EMA 크로스 백테스트로 대체');
-        }catch(_){ uiLog('백테스트 취소', '신호 없음'); return; }
+          if (!raw.length){ uiLog('Backtest canceled', 'no signal'); return; }
+          uiLog('No NB signal → fallback to EMA cross backtest');
+        }catch(_){ uiLog('Backtest canceled', 'no signal'); return; }
       }
-      // 1) 중복/연속 동일 신호 제거하여 BUY/SELL 교대로 정규화
+      // 1) De-duplicate to alternate BUY/SELL
       const norm=[]; let lastSide=null;
       for(const m of raw){ const side = m.text.includes('BUY')?'BUY':(m.text.includes('SELL')?'SELL':null); if(!side) continue; if(side===lastSide) continue; norm.push({time:m.time, side}); lastSide=side; }
-      // 선행 SELL 제거
+      // Drop leading SELL
       while (norm.length && norm[0].side==='SELL') norm.shift();
-      if (norm.length<2){ uiLog('백테스트 취소', '유효 신호 부족'); return; }
-      // 2) 페어링하여 수익/승률 계산
+      if (norm.length<2){ uiLog('Backtest canceled', 'insufficient signals'); return; }
+      // 2) Pair trades and compute PnL/Win%
       let trades=0, wins=0; let pnl=0; let peak=0, dd=0; let entry=0;
       for (let i=0;i<norm.length-1;i+=2){
         const buy = norm[i]; const sell = norm[i+1]; if(!buy||!sell) break;
@@ -1109,7 +1251,7 @@
       const sWin = document.getElementById('bt_win'); if (sWin){ const sign = pnl>=0? '+' : '-'; sWin.textContent = `${sign}${winRate.toFixed(1)}%`; }
       const sDd = document.getElementById('bt_dd'); if (sDd) sDd.textContent = dd.toLocaleString(undefined,{maximumFractionDigits:0});
       const wl = document.getElementById('bt_wl'); if (wl) wl.textContent = `${wins}/${Math.max(0,trades-wins)}`;
-      uiLog('백테스트 완료', `거래수=${trades}, 승수=${wins}, 손익=${pnl.toFixed(0)}원, 승률=${winRate.toFixed(1)}%, 최대낙폭=${dd.toFixed(0)}원`);
+      uiLog('Backtest done', `trades=${trades}, wins=${wins}, pnl=${pnl.toFixed(0)}, win%=${winRate.toFixed(1)}%, maxDD=${dd.toFixed(0)}`);
       // push rolling item
       pushWinItem({ ts: Date.now(), pnl, winRate });
       // update top slider
@@ -1151,20 +1293,139 @@
     }catch(_){ }
   });
 
+  // Trade readiness panel (buyable/sellable)
+  async function refreshTradeReady(){
+    try{
+      const j = await fetchJsonStrict('/api/trade/preflight');
+      if (!j || !j.ok){ if (tradeReadyBox) tradeReadyBox.textContent = 'Preflight error'; return; }
+      const p = j.preflight||{};
+      const price = Number(p.price||0);
+      const krw = Number(p.krw||0);
+      const coinBal = Number(p.coin_balance||0);
+      const buyKrw = Number(p.planned_buy_krw||0);
+      const sellSize = Number(p.planned_sell_size||0);
+      const sym = (p.market||'KRW-COIN').split('-')[1]||'';
+      const buyRemain = Math.max(0, krw - buyKrw);
+      const sellRemain = Math.max(0, coinBal - sellSize);
+      const buyLine = p.can_buy
+        ? `after BUY: ${buyRemain.toLocaleString()} KRW left (spend ${buyKrw.toLocaleString()} KRW)`
+        : `need ≥ 5,000 KRW (KRW=${krw.toLocaleString()})`;
+      const sellLine = p.can_sell
+        ? `after SELL: ${sellRemain.toFixed(8)} ${sym} left (sell ${sellSize.toFixed(8)} ≈ ${Math.round(sellSize*price).toLocaleString()} KRW)`
+        : `need ≥ 5,000 KRW notional (bal=${coinBal.toFixed(8)} ${sym})`;
+      if (tradeReadyBox){
+        const minSellSize = price>0 ? (5000/price) : 0;
+        tradeReadyBox.innerHTML = `
+          <div>Price: <b>${price? price.toLocaleString(): '-'}</b></div>
+          <div>Buy: <b>${buyLine}</b></div>
+          <div>Sell: <b>${sellLine}</b></div>
+          <div>Min SELL size (~5,000 KRW): <b>${minSellSize>0? minSellSize.toFixed(8): '-'}</b> ${sym}</div>
+          <div>Keys: ${p.has_keys} | Paper: ${p.paper}</div>
+        `;
+        if (tradeReadyMeta){ tradeReadyMeta.textContent = `(${new Date().toLocaleTimeString()})`; }
+      }
+    }catch(_){ if (tradeReadyBox) tradeReadyBox.textContent = 'Preflight error'; }
+  }
+  refreshTradeReady().catch(()=>{});
+  setInterval(()=>{ refreshTradeReady(); }, 15000);
+  if (assetsRefresh) assetsRefresh.addEventListener('click', ()=>{ refreshTradeReady(); });
+  // Zone Win% mini gauge updater (from winMajor)
+  function refreshMiniWinGaugeFromWinMajor(){
+    try{
+      const winMajorEl = document.getElementById('winMajor');
+      if (!winMajorEl) return;
+      const txt = (winMajorEl.textContent||'').toUpperCase().trim();
+      if (!(txt==='BLUE' || txt==='ORANGE')) return;
+      // pct: 미니 게이지는 100%로 고정(요구사항: mini가 winMajor 값을 그대로 사용)
+      const isBlueMajor = (txt==='BLUE');
+      const pct = 100;
+      if (miniWinZone) miniWinZone.textContent = `${txt} ${pct}%`;
+      if (miniWinBaseBar) miniWinBaseBar.style.background = isBlueMajor ? '#ffb703' : '#00d1ff';
+      if (miniWinOverlayBar){ miniWinOverlayBar.style.background = isBlueMajor ? '#00d1ff' : '#ffb703'; miniWinOverlayBar.style.width = `${pct}%`; }
+    }catch(_){ }
+  }
+  // Wrap updateModelInsight to also drive mini gauge if present
+  try{
+    const _prevUpdateModelInsight = updateModelInsight;
+    updateModelInsight = function(j){
+      try{ _prevUpdateModelInsight(j); }catch(_){ }
+      try{ refreshMiniWinGaugeFromWinMajor(); }catch(_){ }
+    }
+  }catch(_){ }
+
+  // Manual trade buttons
+  if (btnBuy) btnBuy.addEventListener('click', async ()=>{
+    try{
+      // Arm auto order with 5-sec cancel window
+      armAutoPending(async ()=>{
+        const j = await postJson('/api/trade/buy', {});
+        if (j && j.ok && j.order){ pushOrderMarker(j.order); uiLog('Manual BUY', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper })); }
+        else { uiLog('Manual BUY failed', JSON.stringify(j)); }
+      });
+    }catch(e){ uiLog('Manual BUY error', String(e)); }
+  });
+  if (btnSell) btnSell.addEventListener('click', async ()=>{
+    try{
+      armAutoPending(async ()=>{
+        const j = await postJson('/api/trade/sell', {});
+        if (j && j.ok && j.order){ pushOrderMarker(j.order); uiLog('Manual SELL', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper })); }
+        else { uiLog('Manual SELL failed', JSON.stringify(j)); }
+      });
+    }catch(e){ uiLog('Manual SELL error', String(e)); }
+  });
+
+  function armAutoPending(executeFn){
+    try{
+      if (!autoPending || !autoPendingBar){ executeFn(); return; }
+      // Reset UI
+      autoPending.style.display = '';
+      autoPendingBar.style.width = '0%';
+      let ms = 5000; const step = 100;
+      if (autoPendingTimer) { clearInterval(autoPendingTimer); autoPendingTimer=null; }
+      autoPendingTimer = setInterval(()=>{
+        ms -= step; const pct = Math.max(0, Math.min(100, Math.round(((5000-ms)/5000)*100)));
+        autoPendingBar.style.width = pct + '%';
+        if (ms <= 0){ clearInterval(autoPendingTimer); autoPendingTimer=null; autoPending.style.display='none'; executeFn(); }
+      }, step);
+      if (btnCancelPending){
+        btnCancelPending.onclick = ()=>{
+          try{ if (autoPendingTimer) clearInterval(autoPendingTimer); }catch(_){ }
+          autoPendingTimer = null; autoPending.style.display='none'; uiLog('Auto order cancelled within 5s');
+        };
+      }
+    }catch(_){ executeFn(); }
+  }
+
+  // Live Trade Preflight test
+  if (btnPreflight) btnPreflight.addEventListener('click', async ()=>{
+    try{
+      const j = await fetchJsonStrict('/api/trade/preflight');
+      if (!j.ok){ uiLog('Preflight failed', JSON.stringify(j)); return; }
+      const p = j.preflight || {};
+      const lines = [
+        `paper=${p.paper} keys=${p.has_keys} market=${p.market} price=${Number(p.price||0).toLocaleString()}`,
+        `KRW=${Number(p.krw||0).toLocaleString()} coin_bal=${p.coin_balance}`,
+        `BUY_KRW=${Number(p.planned_buy_krw||0).toLocaleString()} (>=5000 → ${p.can_buy})`,
+        `SELL_SIZE=${p.planned_sell_size} (>=5000KRW → ${p.can_sell})`,
+      ];
+      uiLog('Preflight', lines.join(' | '));
+    }catch(e){ uiLog('Preflight error', String(e)); }
+  });
+
   if (optBtn) optBtn.addEventListener('click', ()=>{ optimizeNb(); });
   if (trainBtn) trainBtn.addEventListener('click', async ()=>{
     try{
       const payload = { count: parseInt(trainCountEl?.value||'1800',10), segments: parseInt(trainSegEl?.value||'3',10), window: parseInt(nbWindowEl?.value||'50',10), debounce: parseInt(nbDebounceEl?.value||'6',10), fee_bps: 10.0, interval: getInterval() };
-      uiLog('훈련 시작', `자동 분할: ${payload.segments}구간, 캔들=${payload.interval}, 데이터=${payload.count}`);
+      uiLog('NB Train start', `auto split: ${payload.segments} segments, candle=${payload.interval}, count=${payload.count}`);
       const r = await fetch('/api/nb/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const j = await r.json();
       if (j && j.ok){
-        uiLog('훈련 완료', `선택 세그먼트=${j.chosen.segment}, PnL=${j.chosen.stats.pnl.toFixed(0)}, BUY=${j.chosen.best.buy}, SELL=${j.chosen.best.sell}`);
+        uiLog('NB Train done', `chosen seg=${j.chosen.segment}, PnL=${j.chosen.stats.pnl.toFixed(0)}, BUY=${j.chosen.best.buy}, SELL=${j.chosen.best.sell}`);
         if (nbBuyThEl) nbBuyThEl.value = String(j.chosen.best.buy);
         if (nbSellThEl) nbSellThEl.value = String(j.chosen.best.sell);
         updateNB();
-      } else { uiLog('훈련 실패', JSON.stringify(j)); }
-    }catch(e){ uiLog('훈련 에러', String(e)); }
+      } else { uiLog('NB Train failed', JSON.stringify(j)); }
+    }catch(e){ uiLog('NB Train error', String(e)); }
   });
   if (autoBtToggle) autoBtToggle.addEventListener('change', ()=>{
     if (autoBtToggle.checked){
@@ -1172,91 +1433,91 @@
       const sec = Math.max(10, parseInt(autoBtSecEl?.value||'60',10));
       run();
       autoBtTimer = setInterval(run, sec*1000);
-      uiLog('자동 백테스트 시작', `주기=${sec}s`);
+      uiLog('Auto backtest start', `interval=${sec}s`);
     } else {
       if (autoBtTimer) clearInterval(autoBtTimer); autoBtTimer=null;
-      uiLog('자동 백테스트 중지');
+      uiLog('Auto backtest stop');
     }
   });
   if (mlTrainBtn) mlTrainBtn.addEventListener('click', async ()=>{
     try{
-      uiLog('ML 학습 시작', 'LightGBM/GBDT (sklearn) 베이스라인');
+      uiLog('ML Train start', 'LightGBM/GBDT (sklearn) baseline');
       const payload = { window: parseInt(nbWindowEl?.value||'50',10), ema_fast: parseInt(emaFastEl?.value||'10',10), ema_slow: parseInt(emaSlowEl?.value||'30',10), horizon: 5, tau: 0.002, count: 1800, interval: getInterval() };
       const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if (j && j.ok){ uiLog('ML 학습 완료', `라벨 개수: BUY=${j.classes['1']}, HOLD=${j.classes['0']}, SELL=${j.classes['-1']}`); if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`; }
-      else { uiLog('ML 학습 실패', JSON.stringify(j)); }
-    }catch(e){ uiLog('ML 학습 에러', String(e)); }
+      if (j && j.ok){ uiLog('ML Train done', `labels: BUY=${j.classes['1']}, HOLD=${j.classes['0']}, SELL=${j.classes['-1']}`); if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`; }
+      else { uiLog('ML Train failed', JSON.stringify(j)); }
+    }catch(e){ uiLog('ML Train error', String(e)); }
   });
   if (mlPredictBtn) mlPredictBtn.addEventListener('click', async ()=>{
     try{
       const j = await fetchJsonStrict('/api/ml/predict');
       if (j && j.ok){
-        uiLog('ML 예측', `action=${j.action}, pred=${j.pred}`);
+        uiLog('ML Predict', `action=${j.action}, pred=${j.pred}`);
         if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
         updateModelInsight(j);
       }
-      else { uiLog('ML 예측 실패', JSON.stringify(j)); }
-    }catch(e){ uiLog('ML 예측 에러', String(e)); }
+      else { uiLog('ML Predict failed', JSON.stringify(j)); }
+    }catch(e){ uiLog('ML Predict error', String(e)); }
   });
   if (mlRandomBtn) mlRandomBtn.addEventListener('click', async ()=>{
     try{
       const n = Math.max(1, parseInt(mlRandNEl?.value||'10',10));
-      uiLog('ML 랜덤 학습 시작', `시도 횟수=${n}`);
+      uiLog('ML Random Train start', `trials=${n}`);
       for (let i=0;i<n;i++){
         const mins = [1,3,5,10,15,30,60][Math.floor(Math.random()*7)];
         const interval = mins===60 ? 'minute60' : `minute${mins}`;
         const window = Math.floor(20 + Math.random()*100); // 20~120
         const ema_fast = Math.floor(5 + Math.random()*20); // 5~25
         const ema_slow = Math.max(ema_fast+5, Math.floor(20 + Math.random()*60));
-        // Reflect random options on UI so 사용자가 볼 수 있게 함
+        // Reflect random options on UI so user can see
         try{
           if (tfEl){ tfEl.value = interval; tfEl.dispatchEvent(new Event('change')); }
           if (emaFastEl){ emaFastEl.value = String(ema_fast); emaFastEl.dispatchEvent(new Event('change')); }
           if (emaSlowEl){ emaSlowEl.value = String(ema_slow); emaSlowEl.dispatchEvent(new Event('change')); }
           if (typeof nbWindowEl !== 'undefined' && nbWindowEl){ nbWindowEl.value = String(window); nbWindowEl.dispatchEvent(new Event('change')); }
-          // 잠깐 대기하여 차트/지표 갱신이 화면에 반영되도록
+          // short wait so chart/indicators update
           await sleep(400);
         }catch(_){ }
         const payload = { window, ema_fast, ema_slow, horizon: 5, tau: 0.002, count: 1200, interval };
-        uiLog('ML 랜덤 학습', JSON.stringify(payload));
+        uiLog('ML Random Train', JSON.stringify(payload));
         const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        if (!(j && j.ok)) { uiLog('학습 실패, 시도 건너뜀', JSON.stringify(j)); continue; }
+        if (!(j && j.ok)) { uiLog('Train failed, skipping attempt', JSON.stringify(j)); continue; }
         if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
-        // 각 랜덤 학습 시도 후: 차트/NB 신호 준비 대기 → 백테스트 실행
+        // After each random trial: wait NB signals ready → run backtest
         try{
-          // 여러 번 시도하여 비동기 지연을 흡수
+          // Retry several times to absorb async delay
           await backtestAfterReady(6000);
           await sleep(1200); await backtestAfterReady(3000);
         }catch(_){ }
       }
       const pred = await fetchJsonStrict('/api/ml/predict');
-      if (pred && pred.ok){ uiLog('ML 예측(랜덤 후)', `action=${pred.action}, pred=${pred.pred}`); if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`; }
-      else { uiLog('ML 예측 실패(랜덤 후)', JSON.stringify(pred)); }
+      if (pred && pred.ok){ uiLog('ML Predict(after random)', `action=${pred.action}, pred=${pred.pred}`); if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`; }
+      else { uiLog('ML Predict failed(after random)', JSON.stringify(pred)); }
       // 마지막으로 한 번 더 백테스트 갱신
       try{
         await backtestAfterReady(4000);
         await sleep(1200); await backtestAfterReady(3000);
       }catch(_){ }
-    }catch(e){ uiLog('ML 랜덤 에러', String(e)); }
+    }catch(e){ uiLog('ML Random error', String(e)); }
   });
   if (loadBalBtn) loadBalBtn.addEventListener('click', async ()=>{
     try{
       const j = await fetchJsonStrict('/api/balance');
       const box = document.getElementById('balanceBox');
       if (!box) return;
-      if (!j.ok){ box.textContent = `에러: ${j.error||'unknown'}`; return; }
-      if (j.paper){ box.textContent = 'PAPER 모드 (실자산 없음)'; return; }
+      if (!j.ok){ box.textContent = `Error: ${j.error||'unknown'}`; return; }
+      if (j.paper){ box.textContent = 'PAPER mode (no live assets)'; return; }
       const rows = (j.balances||[]);
-      const lines = rows.map(b=>`${b.currency}: 수량=${b.balance} 잠김=${b.locked} 평균매수가=${b.avg_buy_price}`);
-      box.textContent = lines.length? lines.join('\n') : '잔고가 없습니다';
+      const lines = rows.map(b=>`${b.currency}: balance=${b.balance} locked=${b.locked} avg_buy=${b.avg_buy_price}`);
+      box.textContent = lines.length? lines.join('\n') : 'No balances';
     }catch(e){ const box = document.getElementById('balanceBox'); if (box) box.textContent = String(e); }
   });
   // --- Top assets auto loader ---
   async function refreshAssets(){
     try{
       const j = await fetchJsonStrict('/api/balance');
-      if (!j.ok){ if (assetsMeta) assetsMeta.textContent = `(에러: ${j.error||'unknown'})`; return; }
-      if (j.paper){ if (assetsMeta) assetsMeta.textContent = '(PAPER 모드)'; return; }
+      if (!j.ok){ if (assetsMeta) assetsMeta.textContent = `(error: ${j.error||'unknown'})`; return; }
+      if (j.paper){ if (assetsMeta) assetsMeta.textContent = '(PAPER mode)'; return; }
       const rows = (j.balances||[]);
       // show KRW first, then others sorted by balance desc
       const krw = rows.filter(b=>b.currency==='KRW');
@@ -1299,7 +1560,6 @@
   // kick off initial load
   refreshAssets().catch(()=>{});
     if (assetsAutoToggle && assetsAutoToggle.checked){ assetsTimer = setInterval(refreshAssets, 30*1000); }
-    if (enforceZoneSideEl && typeof o.enforce_zone_side !== 'undefined') enforceZoneSideEl.checked = !!o.enforce_zone_side;
   if (logClearBtn) logClearBtn.addEventListener('click', ()=>{ if (logBox) logBox.textContent=''; });
 })();
 

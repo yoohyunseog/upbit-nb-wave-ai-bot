@@ -74,6 +74,15 @@
         <div id="pnlLeftLabel">Profit 0%</div>
         <div id="pnlRightLabel">Loss 100%</div>
       </div>
+      <div class="mt-2">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-muted" style="font-size:12px">AutoTrade Readiness</span>
+          <span id="autoGaugeText" class="badge bg-secondary">-</span>
+        </div>
+        <div style="height:8px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden;">
+          <div id="autoGaugeBar" style="height:100%; width:0%; background:linear-gradient(90deg,#2bdab5,#0ecb81); transition:width .4s ease"></div>
+        </div>
+      </div>
     </div>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h3 class="m-0">8BIT Upbit Bot - Chart</h3>
@@ -101,7 +110,18 @@
         </div>
       </div>
       <div class="col-12 col-lg-7">
-        <div class="card border-secondary rounded-3 h-100"><div class="card-body"><div id="tvChart" class="mt-2"></div></div></div>
+        <div class="card border-secondary rounded-3 h-100">
+          <div class="card-body">
+            <div id="tvChart" class="mt-2"></div>
+            <div class="mt-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-white">Model Narrative (EN)</strong>
+                <span id="nbNarrativeBadge" class="badge bg-secondary">-</span>
+              </div>
+              <div id="nbNarrative" style="font-size:13px; color:#e6eefc; background:#0e1424; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:10px; min-height:52px">-</div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="col-12 col-lg-3">
         <div class="card border-secondary rounded-3 p-3 h-100">
@@ -110,15 +130,18 @@
             <div></div>
           </div>
           <div class="mt-2">
-            <div class="asset-stat"><div class="label">총 자산(추정 KRW)</div><div id="assetTotal" class="value">-</div></div>
-            <div class="asset-stat mt-2"><div class="label">매수 가능(KRW)</div><div id="assetBuyable" class="value">-</div></div>
-            <div class="asset-stat mt-2"><div class="label">매도 가능</div><div id="assetSellable" style="margin-top:4px"></div></div>
+            <div class="asset-stat"><div class="label">Total Assets (Est. KRW)</div><div id="assetTotal" class="value">-</div></div>
+            <div class="asset-stat mt-2"><div class="label">Buyable (KRW)</div><div id="assetBuyable" class="value">-</div></div>
+            <div class="asset-stat mt-2"><div class="label">Sellable</div><div id="assetSellable" style="margin-top:4px"></div></div>
             <div id="assetsBars" class="asset-bars mt-3"></div>
             <div class="mt-auto pt-3">
               <div class="row g-2">
                 <div class="col-12">
                   <button id="assetsRefresh" class="btn btn-sm btn-outline-light w-100">Refresh</button>
                 </div>
+              <div class="col-12">
+                <button id="btnPreflight" class="btn btn-sm btn-success w-100">Live Trade Preflight</button>
+              </div>
                 <div class="col-12">
                   <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="assetsAuto" checked>
@@ -147,6 +170,41 @@
     <div class="row g-3 justify-content-center">
       <div class="col-12 mt-3">
         <div class="card border-secondary rounded-3 p-3">
+            <!-- Zone Win% mini gauge (above toolbar) -->
+            <div class="card border-secondary rounded-3 p-2 mb-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-white">Zone Win% (mini)</strong>
+                <span id="miniWinZone" class="badge bg-white text-dark">-</span>
+              </div>
+              <div id="miniWinGaugeTrack" style="position:relative; height:8px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; margin-top:6px;">
+                <!-- Base: opposite zone full-width so entire area is visible -->
+                <div id="miniWinBaseBar" style="position:absolute; left:0; top:0; height:100%; width:100%; background:#ffb703;"></div>
+                <!-- Overlay: majority zone progress -->
+                <div id="miniWinOverlayBar" style="position:absolute; left:0; top:0; height:100%; width:1%; background:#00d1ff; transition:width .4s ease"></div>
+              </div>
+            </div>
+
+            <!-- Trade Readiness moved here, above toolbar with many buttons -->
+            <div class="card border-secondary rounded-3 p-2 mb-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <strong class="text-white">Trade Readiness (calc)</strong>
+                <span id="tradeReadyMeta" class="text-muted"></span>
+              </div>
+              <div id="tradeReadyBox" class="mt-2" style="font-size:12px; color:#e6eefc">-</div>
+              <div class="row g-2 mt-2">
+                <div class="col-6"><button id="btnBuy" class="btn btn-sm btn-success w-100">BUY</button></div>
+                <div class="col-6"><button id="btnSell" class="btn btn-sm btn-danger w-100">SELL</button></div>
+              </div>
+              <div id="autoPending" class="mt-2" style="display:none">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="text-muted" style="font-size:12px">Auto order arming... You can cancel within 5 seconds</span>
+                  <button id="btnCancelPending" class="btn btn-outline-warning btn-sm">Cancel</button>
+                </div>
+                <div style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden;">
+                  <div id="autoPendingBar" style="height:100%; width:0%; background:linear-gradient(90deg,#ffd166,#ff6b6b); transition:width .1s linear"></div>
+                </div>
+              </div>
+            </div>
           <div class="row g-2 align-items-center mb-3 toolbar">
             <div class="col-auto">
               <select id="timeframe" class="form-select form-select-sm">
@@ -272,7 +330,7 @@
           </div>
           <hr class="text-secondary"/>
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong class="text-white">실시간 로그</strong>
+            <strong class="text-white">Live Log</strong>
             <div>
               <button id="btnClearLog" class="btn btn-sm btn-outline-light me-2">Clear</button>
               <div class="form-check form-switch d-inline-block">
@@ -293,7 +351,7 @@
     <div class="col-12">
       <div class="card border-secondary rounded-3 p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <strong class="text-white">주문 로그</strong>
+          <strong class="text-white">Order Log</strong>
           <div>
             <button id="btnOrderExport" class="btn btn-sm btn-outline-light me-2">Export CSV</button>
             <button id="btnOrderClear" class="btn btn-sm btn-outline-danger">Clear</button>

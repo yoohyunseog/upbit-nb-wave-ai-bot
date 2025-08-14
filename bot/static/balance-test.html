@@ -94,7 +94,7 @@
 <body>
   <div class="card">
     <h2>8BIT Balance Test</h2>
-    <div class="hint">Flask UI 서버를 먼저 실행하세요: bot 폴더에서 python .\server.py</div>
+    <div class="hint">Run the Flask UI server first: from bot folder execute: python .\server.py</div>
 
     <label for="base">API Base URL</label>
     <input id="base" type="text" value="http://127.0.0.1:5057" />
@@ -102,26 +102,26 @@
     <div class="row">
       <button onclick="setPaper(false)">Paper = false</button>
       <button class="secondary" onclick="setPaper(true)">Paper = true</button>
-      <button onclick="fetchStatus()">상태 확인</button>
-      <button onclick="fetchBalance()">잔고 불러오기</button>
+      <button onclick="fetchStatus()">Status</button>
+      <button onclick="fetchBalance()">Load Balance</button>
     </div>
 
-    <label>표준 API 키 (pyupbit 방식)</label>
+    <label>Standard API Keys (pyupbit)</label>
     <input id="ak" type="text" placeholder="UPBIT_ACCESS_KEY" />
     <input id="sk" type="text" placeholder="UPBIT_SECRET_KEY" />
     <div style="height:6px"></div>
-    <label>OPEN API 키 (JWT 직호출)</label>
+    <label>OPEN API Keys (JWT direct)</label>
     <input id="oak" type="text" placeholder="UPBIT_OPEN_API_ACCESS_KEY" />
     <input id="osk" type="text" placeholder="UPBIT_OPEN_API_SECRET_KEY" />
     <div class="row">
-      <button onclick="setKeys()">키 적용(서버 즉시 반영)</button>
-      <label style="display:flex;align-items:center;gap:6px"><input id="autoSaveKeys" type="checkbox" checked> 자동 저장</label>
-      <label style="display:flex;align-items:center;gap:6px"><input id="autoApplyKeys" type="checkbox"> 자동 적용(로드 시)</label>
+      <button onclick="setKeys()">Apply Keys (server now)</button>
+      <label style="display:flex;align-items:center;gap:6px"><input id="autoSaveKeys" type="checkbox" checked> Auto Save</label>
+      <label style="display:flex;align-items:center;gap:6px"><input id="autoApplyKeys" type="checkbox"> Auto Apply (on load)</label>
     </div>
 
-    <pre id="out">결과가 여기에 표시됩니다.</pre>
+    <pre id="out">Results will appear here.</pre>
 
-    <div class="hint">참고: missing_keys가 나오면 .env 위치/키값을 확인하고 서버를 재시작하세요.</div>
+    <div class="hint">Note: If you see missing_keys, check your .env path/keys and restart the server.</div>
   </div>
 </body>
 </html>

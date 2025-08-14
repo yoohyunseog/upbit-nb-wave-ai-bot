@@ -1,4 +1,5 @@
 import os
+import math
 import threading
 import time
 from collections import deque
@@ -112,6 +113,7 @@ bot_ctrl = {
     'last_signal': 'HOLD',
     'last_order': None,
     'nb_zone': None,  # 'BLUE' or 'ORANGE'
+    'position': 'FLAT',  # 'FLAT' or 'LONG' (single-cycle enforcement)
     'cfg_override': {  # values can be overridden via /api/bot/config
         'paper': None,
         'order_krw': None,
@@ -135,6 +137,9 @@ bot_ctrl = {
         'pullback_bars': None,      # minimum bars since extreme (zone_extreme_age)
         # Enforce side by zone: ONLY BUY in BLUE, ONLY SELL in ORANGE
         'enforce_zone_side': None,
+        'nb_force': None,  # if true, place order immediately on NB signal (skip ML/pullback/group/zone100)
+        # NB window override from UI to align server signals with chart
+        'nb_window': None,
         # runtime key injection (avoid restarting server)
         'access_key': None,
         'secret_key': None,
@@ -451,7 +456,7 @@ def _train_ml(X: pd.DataFrame, y: np.ndarray):
         cls.fit(X, y)
         return cls
     except Exception as e:
-        raise RuntimeError("scikit-learn이 필요합니다. pip install scikit-learn 실행 후 다시 시도하세요. 원인: %s" % e)
+        raise RuntimeError("scikit-learn is required. Please run: pip install scikit-learn. Cause: %s" % e)
 
 def _load_ml(interval: str | None = None):
     _ensure_models_dir()
@@ -583,7 +588,8 @@ def api_ml_train():
         tau = float(payload.get('tau', 0.002))  # 0.2%
         count = int(payload.get('count', 1800))
         interval = payload.get('interval') or load_config().candle
-        label_mode = str(payload.get('label_mode', 'nb_zone'))  # 'nb_zone' | 'fwd_return' | 'nb_extreme'
+        # Force default to 'zone' so the model learns zones by default
+        label_mode = str(payload.get('label_mode', 'zone'))  # 'zone' | 'nb_zone' | 'fwd_return' | 'nb_extreme'
         # Optional: extreme-based labels tuning
         try:
             pullback_pct = float(payload.get('pullback_pct', os.getenv('NB_PULLBACK_PCT', '40')))
@@ -597,10 +603,37 @@ def api_ml_train():
         cfg = load_config()
         df = get_candles(cfg.market, interval, count=count)
         feat = _build_features(df, window, ema_fast, ema_slow, horizon).dropna().copy()
-        # label: BUY(1), SELL(-1), HOLD(0) — strategy-aware by default
+        # label: depends on label_mode
         if label_mode == 'fwd_return':
             fwd = feat['fwd']
             y = np.where(fwd >= tau, 1, np.where(fwd <= -tau, -1, 0))
+        elif label_mode in ('zone','zone_flag'):
+            # Learn zone as target: BLUE(+1), ORANGE(-1) using hysteresis to reduce churn
+            r = _compute_r_from_ohlcv(df, window)
+            HIGH = float(os.getenv('NB_HIGH', '0.55'))
+            LOW = float(os.getenv('NB_LOW', '0.45'))
+            labels = np.zeros(len(df), dtype=int)
+            zone = None
+            r_vals = r.values.tolist()
+            for i in range(len(df)):
+                rv = r_vals[i] if i < len(r_vals) else 0.5
+                if zone not in ('BLUE','ORANGE'):
+                    zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+                # hysteresis updates
+                if zone == 'BLUE' and rv >= HIGH:
+                    zone = 'ORANGE'
+                elif zone == 'ORANGE' and rv <= LOW:
+                    zone = 'BLUE'
+                labels[i] = (1 if zone=='BLUE' else -1)
+            idx_map = { ts: i for i, ts in enumerate(df.index) }
+            y = np.array([ labels[idx_map.get(ts, 0)] for ts in feat.index ], dtype=int)
+            # Safety: ensure no zeros remain in zone targets
+            if np.any(y == 0):
+                try:
+                    rv_feat = feat['r'].astype(float).values
+                    y = np.where(y == 0, np.where(rv_feat >= 0.5, -1, 1), y)
+                except Exception:
+                    y = np.where(y == 0, 1, y)
         elif label_mode == 'nb_extreme':
             # Learn BLUE/ORANGE extremes with pullback confirmation; one BUY then one SELL
             r = _compute_r_from_ohlcv(df, window)
@@ -743,7 +776,7 @@ def api_ml_train():
         total_n = len(X)
         c_neg = int((y==-1).sum()); c_zero = int((y==0).sum()); c_pos = int((y==1).sum())
         w_neg = float(total_n) / max(1, 3*c_neg)
-        w_zero = float(total_n) / max(1, 3*c_zero)
+        w_zero = float(total_n) / max(1, 3*c_zero) if c_zero>0 else float(total_n)
         w_pos = float(total_n) / max(1, 3*c_pos)
         w = np.where(y==-1, w_neg, np.where(y==0, w_zero, w_pos)).astype(float)
         # Context multiplier:
@@ -776,7 +809,7 @@ def api_ml_train():
             pass
 
         # Hyperparameter search with time-series CV (weighted)
-        from sklearn.ensemble import GradientBoostingClassifier
+        from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
         from sklearn.model_selection import TimeSeriesSplit
         from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
         Xv = X.values
@@ -833,7 +866,18 @@ def api_ml_train():
             feature_names = list(X.columns)
         except Exception:
             feature_names = use_cols
-        pack = { 'model': base, 'window': window, 'ema_fast': ema_fast, 'ema_slow': ema_slow, 'horizon': horizon, 'tau': tau, 'interval': interval, 'metrics': metrics, 'trained_at': int(time.time()*1000), 'feature_names': feature_names }
+        pack = { 'model': base, 'window': window, 'ema_fast': ema_fast, 'ema_slow': ema_slow, 'horizon': horizon, 'tau': tau, 'interval': interval, 'metrics': metrics, 'trained_at': int(time.time()*1000), 'feature_names': feature_names, 'label_mode': label_mode }
+        
+        # Optional slope regressor: predict steepness over horizon (per-bar pct return)
+        try:
+            closes = feat['close'].astype(float).reindex(X.index)
+            fwd_close = closes.shift(-horizon)
+            slope_y = ((fwd_close - closes) / (closes.replace(0, np.nan) * max(1, horizon))).fillna(0.0).values
+            reg = GradientBoostingRegressor(random_state=42, n_estimators=200, learning_rate=0.05, max_depth=2)
+            reg.fit(X.values, slope_y)
+            pack['slope_model'] = reg
+        except Exception:
+            pass
         # save model per-interval
         try:
             joblib.dump(pack, _model_path_for(interval))
@@ -852,7 +896,55 @@ def api_ml_predict():
         cur_interval = state.get('candle') or load_config().candle
         pack = _load_ml(cur_interval)
         if not pack:
-            return jsonify({'ok': False, 'error': 'model_not_trained'}), 400
+            # Graceful fallback: return lightweight insight so UI narrative can render
+            cfg = load_config()
+            try:
+                window = int(load_nb_params().get('window', 50))
+            except Exception:
+                window = 50
+            try:
+                df = get_candles(cfg.market, cur_interval, count=max(400, window*3))
+            except Exception:
+                df = pd.DataFrame()
+            # Build minimal insight
+            ins = {}
+            try:
+                HIGH = float(os.getenv('NB_HIGH', '0.55'))
+                LOW = float(os.getenv('NB_LOW', '0.45'))
+            except Exception:
+                HIGH, LOW = 0.55, 0.45
+            rng = max(1e-9, HIGH - LOW)
+            try:
+                r_series = _compute_r_from_ohlcv(df, window)
+                rv = float(r_series.iloc[-1]) if len(r_series) else 0.5
+            except Exception:
+                rv = 0.5
+            p_blue = max(0.0, min(1.0, (HIGH - rv) / rng))
+            p_orange = max(0.0, min(1.0, (rv - LOW) / rng))
+            s = p_blue + p_orange
+            if s > 0:
+                p_blue, p_orange = p_blue/s, p_orange/s
+            zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+            ins = {
+                'r': rv,
+                'zone_flag': (-1 if zone=='ORANGE' else 1),
+                'zone': zone,
+                'zone_conf': float(max(0.0, (rv-LOW)/rng) if zone=='ORANGE' else max(0.0, (HIGH-rv)/rng)),
+                'dist_high': float(max(0.0, rv - HIGH)),
+                'dist_low': float(max(0.0, LOW - rv)),
+                'extreme_gap': 0.0,
+                'w': 0.0,
+                'ema_diff': 0.0,
+                'pct_blue': float(p_blue*100.0),
+                'pct_orange': float(p_orange*100.0),
+            }
+            try:
+                _record_group_observation(cur_interval, window, rv, ins['pct_blue'], ins['pct_orange'], int(time.time()*1000))
+            except Exception:
+                pass
+            label_mode = 'zone'
+            action = ('BLUE' if zone=='BLUE' else 'ORANGE')
+            return jsonify({'ok': True, 'action': action, 'pred': 0, 'probs': [], 'train_count': int(ml_state.get('train_count', 0)), 'insight': ins, 'zone_actions': {'sell_in_orange': False, 'buy_in_blue': False}, 'label_mode': label_mode, 'steep': None, 'pred_nb': None, 'horizon': 5, 'interval': cur_interval})
         model = pack['model']
         window = int(pack.get('window', 50))
         ema_fast = int(pack.get('ema_fast', 10))
@@ -880,6 +972,28 @@ def api_ml_predict():
         except Exception:
             probs = []
         pred = int(model.predict(X.values)[-1])
+        # Optional: slope prediction
+        slope_hat = None
+        try:
+            reg = pack.get('slope_model')
+            if reg is not None:
+                slope_hat = float(reg.predict(X.values)[-1])
+        except Exception:
+            slope_hat = None
+        # Fallback slope if model missing: use recent log-price linear slope per bar
+        if slope_hat is None:
+            try:
+                n_tail = max(20, min(120, window))
+                closes_tail = df['close'].astype(float).tail(n_tail)
+                if len(closes_tail) >= 5:
+                    import numpy as _np
+                    y = _np.log(closes_tail.replace(0, _np.nan)).fillna(method='bfill').fillna(method='ffill').values
+                    x = _np.arange(len(y), dtype=float)
+                    b1 = _np.polyfit(x, y, 1)[0]  # slope of log(price) per bar
+                    # approximate per-bar fractional return slope
+                    slope_hat = float(b1)
+            except Exception:
+                slope_hat = None
         # Build insight payload from last feature row
         ins = {}
         try:
@@ -918,7 +1032,11 @@ def api_ml_predict():
                     trend_blue = max(0.0, (zmin_now - zmin_prev) / rng)
                     p_orange = max(0.0, min(1.0, p_orange_raw * (1.0 - trend_alpha * trend_orange)))
                     p_blue = max(0.0, min(1.0, p_blue_raw * (1.0 - trend_alpha * trend_blue)))
+                    # If both collapse to zero, fall back to raw
                     s = p_blue + p_orange
+                    if s <= 1e-9:
+                        p_blue, p_orange = p_blue_raw, p_orange_raw
+                        s = p_blue + p_orange
                     if s > 0:
                         p_blue, p_orange = p_blue/s, p_orange/s
                 else:
@@ -993,12 +1111,71 @@ def api_ml_predict():
                 _record_group_observation(cur_interval, window, rv, ins['pct_blue'], ins['pct_orange'], int(time.time()*1000))
             except Exception:
                 pass
+        # Map prediction to action; if model was trained on 'zone', action is the zone itself
+        label_mode = str(pack.get('label_mode') or 'zone')
         action = 'HOLD'
-        if pred > 0:
-            action = 'BUY'
-        elif pred < 0:
-            action = 'SELL'
-        return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins})
+        if label_mode in ('zone','zone_flag'):
+            action = ('BLUE' if pred>0 else 'ORANGE')
+        else:
+            if pred > 0:
+                action = 'BUY'
+            elif pred < 0:
+                action = 'SELL'
+        # Zone-aware intent: whether model would act in the current zone context
+        try:
+            z_now = str(ins.get('zone') or '').upper()
+        except Exception:
+            z_now = 'UNKNOWN'
+        zone_actions = {
+            'sell_in_orange': bool(z_now == 'ORANGE' and pred < 0),
+            'buy_in_blue': bool(z_now == 'BLUE' and pred > 0),
+        }
+        # Zone-conditional steepness
+        try:
+            steep = None
+            if slope_hat is not None:
+                if str(ins.get('zone') or '').upper() == 'BLUE':
+                    steep = {'blue_up_slope': slope_hat, 'orange_down_slope': None}
+                elif str(ins.get('zone') or '').upper() == 'ORANGE':
+                    steep = {'blue_up_slope': None, 'orange_down_slope': slope_hat}
+            # Predict NB flip timing using a simple r-step projection
+            pred_nb = None
+            try:
+                HIGH = float(os.getenv('NB_HIGH', '0.55'))
+                LOW = float(os.getenv('NB_LOW', '0.45'))
+                rv = float(ins.get('r', 0.5))
+                z = str(ins.get('zone') or '').upper()
+                # seconds per bar from interval
+                def sec_from_iv(iv:str)->int:
+                    if iv.startswith('minute'):
+                        m=int(iv.replace('minute','') or '1'); return m*60
+                    if iv=='day': return 86400
+                    return 60
+                bar_sec = sec_from_iv(cur_interval)
+                # map slope -> r step per bar
+                k_env = float(os.getenv('NB_R_STEP_K','0.2'))
+                min_step = float(os.getenv('NB_R_STEP_MIN','0.003'))
+                r_step = max(min_step, min(0.2, abs(float(slope_hat or 0.0)) * k_env)) if slope_hat is not None else 0.0
+                last_ts_ms = int(df.index[-1].timestamp()*1000) if len(df) else int(time.time()*1000)
+                if z=='BLUE':
+                    dist = max(0.0, HIGH - rv)
+                    # need positive slope to approach HIGH
+                    if (slope_hat or 0.0) > 0 and r_step>0:
+                        bars = int(math.ceil(dist / r_step))
+                        if bars>0 and bars <= max(1, horizon*2):
+                            pred_nb = {'side':'SELL','bars':bars,'ts': last_ts_ms + bars*bar_sec*1000}
+                elif z=='ORANGE':
+                    dist = max(0.0, rv - LOW)
+                    # need negative slope to approach LOW
+                    if (slope_hat or 0.0) < 0 and r_step>0:
+                        bars = int(math.ceil(dist / r_step))
+                        if bars>0 and bars <= max(1, horizon*2):
+                            pred_nb = {'side':'BUY','bars':bars,'ts': last_ts_ms + bars*bar_sec*1000}
+            except Exception:
+                pred_nb = None
+            return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins, 'zone_actions': zone_actions, 'label_mode': label_mode, 'steep': steep, 'pred_nb': pred_nb, 'horizon': horizon, 'interval': cur_interval})
+        except Exception:
+            return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins, 'zone_actions': zone_actions, 'label_mode': label_mode, 'pred_nb': None, 'horizon': horizon, 'interval': cur_interval})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
@@ -1206,6 +1383,8 @@ def trade_loop():
         ml_pack = None
         ml_interval = None
         last_order_ts = 0
+        # Prevent multiple orders within the same candle/bar
+        last_order_bar_ts = 0
         while bot_ctrl['running']:
             try:
                 cfg = _resolve_config()
@@ -1214,11 +1393,17 @@ def trade_loop():
                 price = float(df['close'].iloc[-1])
                 # Compute r in [0,1]
                 try:
-                    window = int(load_nb_params().get('window', 50))
+                    ui_win = bot_ctrl['cfg_override'].get('nb_window')
+                    window = int(ui_win) if ui_win is not None else int(load_nb_params().get('window', 50))
                 except Exception:
                     window = 50
                 r = _compute_r_from_ohlcv(df, window)
                 r_last = float(r.iloc[-1]) if len(r) else 0.5
+                # Current bar timestamp (ms) to dedupe orders per bar
+                try:
+                    bar_ts = int(df.index[-1].timestamp() * 1000)
+                except Exception:
+                    bar_ts = int(time.time() * 1000)
                 HIGH = float(os.getenv('NB_HIGH', '0.55'))
                 LOW = float(os.getenv('NB_LOW', '0.45'))
                 if bot_ctrl.get('nb_zone') not in ('BLUE','ORANGE'):
@@ -1233,6 +1418,12 @@ def trade_loop():
                 state['signal'] = sig if sig != 'HOLD' else state.get('signal', 'HOLD')
                 state['price'] = price
                 if sig in ('BUY','SELL') and sig != last_signal:
+                    # One-order-per-bar: skip if we already ordered on this bar
+                    if last_order_bar_ts and bar_ts == last_order_bar_ts:
+                        last_signal = sig
+                        bot_ctrl['last_signal'] = sig
+                        time.sleep(max(1, _resolve_config().interval_sec))
+                        continue
                     # cooldown between orders (to avoid near-simultaneous flips)
                     try:
                         min_gap = int(bot_ctrl['cfg_override'].get('min_order_gap_sec') or os.getenv('MIN_ORDER_GAP_SEC', '10'))
@@ -1240,6 +1431,23 @@ def trade_loop():
                         min_gap = 10
                     now_ms = int(time.time()*1000)
                     if last_order_ts and (now_ms - last_order_ts) < max(0,min_gap)*1000:
+                        last_signal = sig
+                        bot_ctrl['last_signal'] = sig
+                        time.sleep(max(1, _resolve_config().interval_sec))
+                        continue
+                    # Enforce single BUY→SELL cycle using position lock
+                    try:
+                        pos = str(bot_ctrl.get('position') or 'FLAT').upper()
+                    except Exception:
+                        pos = 'FLAT'
+                    # Disallow consecutive BUYs; require SELL to flatten first
+                    if sig == 'BUY' and pos == 'LONG':
+                        last_signal = sig
+                        bot_ctrl['last_signal'] = sig
+                        time.sleep(max(1, _resolve_config().interval_sec))
+                        continue
+                    # Disallow SELL when already flat (no prior BUY)
+                    if sig == 'SELL' and pos != 'LONG':
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1254,7 +1462,13 @@ def trade_loop():
                         zone100_only = bool(bot_ctrl['cfg_override'].get('zone100_only')) if bot_ctrl['cfg_override'].get('zone100_only') is not None else (os.getenv('ZONE100_ONLY', 'false').lower()=='true')
                     except Exception:
                         zone100_only = False
-                    if require_ml:
+                    # If nb_force is true, skip optional gates and place order (respect cooldown/position lock)
+                    try:
+                        nb_force = bool(bot_ctrl['cfg_override'].get('nb_force')) if bot_ctrl['cfg_override'].get('nb_force') is not None else (os.getenv('NB_FORCE','false').lower()=='true')
+                    except Exception:
+                        nb_force = False
+
+                    if not nb_force and require_ml:
                         try:
                             if ml_interval != cfg.candle or ml_pack is None:
                                 ml_pack = _load_ml(cfg.candle)
@@ -1379,24 +1593,46 @@ def trade_loop():
                         trader.cfg.pnl_ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
                     except Exception:
                         trader.cfg.pnl_ratio = 0.0
-                    o = trader.place(sig, price)
+                    o = None
+                    try:
+                        o = trader.place(sig, price)
+                    except Exception:
+                        o = None
                     # snapshot current insight at order time
                     try:
                         snap_insight = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, ml_pack)
                     except Exception:
                         snap_insight = {}
+                    # If live mode and order was not placed (e.g., min notional, no balance), skip logging
+                    if (not cfg.paper) and (not isinstance(o, dict)):
+                        last_signal = sig
+                        bot_ctrl['last_signal'] = sig
+                        time.sleep(max(1, _resolve_config().interval_sec))
+                        continue
                     order = {
                         'ts': int(time.time()*1000),
                         'side': sig,
                         'price': price,
                         'size': (o.get('size') if isinstance(o, dict) else None) or 0,
-                        'paper': cfg.paper,
+                        'paper': cfg.paper or bool((isinstance(o, dict) and o.get('paper'))),
                         'market': cfg.market,
+                        'nb_signal': sig,
+                        'nb_window': int(window),
+                        'nb_r': float(r_last),
                         'insight': snap_insight,
                     }
                     orders.append(order)
                     last_order_ts = int(order['ts'])
+                    last_order_bar_ts = int(bar_ts)
                     bot_ctrl['last_order'] = order
+                    # Update position lock
+                    try:
+                        if sig == 'BUY':
+                            bot_ctrl['position'] = 'LONG'
+                        elif sig == 'SELL':
+                            bot_ctrl['position'] = 'FLAT'
+                    except Exception:
+                        pass
                 last_signal = sig
                 bot_ctrl['last_signal'] = sig
             except Exception:
@@ -1977,6 +2213,274 @@ def api_balance():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/trade/preflight', methods=['GET'])
+def api_trade_preflight():
+    """Return whether live trading is feasible right now without placing an order."""
+    try:
+        cfg = _resolve_config()
+        std_ak, std_sk, open_ak, open_sk = _get_runtime_keys()
+        resp = {
+            'paper': bool(cfg.paper),
+            'has_keys': bool((std_ak and std_sk) or (open_ak and open_sk)),
+            'has_std_keys': bool(std_ak and std_sk),
+            'has_open_keys': bool(open_ak and open_sk),
+            'market': cfg.market,
+            'candle': cfg.candle,
+        }
+        # price
+        price = 0.0
+        try:
+            price = float(pyupbit.get_current_price(cfg.market) or 0.0)
+            if price > 0:
+                resp['price_source'] = 'ticker'
+        except Exception:
+            price = 0.0
+        # Fallback: if ticker price unavailable, use last candle close
+        if price <= 0:
+            try:
+                dfx = get_candles(cfg.market, cfg.candle, count=1)
+                if len(dfx):
+                    price = float(dfx['close'].iloc[-1])
+                    resp['price_source'] = 'candle'
+            except Exception:
+                pass
+        resp['price'] = price
+        # balances
+        avail_krw = 0.0; coin_bal = 0.0
+        if not cfg.paper and std_ak and std_sk:
+            try:
+                up = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+                avail_krw = float(up.get_balance('KRW') or 0.0)
+                coin = cfg.market.split('-')[-1]
+                coin_bal = float(up.get_balance(coin) or 0.0)
+            except Exception:
+                pass
+        else:
+            # No standard keys available for live queries; cannot trade live
+            if not cfg.paper and (not std_ak or not std_sk):
+                resp['reason'] = 'missing_standard_keys'
+        resp['krw'] = avail_krw
+        resp['coin_balance'] = coin_bal
+        # planned amounts (same normalization rules)
+        try:
+            ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
+        except Exception:
+            ratio = 0.0
+        spend = None
+        if ratio > 0 and avail_krw > 0:
+            try:
+                spend = int(max(0, (avail_krw * (max(0.0, min(100.0, ratio)) / 100.0))))
+                spend = (spend // 1000) * 1000
+                spend = max(5000, min(spend, int(avail_krw)))
+            except Exception:
+                spend = None
+        fallback = int(getattr(cfg, 'order_krw', 5000))
+        fallback = (fallback // 1000) * 1000
+        if fallback < 5000:
+            fallback = 5000
+        buy_krw = spend if (spend and spend >= 5000) else fallback
+        resp['planned_buy_krw'] = buy_krw
+        sell_size = coin_bal
+        if ratio > 0 and coin_bal > 0:
+            sell_size = coin_bal * (max(0.0, min(100.0, ratio)) / 100.0)
+        try:
+            sell_size = math.floor(float(sell_size) * 1e8) / 1e8
+        except Exception:
+            pass
+        resp['planned_sell_size'] = float(sell_size)
+        min_ok_buy = (not cfg.paper) and bool(std_ak and std_sk) and (avail_krw >= 5000) and (buy_krw >= 5000)
+        min_ok_sell = (not cfg.paper) and bool(std_ak and std_sk) and (price > 0) and (sell_size > 0) and ((sell_size * price) >= 5000)
+        resp['can_buy'] = bool(min_ok_buy)
+        resp['can_sell'] = bool(min_ok_sell)
+        return jsonify({'ok': True, 'preflight': resp})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/api/trade/buy', methods=['POST'])
+def api_trade_buy():
+    try:
+        payload = request.get_json(force=True) if request.is_json else request.form.to_dict()
+    except Exception:
+        payload = {}
+    cfg = _resolve_config()
+    market = str(payload.get('market') or cfg.market)
+    try:
+        krw = int(payload.get('krw')) if payload.get('krw') is not None else int(cfg.order_krw)
+    except Exception:
+        krw = int(cfg.order_krw)
+    try:
+        pnl_ratio = float(payload.get('pnl_ratio')) if payload.get('pnl_ratio') is not None else float(getattr(cfg, 'pnl_ratio', 0.0))
+    except Exception:
+        pnl_ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
+    paper = cfg.paper if ('paper' not in payload) else bool(payload.get('paper') in (True, 'true', '1', 1, 'True'))
+    upbit = None
+    if not paper and cfg.access_key and cfg.secret_key:
+        upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+    trader = Trader(upbit, TradeConfig(market=market, order_krw=krw, paper=paper, pnl_ratio=pnl_ratio,
+                                       pnl_profit_ratio=float(getattr(cfg, 'pnl_profit_ratio', 0.0)),
+                                       pnl_loss_ratio=float(getattr(cfg, 'pnl_loss_ratio', 0.0))))
+    try:
+        df = get_candles(market, cfg.candle, count=max(60, cfg.ema_slow+5))
+        price = float(df['close'].iloc[-1]) if len(df) else 0.0
+    except Exception:
+        price = 0.0
+    # Zone gating: require BLUE and near-100% confidence
+    try:
+        window = int(load_nb_params().get('window', 50))
+    except Exception:
+        window = 50
+    try:
+        ins = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, None)
+    except Exception:
+        ins = {}
+    try:
+        th = float(os.getenv('ZONE100_TH', '99.95'))
+    except Exception:
+        th = 99.95
+    z = str(ins.get('zone') or '').upper()
+    pb = float(ins.get('pct_blue') or ins.get('pct_blue_raw') or 0.0)
+    po = float(ins.get('pct_orange') or ins.get('pct_orange_raw') or 0.0)
+    if not (z == 'BLUE' and max(pb, po) >= th):
+        return jsonify({'ok': False, 'error': 'blocked_by_zone_rule', 'zone': z, 'pct_blue': pb, 'pct_orange': po})
+    # Estimate intended spend/size for logging
+    attempt_krw = 0
+    attempt_size = 0.0
+    try:
+        if pnl_ratio > 0:
+            try:
+                avail_krw = float((upbit.get_balance('KRW') if upbit else 0.0) or 0.0)
+            except Exception:
+                avail_krw = 0.0
+            attempt_krw = int(max(0, (avail_krw * (max(0.0, min(100.0, pnl_ratio)) / 100.0))))
+            attempt_krw = (attempt_krw // 1000) * 1000
+            if attempt_krw < 5000:
+                attempt_krw = 5000
+        else:
+            attempt_krw = int(krw)
+            attempt_krw = (attempt_krw // 1000) * 1000
+            if attempt_krw < 5000:
+                attempt_krw = 5000
+        attempt_size = (float(attempt_krw) / float(price)) if price > 0 else 0.0
+    except Exception:
+        attempt_krw = int(krw)
+        attempt_size = 0.0
+    o = trader.place('BUY', price)
+    if o is None or (not paper and not (isinstance(o, dict) and o.get('live_ok'))):
+        return jsonify({'ok': False, 'error': 'buy_failed'})
+    # ins already computed above
+    order = {
+        'ts': int(time.time()*1000),
+        'side': 'BUY',
+        'price': float(price),
+        'size': float(o.get('size') or attempt_size) if isinstance(o, dict) else float(attempt_size),
+        'paper': bool(paper),
+        'market': market,
+        'live_ok': bool(o.get('live_ok')) if isinstance(o, dict) else False,
+        'insight': ins,
+    }
+    try:
+        orders.append(order)
+    except Exception:
+        pass
+    return jsonify({'ok': True, 'order': order})
+
+@app.route('/api/trade/sell', methods=['POST'])
+def api_trade_sell():
+    try:
+        payload = request.get_json(force=True) if request.is_json else request.form.to_dict()
+    except Exception:
+        payload = {}
+    cfg = _resolve_config()
+    market = str(payload.get('market') or cfg.market)
+    try:
+        size_override = float(payload.get('size')) if payload.get('size') is not None else None
+    except Exception:
+        size_override = None
+    try:
+        pnl_ratio = float(payload.get('pnl_ratio')) if payload.get('pnl_ratio') is not None else float(getattr(cfg, 'pnl_ratio', 0.0))
+    except Exception:
+        pnl_ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
+    paper = cfg.paper if ('paper' not in payload) else bool(payload.get('paper') in (True, 'true', '1', 1, 'True'))
+    upbit = None
+    if not paper and cfg.access_key and cfg.secret_key:
+        upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+    trader = Trader(upbit, TradeConfig(market=market, order_krw=int(cfg.order_krw), paper=paper, pnl_ratio=pnl_ratio,
+                                       pnl_profit_ratio=float(getattr(cfg, 'pnl_profit_ratio', 0.0)),
+                                       pnl_loss_ratio=float(getattr(cfg, 'pnl_loss_ratio', 0.0))))
+    try:
+        df = get_candles(market, cfg.candle, count=max(60, cfg.ema_slow+5))
+        price = float(df['close'].iloc[-1]) if len(df) else 0.0
+    except Exception:
+        price = 0.0
+    # Zone gating: require ORANGE and near-100% confidence
+    try:
+        window = int(load_nb_params().get('window', 50))
+    except Exception:
+        window = 50
+    try:
+        ins = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, None)
+    except Exception:
+        ins = {}
+    try:
+        th = float(os.getenv('ZONE100_TH', '99.95'))
+    except Exception:
+        th = 99.95
+    z = str(ins.get('zone') or '').upper()
+    pb = float(ins.get('pct_blue') or ins.get('pct_blue_raw') or 0.0)
+    po = float(ins.get('pct_orange') or ins.get('pct_orange_raw') or 0.0)
+    if not (z == 'ORANGE' and max(pb, po) >= th):
+        return jsonify({'ok': False, 'error': 'blocked_by_zone_rule', 'zone': z, 'pct_blue': pb, 'pct_orange': po})
+    if (not paper) and size_override and price>0 and (size_override*price)>=5000:
+        try:
+            o = upbit.sell_market_order(market, size_override)
+            if isinstance(o, dict): o['live_ok'] = True
+        except Exception:
+            o = None
+    else:
+        # Estimate intended sell size for logging
+        attempt_size = 0.0
+        try:
+            coin = market.split('-')[-1]
+            bal = float((upbit.get_balance(coin) if upbit else 0.0) or 0.0)
+        except Exception:
+            bal = 0.0
+        try:
+            if size_override:
+                attempt_size = float(size_override)
+            elif pnl_ratio > 0 and bal > 0:
+                attempt_size = bal * (max(0.0, min(100.0, pnl_ratio)) / 100.0)
+            else:
+                attempt_size = bal
+            # round to 8dp
+            attempt_size = math.floor(float(attempt_size) * 1e8) / 1e8
+        except Exception:
+            attempt_size = 0.0
+        o = trader.place('SELL', price)
+    if o is None or (not paper and not (isinstance(o, dict) and o.get('live_ok'))):
+        return jsonify({'ok': False, 'error': 'sell_failed_or_min_notional'})
+    try:
+        window = int(load_nb_params().get('window', 50))
+    except Exception:
+        window = 50
+    try:
+        ins = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, None)
+    except Exception:
+        ins = {}
+    order = {
+        'ts': int(time.time()*1000),
+        'side': 'SELL',
+        'price': float(price),
+        'size': float(o.get('size') or (size_override if size_override else attempt_size)) if isinstance(o, dict) else float(size_override if size_override else attempt_size),
+        'paper': bool(paper),
+        'market': market,
+        'live_ok': bool(o.get('live_ok')) if isinstance(o, dict) else False,
+        'insight': ins,
+    }
+    try:
+        orders.append(order)
+    except Exception:
+        pass
+    return jsonify({'ok': True, 'order': order})
 @app.route('/api/bot/config', methods=['POST'])
 def api_bot_config():
     try:
@@ -1985,7 +2489,7 @@ def api_bot_config():
         if data.get('reload_env'):
             _reload_env_vars()
         ov = bot_ctrl['cfg_override']
-        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec','require_ml','enforce_zone_side',
+        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec','require_ml','enforce_zone_side','nb_force','nb_window',
                   'access_key','secret_key','open_api_access_key','open_api_secret_key'):
             if k in data:
                 ov[k] = data[k]
