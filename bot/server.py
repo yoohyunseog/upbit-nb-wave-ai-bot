@@ -68,6 +68,40 @@ ml_state = {
     'train_count': 0,
 }
 
+# Grouped NB observations (time-bucketed)
+GROUP_BUCKET_SEC = int(os.getenv('NB_GROUP_BUCKET_SEC', '60'))  # group by 1m default
+GROUP_MIN_SIZE = int(os.getenv('NB_GROUP_MIN_SIZE', '25'))
+_nb_groups: dict[int, list] = {}
+
+def _bucket_ts(ts_ms: int | None = None, bucket_sec: int | None = None) -> int:
+    try:
+        b = int(bucket_sec or GROUP_BUCKET_SEC)
+        t = int((ts_ms or int(time.time()*1000)) / 1000)
+        return (t // b) * b
+    except Exception:
+        return int(time.time())
+
+def _record_group_observation(interval: str, window: int, r_val: float,
+                              pct_blue: float, pct_orange: float, ts_ms: int | None = None):
+    try:
+        bt = _bucket_ts(ts_ms, GROUP_BUCKET_SEC)
+        row = {
+            'ts': int(ts_ms or int(time.time()*1000)),
+            'bucket': int(bt),
+            'interval': str(interval),
+            'window': int(window),
+            'r': float(r_val),
+            'pct_blue': float(pct_blue),
+            'pct_orange': float(pct_orange),
+        }
+        _nb_groups.setdefault(bt, []).append(row)
+        # trim old buckets to keep memory bounded
+        if len(_nb_groups) > 1000:
+            for k in sorted(list(_nb_groups.keys()))[:-900]:
+                _nb_groups.pop(k, None)
+    except Exception:
+        pass
+
 # In-memory order log for UI markers
 orders = deque(maxlen=500)  # each item: {ts, side, price, size, paper, market}
 
@@ -89,6 +123,7 @@ bot_ctrl = {
         'candle': None,
         'market': None,
         'interval_sec': None,
+        'require_ml': None,  # if true, require ML confirmation to place orders
         # runtime key injection (avoid restarting server)
         'access_key': None,
         'secret_key': None,
@@ -165,6 +200,123 @@ def _build_features(df: pd.DataFrame, window: int, ema_fast: int = 10, ema_slow:
     out['ret1'] = out['close'].pct_change(1)
     out['ret3'] = out['close'].pct_change(3)
     out['ret5'] = out['close'].pct_change(5)
+    # Zone-aware helper features so model can learn BLUE/ORANGE context explicitly
+    try:
+        HIGH = float(os.getenv('NB_HIGH', '0.55'))
+        LOW = float(os.getenv('NB_LOW', '0.45'))
+    except Exception:
+        HIGH, LOW = 0.55, 0.45
+    rng = max(1e-9, HIGH - LOW)
+    zone_flag = []  # +1=BLUE, -1=ORANGE
+    dist_high = []  # max(0, r-HIGH)
+    dist_low = []   # max(0, LOW-r)
+    extreme_gap = []
+    zone_conf = []  # confidence within current zone (0~1)
+    # Zone extrema tracking (min/max r and corresponding prices within the current zone)
+    zone_min_r_list = []
+    zone_max_r_list = []
+    zone_min_price_list = []
+    zone_max_price_list = []
+    zone_extreme_r_list = []     # r of current zone's defining extreme (min for BLUE, max for ORANGE)
+    zone_extreme_price_list = [] # price at that extreme
+    zone_extreme_age_list = []   # bars since that extreme was set/updated
+    cur_zone = None
+    cur_zone_min_r = None
+    cur_zone_max_r = None
+    cur_zone_min_idx = None
+    cur_zone_max_idx = None
+    cur_extreme_idx = None
+    close_vals = out['close'].astype(float).fillna(method='bfill').fillna(method='ffill').fillna(0.0).values.tolist()
+    r_vals = r.fillna(0.5).astype(float).values.tolist()
+    for i, rv in enumerate(r_vals):
+        if cur_zone not in ('BLUE','ORANGE'):
+            cur_zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+            cur_zone_min_r = rv
+            cur_zone_max_r = rv
+            cur_zone_min_idx = i
+            cur_zone_max_idx = i
+            cur_extreme_idx = i
+        # update extremes per zone
+        if cur_zone == 'BLUE' and rv >= HIGH:
+            cur_zone = 'ORANGE'
+            cur_zone_min_r = rv
+            cur_zone_max_r = rv
+            cur_zone_min_idx = i
+            cur_zone_max_idx = i
+            cur_extreme_idx = i
+        elif cur_zone == 'ORANGE' and rv <= LOW:
+            cur_zone = 'BLUE'
+            cur_zone_min_r = rv
+            cur_zone_max_r = rv
+            cur_zone_min_idx = i
+            cur_zone_max_idx = i
+            cur_extreme_idx = i
+        # track within-zone min/max r and their indices
+        cur_zone_min_r = rv if cur_zone_min_r is None else min(cur_zone_min_r, rv)
+        cur_zone_max_r = rv if cur_zone_max_r is None else max(cur_zone_max_r, rv)
+        if cur_zone_min_r == rv:
+            cur_zone_min_idx = i
+        if cur_zone_max_r == rv:
+            cur_zone_max_idx = i
+        if cur_zone == 'BLUE':
+            cur_extreme_idx = cur_zone_min_idx if cur_zone_min_idx is not None else i
+            zone_flag.append(1)
+            zone_conf.append(max(0.0, (HIGH - rv) / rng))
+        else:
+            cur_extreme_idx = cur_zone_max_idx if cur_zone_max_idx is not None else i
+            zone_flag.append(-1)
+            zone_conf.append(max(0.0, (rv - LOW) / rng))
+        dist_high.append(max(0.0, rv - HIGH))
+        dist_low.append(max(0.0, LOW - rv))
+        # current zone's defining extreme r
+        cur_extreme_r = (cur_zone_min_r if cur_zone == 'BLUE' else cur_zone_max_r)
+        extreme_gap.append(abs(rv - float(cur_extreme_r)))
+        # append zone-wide extrema and their prices
+        zone_min_r_list.append(float(cur_zone_min_r if cur_zone_min_r is not None else rv))
+        zone_max_r_list.append(float(cur_zone_max_r if cur_zone_max_r is not None else rv))
+        zmin_px = float(close_vals[cur_zone_min_idx]) if cur_zone_min_idx is not None else float(close_vals[i])
+        zmax_px = float(close_vals[cur_zone_max_idx]) if cur_zone_max_idx is not None else float(close_vals[i])
+        zone_min_price_list.append(zmin_px)
+        zone_max_price_list.append(zmax_px)
+        zone_extreme_r_list.append(float(cur_extreme_r))
+        zext_px = float(close_vals[cur_extreme_idx]) if cur_extreme_idx is not None else float(close_vals[i])
+        zone_extreme_price_list.append(zext_px)
+        zone_extreme_age_list.append(int(i - (cur_extreme_idx if cur_extreme_idx is not None else i)))
+    try:
+        out['zone_flag'] = pd.Series(zone_flag, index=out.index)
+        out['dist_high'] = pd.Series(dist_high, index=out.index)
+        out['dist_low'] = pd.Series(dist_low, index=out.index)
+        out['extreme_gap'] = pd.Series(extreme_gap, index=out.index)
+        out['zone_conf'] = pd.Series(zone_conf, index=out.index)
+        # new: zone extrema features (learning + insight)
+        out['zone_min_r'] = pd.Series(zone_min_r_list, index=out.index)
+        out['zone_max_r'] = pd.Series(zone_max_r_list, index=out.index)
+        out['zone_min_price'] = pd.Series(zone_min_price_list, index=out.index)
+        out['zone_max_price'] = pd.Series(zone_max_price_list, index=out.index)
+        out['zone_extreme_r'] = pd.Series(zone_extreme_r_list, index=out.index)
+        out['zone_extreme_price'] = pd.Series(zone_extreme_price_list, index=out.index)
+        out['zone_extreme_age'] = pd.Series(zone_extreme_age_list, index=out.index)
+    except Exception:
+        pass
+    # Time-of-day and weekly cycle features (help model learn time-localized BLUE/ORANGE behaviors)
+    try:
+        idx = out.index
+        hours = pd.Index(getattr(idx, 'hour', pd.Series(idx).map(lambda x: getattr(x, 'hour', 0))))
+        minutes = pd.Index(getattr(idx, 'minute', pd.Series(idx).map(lambda x: getattr(x, 'minute', 0))))
+        tod_min = (hours.astype(int) * 60 + minutes.astype(int)).astype(float)
+        out['tod_sin'] = np.sin(2 * np.pi * tod_min / (24*60))
+        out['tod_cos'] = np.cos(2 * np.pi * tod_min / (24*60))
+        # Day-of-week cyclic
+        dows = pd.Index(getattr(idx, 'dayofweek', pd.Series(idx).map(lambda x: getattr(x, 'dayofweek', 0)))).astype(float)
+        out['dow_sin'] = np.sin(2 * np.pi * dows / 7.0)
+        out['dow_cos'] = np.cos(2 * np.pi * dows / 7.0)
+        # Rough global sessions in KST: ASIA 09-17, EU 16-24, US 22-06
+        h = hours.astype(int)
+        out['sess_asia'] = ((h>=9) & (h<17)).astype(int)
+        out['sess_eu'] = ((h>=16) | (h<0)).astype(int)  # 16~23
+        out['sess_us'] = ((h>=22) | (h<6)).astype(int)
+    except Exception:
+        pass
     # forward return for labeling
     out['fwd'] = out['close'].shift(-horizon) / out['close'] - 1.0
     return out
@@ -238,7 +390,16 @@ def api_ml_train():
         tau = float(payload.get('tau', 0.002))  # 0.2%
         count = int(payload.get('count', 1800))
         interval = payload.get('interval') or load_config().candle
-        label_mode = str(payload.get('label_mode', 'nb_zone'))  # 'nb_zone' | 'fwd_return'
+        label_mode = str(payload.get('label_mode', 'nb_zone'))  # 'nb_zone' | 'fwd_return' | 'nb_extreme'
+        # Optional: extreme-based labels tuning
+        try:
+            pullback_pct = float(payload.get('pullback_pct', os.getenv('NB_PULLBACK_PCT', '40')))
+        except Exception:
+            pullback_pct = 40.0
+        try:
+            confirm_bars = int(payload.get('confirm_bars', os.getenv('NB_CONFIRM_BARS', '2')))
+        except Exception:
+            confirm_bars = 2
 
         cfg = load_config()
         df = get_candles(cfg.market, interval, count=count)
@@ -247,6 +408,63 @@ def api_ml_train():
         if label_mode == 'fwd_return':
             fwd = feat['fwd']
             y = np.where(fwd >= tau, 1, np.where(fwd <= -tau, -1, 0))
+        elif label_mode == 'nb_extreme':
+            # Learn BLUE/ORANGE extremes with pullback confirmation; one BUY then one SELL
+            r = _compute_r_from_ohlcv(df, window)
+            HIGH = float(os.getenv('NB_HIGH', '0.55'))
+            LOW = float(os.getenv('NB_LOW', '0.45'))
+            RANGE = max(1e-9, HIGH - LOW)
+            pull_r = RANGE * (max(0.0, min(100.0, float(pullback_pct))) / 100.0)
+            labels = np.zeros(len(df), dtype=int)
+            zone = None
+            zone_extreme = None
+            prev_r = None
+            confirm_up = 0
+            confirm_dn = 0
+            position = 'FLAT'
+            r_vals = r.values.tolist()
+            for i in range(len(df)):
+                rv = r_vals[i] if i < len(r_vals) else 0.5
+                # init zone
+                if zone not in ('BLUE','ORANGE'):
+                    zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+                    zone_extreme = rv
+                    confirm_up = 0; confirm_dn = 0
+                # zone transitions reset extremes
+                if zone == 'BLUE' and rv >= HIGH:
+                    zone = 'ORANGE'
+                    zone_extreme = rv
+                    confirm_up = 0; confirm_dn = 0
+                elif zone == 'ORANGE' and rv <= LOW:
+                    zone = 'BLUE'
+                    zone_extreme = rv
+                    confirm_up = 0; confirm_dn = 0
+                # track extremes
+                if zone == 'BLUE':
+                    zone_extreme = min(zone_extreme, rv) if zone_extreme is not None else rv
+                else:
+                    zone_extreme = max(zone_extreme, rv) if zone_extreme is not None else rv
+                # confirmations
+                if prev_r is not None:
+                    if rv > prev_r: confirm_up += 1
+                    else: confirm_up = 0
+                    if rv < prev_r: confirm_dn += 1
+                    else: confirm_dn = 0
+                prev_r = rv
+                # decisions
+                if position == 'FLAT' and zone == 'BLUE':
+                    if (rv - zone_extreme) >= pull_r and confirm_up >= int(confirm_bars):
+                        labels[i] = 1
+                        position = 'LONG'
+                        confirm_up = 0; confirm_dn = 0
+                elif position == 'LONG' and zone == 'ORANGE':
+                    if (zone_extreme - rv) >= pull_r and confirm_dn >= int(confirm_bars):
+                        labels[i] = -1
+                        position = 'FLAT'
+                        confirm_up = 0; confirm_dn = 0
+            # align labels to feature index
+            idx_map = { ts: i for i, ts in enumerate(df.index) }
+            y = np.array([ labels[idx_map.get(ts, 0)] for ts in feat.index ], dtype=int)
         elif label_mode == 'nb_best_trade':
             # Build NB zone transitions, form BUY/SELL pairs, pick the single best PnL pair
             r = _compute_r_from_ohlcv(df, window)
@@ -325,7 +543,16 @@ def api_ml_train():
             idx_map = { ts: i for i, ts in enumerate(df.index) }
             y = np.array([ labels[idx_map.get(ts, 0)] for ts in feat.index ], dtype=int)
         X = feat[['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']]
-        # Hyperparameter search with time-series CV
+        # Sample weights to reduce HOLD dominance
+        total_n = len(X)
+        c_neg = int((y==-1).sum()); c_zero = int((y==0).sum()); c_pos = int((y==1).sum())
+        denom = max(1, c_neg) + max(1, c_zero) + max(1, c_pos)
+        w_neg = float(total_n) / max(1, 3*c_neg)
+        w_zero = float(total_n) / max(1, 3*c_zero)
+        w_pos = float(total_n) / max(1, 3*c_pos)
+        w = np.where(y==-1, w_neg, np.where(y==0, w_zero, w_pos)).astype(float)
+
+        # Hyperparameter search with time-series CV (weighted)
         from sklearn.ensemble import GradientBoostingClassifier
         from sklearn.model_selection import TimeSeriesSplit
         from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
@@ -345,7 +572,7 @@ def api_ml_train():
             accs=[]; f1s=[]; cms=None; pnl_sum=0.0
             for tr_idx, va_idx in tscv.split(Xv):
                 cls = GradientBoostingClassifier(random_state=42, **params)
-                cls.fit(Xv[tr_idx], y[tr_idx])
+                cls.fit(Xv[tr_idx], y[tr_idx], sample_weight=w[tr_idx])
                 yp = cls.predict(Xv[va_idx])
                 accs.append(accuracy_score(y[va_idx], yp))
                 f1s.append(f1_score(y[va_idx], yp, average='macro', zero_division=0))
@@ -364,15 +591,12 @@ def api_ml_train():
                 best_score = score
                 best_params = params
                 best_pnl = pnl_sum
-        # Fit best model on all data
+        # Fit best model on all data with weights
         base = GradientBoostingClassifier(random_state=42, **(best_params or {}))
-        # Probability calibration
-        from sklearn.calibration import CalibratedClassifierCV
-        cal = CalibratedClassifierCV(base, method='sigmoid', cv=TimeSeriesSplit(n_splits=3))
-        cal.fit(Xv, y)
+        base.fit(Xv, y, sample_weight=w)
         _ensure_models_dir()
         # compute reports
-        yhat_in = cal.predict(Xv)
+        yhat_in = base.predict(Xv)
         report_in = classification_report(y, yhat_in, output_dict=True, zero_division=0)
         cm_in = confusion_matrix(y, yhat_in, labels=[-1,0,1]).tolist()
         # summarize CV again for metrics payload
@@ -381,7 +605,12 @@ def api_ml_train():
             'cv': { 'f1_macro': float(best_score), 'pnl_sum': float(best_pnl) },
             'params': best_params,
         }
-        pack = { 'model': cal, 'window': window, 'ema_fast': ema_fast, 'ema_slow': ema_slow, 'horizon': horizon, 'tau': tau, 'interval': interval, 'metrics': metrics, 'trained_at': int(time.time()*1000) }
+        # persist the exact feature order used for training
+        try:
+            feature_names = list(feat[['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']].columns)
+        except Exception:
+            feature_names = ['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']
+        pack = { 'model': base, 'window': window, 'ema_fast': ema_fast, 'ema_slow': ema_slow, 'horizon': horizon, 'tau': tau, 'interval': interval, 'metrics': metrics, 'trained_at': int(time.time()*1000), 'feature_names': feature_names }
         # save model per-interval
         try:
             joblib.dump(pack, _model_path_for(interval))
@@ -409,19 +638,135 @@ def api_ml_predict():
         cfg = load_config()
         df = get_candles(cfg.market, cur_interval, count=max(400, window*3))
         feat = _build_features(df, window, ema_fast, ema_slow, horizon).dropna().copy()
-        X = feat[['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']]
+        # IMPORTANT: Use same feature set and order as model was trained on
+        base_cols = ['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']
+        ext_cols = ['zone_flag','dist_high','dist_low','extreme_gap','zone_conf','zone_min_r','zone_max_r','zone_extreme_r','zone_extreme_age']
+        trained_cols = list(pack.get('feature_names') or [])
+        if not trained_cols:
+            # fallback: constrain to model.n_features_in_ if present
+            cand = base_cols + [c for c in ext_cols if c in feat.columns]
+            try:
+                need = int(getattr(model, 'n_features_in_', len(cand)))
+            except Exception:
+                need = len(cand)
+            trained_cols = cand[:need]
+        X = feat[[c for c in trained_cols if c in feat.columns]]
         probs = None
         try:
             probs = model.predict_proba(X.values)[-1].tolist()
         except Exception:
             probs = []
         pred = int(model.predict(X.values)[-1])
+        # Build insight payload from last feature row
+        ins = {}
+        try:
+            last = feat.iloc[-1]
+            zone_flag = int(round(float(last.get('zone_flag', 0))))
+            zone = 'BLUE' if zone_flag == 1 else ('ORANGE' if zone_flag == -1 else 'UNKNOWN')
+            # heuristic zone probabilities from r distances to thresholds
+            try:
+                HIGH = float(os.getenv('NB_HIGH', '0.55'))
+                LOW = float(os.getenv('NB_LOW', '0.45'))
+            except Exception:
+                HIGH, LOW = 0.55, 0.45
+            rng = max(1e-9, HIGH - LOW)
+            rv = float(last.get('r', 0.5))
+            p_blue_raw = max(0.0, min(1.0, (HIGH - rv) / rng))
+            p_orange_raw = max(0.0, min(1.0, (rv - LOW) / rng))
+            s0 = p_blue_raw + p_orange_raw
+            if s0 > 0:
+                p_blue_raw, p_orange_raw = p_blue_raw/s0, p_orange_raw/s0
+            # Trend-weighted adjustment using recent r trajectory
+            try:
+                trend_k = int(os.getenv('NB_TREND_K', '30'))
+                trend_alpha = float(os.getenv('NB_TREND_ALPHA', '0.5'))
+            except Exception:
+                trend_k, trend_alpha = 30, 0.5
+            try:
+                r_series = _compute_r_from_ohlcv(df, window).astype(float)
+                if len(r_series) >= trend_k*2:
+                    tail_now = r_series.iloc[-trend_k:]
+                    tail_prev = r_series.iloc[-trend_k*2:-trend_k]
+                    zmax_now, zmax_prev = float(tail_now.max()), float(tail_prev.max())
+                    zmin_now, zmin_prev = float(tail_now.min()), float(tail_prev.min())
+                    # ORANGE weakening when recent peak < previous peak
+                    trend_orange = max(0.0, (zmax_prev - zmax_now) / rng)
+                    # BLUE weakening when recent trough > previous trough
+                    trend_blue = max(0.0, (zmin_now - zmin_prev) / rng)
+                    p_orange = max(0.0, min(1.0, p_orange_raw * (1.0 - trend_alpha * trend_orange)))
+                    p_blue = max(0.0, min(1.0, p_blue_raw * (1.0 - trend_alpha * trend_blue)))
+                    s = p_blue + p_orange
+                    if s > 0:
+                        p_blue, p_orange = p_blue/s, p_orange/s
+                else:
+                    p_blue, p_orange = p_blue_raw, p_orange_raw
+            except Exception:
+                p_blue, p_orange = p_blue_raw, p_orange_raw
+            ins = {
+                'r': rv,
+                'zone_flag': zone_flag,
+                'zone': zone,
+                'zone_conf': float(last.get('zone_conf', 0.0)),
+                'dist_high': float(last.get('dist_high', 0.0)),
+                'dist_low': float(last.get('dist_low', 0.0)),
+                'extreme_gap': float(last.get('extreme_gap', 0.0)),
+                # expose zone extrema for UI insight
+                'zone_min_r': float(last.get('zone_min_r', rv)),
+                'zone_max_r': float(last.get('zone_max_r', rv)),
+                'zone_extreme_r': float(last.get('zone_extreme_r', rv)),
+                'zone_extreme_age': int(last.get('zone_extreme_age', 0)),
+                'w': float(last.get('w', 0.0)),
+                'ema_diff': float(last.get('ema_diff', 0.0)),
+                'pct_blue_raw': float(p_blue_raw*100.0),
+                'pct_orange_raw': float(p_orange_raw*100.0),
+                'pct_blue': float(p_blue*100.0),
+                'pct_orange': float(p_orange*100.0),
+            }
+            try:
+                _record_group_observation(cur_interval, window, rv, ins['pct_blue'], ins['pct_orange'], int(time.time()*1000))
+            except Exception:
+                pass
+        except Exception:
+            ins = {}
+        # Fallback insight if feature frame is empty
+        if not ins:
+            try:
+                HIGH = float(os.getenv('NB_HIGH', '0.55'))
+                LOW = float(os.getenv('NB_LOW', '0.45'))
+            except Exception:
+                HIGH, LOW = 0.55, 0.45
+            rng = max(1e-9, HIGH - LOW)
+            r_series = _compute_r_from_ohlcv(df, window)
+            rv = float(r_series.iloc[-1]) if len(r_series) else 0.5
+            p_blue = max(0.0, min(1.0, (HIGH - rv) / rng))
+            p_orange = max(0.0, min(1.0, (rv - LOW) / rng))
+            s = p_blue + p_orange
+            if s > 0:
+                p_blue, p_orange = p_blue/s, p_orange/s
+            zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+            ins = {
+                'r': rv,
+                'zone_flag': (-1 if zone=='ORANGE' else 1),
+                'zone': zone,
+                'zone_conf': float(max(0.0, (rv-LOW)/rng) if zone=='ORANGE' else max(0.0, (HIGH-rv)/rng)),
+                'dist_high': float(max(0.0, rv - HIGH)),
+                'dist_low': float(max(0.0, LOW - rv)),
+                'extreme_gap': 0.0,
+                'w': float(((df['high'].rolling(window).max() - df['low'].rolling(window).min()) / ((df['high'] + df['low'])/2).replace(0, np.nan)).iloc[-1]) if len(df) else 0.0,
+                'ema_diff': float((df['close'].ewm(span=ema_fast, adjust=False).mean().iloc[-1] - df['close'].ewm(span=ema_slow, adjust=False).mean().iloc[-1])) if len(df) else 0.0,
+                'pct_blue': float(p_blue*100.0),
+                'pct_orange': float(p_orange*100.0),
+            }
+            try:
+                _record_group_observation(cur_interval, window, rv, ins['pct_blue'], ins['pct_orange'], int(time.time()*1000))
+            except Exception:
+                pass
         action = 'HOLD'
         if pred > 0:
             action = 'BUY'
         elif pred < 0:
             action = 'SELL'
-        return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0)})
+        return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
@@ -625,6 +970,9 @@ def trade_loop():
             )
         )
         last_signal = 'HOLD'
+        # ML model cache for confirmation
+        ml_pack = None
+        ml_interval = None
         while bot_ctrl['running']:
             try:
                 cfg = _resolve_config()
@@ -652,6 +1000,55 @@ def trade_loop():
                 state['signal'] = sig if sig != 'HOLD' else state.get('signal', 'HOLD')
                 state['price'] = price
                 if sig in ('BUY','SELL') and sig != last_signal:
+                    # Optional: require ML confirmation
+                    try:
+                        require_ml = bool(bot_ctrl['cfg_override'].get('require_ml')) if bot_ctrl['cfg_override'].get('require_ml') is not None else (os.getenv('REQUIRE_ML_CONFIRM', 'false').lower()=='true')
+                    except Exception:
+                        require_ml = False
+                    if require_ml:
+                        try:
+                            if ml_interval != cfg.candle or ml_pack is None:
+                                ml_pack = _load_ml(cfg.candle)
+                                ml_interval = cfg.candle
+                            if ml_pack is not None:
+                                model = ml_pack['model']
+                                window = int(ml_pack.get('window', 50))
+                                ema_fast = int(ml_pack.get('ema_fast', 10))
+                                ema_slow = int(ml_pack.get('ema_slow', 30))
+                                feat = _build_features(df, window, ema_fast, ema_slow, 5).dropna().copy()
+                                # Respect trained feature order if available
+                                trained_cols = list(ml_pack.get('feature_names') or [])
+                                if not trained_cols:
+                                    base_cols = ['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']
+                                    cols_ext = ['zone_flag','dist_high','dist_low','extreme_gap','zone_conf','zone_min_r','zone_max_r','zone_extreme_r','zone_extreme_age']
+                                    cand = base_cols + [c for c in cols_ext if c in feat.columns]
+                                    try:
+                                        need = int(getattr(model, 'n_features_in_', len(cand)))
+                                    except Exception:
+                                        need = len(cand)
+                                    trained_cols = cand[:need]
+                                Xv = feat[[c for c in trained_cols if c in feat.columns]].values
+                                ml_pred = int(model.predict(Xv)[-1]) if len(Xv) else 0
+                                # Auto-sync server candle to ML model interval if they diverge
+                                try:
+                                    ml_used_interval = str(ml_pack.get('interval') or cfg.candle)
+                                except Exception:
+                                    ml_used_interval = cfg.candle
+                                if ml_used_interval and ml_used_interval != cfg.candle:
+                                    bot_ctrl['cfg_override']['candle'] = ml_used_interval
+                                    state['candle'] = ml_used_interval
+                                    # Skip this tick to reload with new interval
+                                    last_signal = sig
+                                    bot_ctrl['last_signal'] = sig
+                                    time.sleep(max(1, _resolve_config().interval_sec))
+                                    continue
+                                if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL'):
+                                    last_signal = sig
+                                    bot_ctrl['last_signal'] = sig
+                                    time.sleep(max(1, _resolve_config().interval_sec))
+                                    continue
+                        except Exception:
+                            pass
                     # Update trader's dynamic pnl_ratio before each order
                     try:
                         trader.cfg.pnl_ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
@@ -900,6 +1297,167 @@ def api_nb_optimize():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/nb/zone')
+def api_nb_zone():
+    """Return current NB r and zone. Optional query params:
+    - r: float (if provided, use this r directly)
+    - interval: str (default: config.candle)
+    - count: int (default: 300)
+    - window: int (default: saved nb_params.window)
+    """
+    try:
+        # thresholds: prefer env, else defaults
+        try:
+            HIGH = float(os.getenv('NB_HIGH', '0.55'))
+            LOW = float(os.getenv('NB_LOW', '0.45'))
+        except Exception:
+            HIGH, LOW = 0.55, 0.45
+        rng = max(1e-9, HIGH - LOW)
+
+        q = request.args
+        r_q = q.get('r')
+        if r_q is not None:
+            rv = float(r_q)
+            interval = q.get('interval') or state.get('candle') or load_config().candle
+            window = int(q.get('window') or load_nb_params().get('window', 50))
+        else:
+            cfg = load_config()
+            interval = q.get('interval') or state.get('candle') or cfg.candle
+            count = int(q.get('count') or 300)
+            window = int(q.get('window') or load_nb_params().get('window', 50))
+            df = get_candles(cfg.market, interval, count=count)
+            r_series = _compute_r_from_ohlcv(df, window)
+            rv = float(r_series.iloc[-1]) if len(r_series) else 0.5
+        p_blue_raw = max(0.0, min(1.0, (HIGH - rv) / rng))
+        p_orange_raw = max(0.0, min(1.0, (rv - LOW) / rng))
+        s0 = p_blue_raw + p_orange_raw
+        if s0 > 0:
+            p_blue_raw, p_orange_raw = p_blue_raw/s0, p_orange_raw/s0
+        # Optional trend weighting when data available
+        p_blue, p_orange = p_blue_raw, p_orange_raw
+        try:
+            trend_k = int(os.getenv('NB_TREND_K', '30'))
+            trend_alpha = float(os.getenv('NB_TREND_ALPHA', '0.5'))
+        except Exception:
+            trend_k, trend_alpha = 30, 0.5
+        if r_q is None:
+            try:
+                r_series = _compute_r_from_ohlcv(df, window).astype(float)
+                if len(r_series) >= trend_k*2:
+                    tail_now = r_series.iloc[-trend_k:]
+                    tail_prev = r_series.iloc[-trend_k*2:-trend_k]
+                    zmax_now, zmax_prev = float(tail_now.max()), float(tail_prev.max())
+                    zmin_now, zmin_prev = float(tail_now.min()), float(tail_prev.min())
+                    trend_orange = max(0.0, (zmax_prev - zmax_now) / rng)
+                    trend_blue = max(0.0, (zmin_now - zmin_prev) / rng)
+                    p_orange = max(0.0, min(1.0, p_orange_raw * (1.0 - trend_alpha * trend_orange)))
+                    p_blue = max(0.0, min(1.0, p_blue_raw * (1.0 - trend_alpha * trend_blue)))
+                    s = p_blue + p_orange
+                    if s > 0:
+                        p_blue, p_orange = p_blue/s, p_orange/s
+            except Exception:
+                pass
+        zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+        return jsonify({
+            'ok': True,
+            'interval': interval,
+            'window': window,
+            'r': float(rv),
+            'zone': zone,
+            'pct_blue_raw': float(p_blue_raw*100.0),
+            'pct_orange_raw': float(p_orange_raw*100.0),
+            'pct_blue': float(p_blue*100.0),
+            'pct_orange': float(p_orange*100.0),
+            'high': float(HIGH),
+            'low': float(LOW),
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nb/group', methods=['POST'])
+def api_nb_group():
+    """Group multiple intervals at the current time and return per-interval NB stats and a consensus.
+    Body JSON (all optional):
+      - intervals: ["minute1","minute3","minute5","minute10"]
+      - window: int (default saved nb_params.window)
+      - weights: { interval: number }
+      - tolerance_sec: number (default: interval length in sec)
+    """
+    try:
+        payload = request.get_json(force=True) if request.is_json else {}
+        try:
+            HIGH = float(os.getenv('NB_HIGH', '0.55'))
+            LOW = float(os.getenv('NB_LOW', '0.45'))
+        except Exception:
+            HIGH, LOW = 0.55, 0.45
+        rng = max(1e-9, HIGH - LOW)
+        def interval_seconds(iv: str) -> int:
+            if iv.startswith('minute'):
+                try:
+                    m = int(iv.replace('minute',''))
+                except Exception:
+                    m = 1
+                return max(60, m*60)
+            if iv == 'day':
+                return 24*60*60
+            if iv == 'minute60':
+                return 60*60
+            return 600
+        cfg = load_config()
+        intervals = payload.get('intervals') or ['minute1','minute3','minute5','minute10']
+        base_window = int(payload.get('window', load_nb_params().get('window', 50)))
+        weights = payload.get('weights') or { iv: max(1, interval_seconds(iv)//60) for iv in intervals }
+        tol_sec = int(payload.get('tolerance_sec', 0))  # per-interval fallback below
+        now = int(time.time())
+        rows = []
+        w_sum = 0.0
+        blue_sum = 0.0
+        orange_sum = 0.0
+        for iv in intervals:
+            try:
+                sec = interval_seconds(iv)
+                tol = tol_sec if tol_sec>0 else sec
+                df = get_candles(cfg.market, iv, count=max(200, base_window*3))
+                if df is None or df.empty:
+                    continue
+                ts_ms = int(df.index[-1].timestamp()*1000)
+                ts_s = ts_ms//1000
+                if abs(now - ts_s) > tol:
+                    # skip very stale bars
+                    continue
+                r_series = _compute_r_from_ohlcv(df, base_window)
+                rv = float(r_series.iloc[-1]) if len(r_series) else 0.5
+                p_blue_raw = max(0.0, min(1.0, (HIGH - rv) / rng))
+                p_orange_raw = max(0.0, min(1.0, (rv - LOW) / rng))
+                s0 = p_blue_raw + p_orange_raw
+                if s0>0:
+                    p_blue_raw, p_orange_raw = p_blue_raw/s0, p_orange_raw/s0
+                z = 'ORANGE' if rv >= 0.5 else 'BLUE'
+                w = float(weights.get(iv, 1.0))
+                w_sum += w
+                blue_sum += w * p_blue_raw
+                orange_sum += w * p_orange_raw
+                rows.append({
+                    'interval': iv,
+                    'time_ms': ts_ms,
+                    'r': rv,
+                    'zone': z,
+                    'pct_blue_raw': float(p_blue_raw*100.0),
+                    'pct_orange_raw': float(p_orange_raw*100.0),
+                    'weight': w,
+                })
+            except Exception:
+                continue
+        consensus = {
+            'pct_blue': float(blue_sum/w_sum*100.0) if w_sum>0 else 0.0,
+            'pct_orange': float(orange_sum/w_sum*100.0) if w_sum>0 else 0.0,
+            'count': len(rows),
+        }
+        return jsonify({ 'ok': True, 'intervals': intervals, 'window': base_window, 'items': rows, 'consensus': consensus })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
 @app.route('/api/nb/train', methods=['POST'])
 def api_nb_train():
     """Auto period split training (grid search per segment) and persist best.
@@ -1095,7 +1653,7 @@ def api_bot_config():
         if data.get('reload_env'):
             _reload_env_vars()
         ov = bot_ctrl['cfg_override']
-        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec',
+        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec','require_ml',
                   'access_key','secret_key','open_api_access_key','open_api_secret_key'):
             if k in data:
                 ov[k] = data[k]

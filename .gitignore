@@ -12,15 +12,17 @@ venv/
 .env
 .env.*
 env.local
- bot/.env
- bot/env.local
+bot/.env
+bot/env.local
 
 # Models
- bot/models/
+bot/models/
 
 # Data artifacts
- bot/data/*.pkl
- bot/data/*.joblib
+bot/data/*.pkl
+bot/data/*.joblib
+bot/data/*.json
+bot/data/
 
 # OS/IDE
 .DS_Store
