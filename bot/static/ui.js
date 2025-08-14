@@ -23,7 +23,7 @@
   function updateModelInsight(j){
     try{
       const ins = j && j.insight ? j.insight : {};
-      if (miZone){ miZone.textContent = String(ins.zone||'-'); miZone.className = 'badge ' + (ins.zone==='BLUE'?'bg-info':'bg-warning'); }
+      if (miZone){ miZone.textContent = String(ins.zone||'-'); miZone.className = 'badge bg-white text-dark'; }
       if (miText){
         const blueAdj = (ins.pct_blue||0);
         const orangeAdj = (ins.pct_orange||0);
@@ -31,7 +31,7 @@
         const orangeRaw = (ins.pct_orange_raw!=null? ins.pct_orange_raw : orangeAdj);
         miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | conf=${(ins.zone_conf||0).toFixed(3)} | w=${(ins.w||0).toFixed(3)}<br/>`+
           `dist_high=${(ins.dist_high||0).toFixed(3)} | dist_low=${(ins.dist_low||0).toFixed(3)} | gap=${(ins.extreme_gap||0).toFixed(3)} | ema_diff=${(ins.ema_diff||0).toFixed(1)}<br/>`+
-          `min_r=${(ins.zone_min_r!=null? ins.zone_min_r: ins.r||0).toFixed(3)} | max_r=${(ins.zone_max_r!=null? ins.zone_max_r: ins.r||0).toFixed(3)} | extreme_r=${(ins.zone_extreme_r!=null? ins.zone_extreme_r: ins.r||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)}`;
+          `zone_min_r=${(ins.zone_min_r!=null? ins.zone_min_r: ins.r||0).toFixed(3)} | zone_max_r=${(ins.zone_max_r!=null? ins.zone_max_r: ins.r||0).toFixed(3)} | zone_extreme_r=${(ins.zone_extreme_r!=null? ins.zone_extreme_r: ins.r||0).toFixed(3)} | zone_extreme_age=${Number(ins.zone_extreme_age||0)}`;
       }
     }catch(_){ }
   }
@@ -90,7 +90,8 @@
       const line = `[${ts}] ${msg}${detail? ' ' + detail: ''}`;
       if (logBox){
         // append
-        const nearBottom = (logBox.scrollHeight - logBox.clientHeight - logBox.scrollTop) <= 16;
+        const prevTop = logBox.scrollTop;
+        const prevHeight = logBox.scrollHeight;
         logBox.textContent += (line + "\n");
         // trim to last LOG_MAX_LINES
         try{
@@ -99,9 +100,14 @@
             logBox.textContent = parts.slice(-LOG_MAX_LINES-1).join('\n');
           }
         }catch(_){ }
-        // autoscroll only if toggle is on, or if user was already near bottom
-        const shouldScroll = (logAuto ? !!logAuto.checked : nearBottom);
-        if (shouldScroll){ logBox.scrollTop = logBox.scrollHeight; }
+        // autoscroll only if explicit toggle exists and is ON
+        const shouldScroll = !!(logAuto && logAuto.checked);
+        if (shouldScroll){
+          logBox.scrollTop = logBox.scrollHeight;
+        } else {
+          // restore previous scroll position
+          try{ logBox.scrollTop = prevTop; }catch(_){ }
+        }
       }
       console.log(line);
     }catch(_){ }

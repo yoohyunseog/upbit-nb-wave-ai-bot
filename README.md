@@ -10,6 +10,17 @@ An Upbit auto-trading bot with a real-time Flask UI, NB-wave signals, optional M
 - One-click backtest on current chart; rolling Win% and top PnL slider
 - Assets panel (KRW and holdings), auto refresh
 
+### What’s new (2025-08)
+- Zone-aware learning and insight
+  - New features: `zone_min_r`, `zone_max_r`, `zone_extreme_r`, `zone_extreme_age`, `dist_high`, `dist_low`, `extreme_gap`, `zone_conf`.
+  - ML model persists `feature_names` to prevent feature-dimension mismatch across versions.
+  - Model Insight shows raw/adjusted BLUE/ORANGE, zone extrema and age.
+- UI/UX
+  - Insight badge updated; text color improvements (`text-white`).
+  - Real-time log autoscroll toggle honored; no forced scroll when OFF. Log capped to 50 lines.
+- API
+  - `/api/ml/predict` insight includes zone extrema fields; probabilities include raw and trend-adjusted values.
+
 ### Quick start
 ```bash
 # Python 3.10+
@@ -54,5 +65,8 @@ More details are documented in `bot/README.md`.
 ### Safety
 - Test in paper mode first. Trading involves risk.
 - Never commit `.env` or private keys.
+
+### Links
+- GitHub repository: [yoohyunseog/upbit-nb-wave-ai-bot](https://github.com/yoohyunseog/upbit-nb-wave-ai-bot.git)
 
 
