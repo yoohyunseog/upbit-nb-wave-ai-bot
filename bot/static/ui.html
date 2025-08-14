@@ -137,6 +137,15 @@
             <div class="col-auto"><input id="trainSeg" type="number" value="3" min="2" step="1" class="form-control form-control-sm" style="width:70px" /></div>
             <div class="col-auto"><button id="btnMlTrain" class="btn btn-danger btn-sm">ML Train</button></div>
             <div class="col-auto"><button id="btnMlPredict" class="btn btn-outline-danger btn-sm">ML Predict</button></div>
+            <div class="col-12 col-lg-4">
+              <div class="card border-secondary rounded-3 p-2" style="min-height:80px">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <strong>Model Insight</strong>
+                  <span id="miZone" class="badge bg-secondary">-</span>
+                </div>
+                <div id="miText" style="font-size:12px; color:#e6eefc">-</div>
+              </div>
+            </div>
             <div class="col-auto"><button id="btnMlMetrics" class="btn btn-outline-warning btn-sm">ML Metrics</button></div>
             <div class="col-auto form-check form-switch">
               <input class="form-check-input" type="checkbox" id="mlAuto">
@@ -234,6 +243,22 @@
           <pre id="logBox" style="height:160px;overflow:auto;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#a7b4d7;font-size:12px;line-height:1.35"></pre>
           <div id="mlMetricsBox" class="mt-2" style="font-size:12px;color:#e6eefc"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Orders Log Bottom Section -->
+  <div class="row g-3 justify-content-center mt-3">
+    <div class="col-12">
+      <div class="card border-secondary rounded-3 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>주문 로그</strong>
+          <div>
+            <button id="btnOrderExport" class="btn btn-sm btn-outline-light me-2">Export CSV</button>
+            <button id="btnOrderClear" class="btn btn-sm btn-outline-danger">Clear</button>
+          </div>
+        </div>
+        <div id="orderLog" style="height:180px;overflow:auto;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#e6eefc;font-size:12px;line-height:1.35"></div>
       </div>
     </div>
   </div>

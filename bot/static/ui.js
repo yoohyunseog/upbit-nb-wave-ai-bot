@@ -17,6 +17,24 @@
   const trainBtn = document.getElementById('btnTrain');
   const mlTrainBtn = document.getElementById('btnMlTrain');
   const mlPredictBtn = document.getElementById('btnMlPredict');
+  const miZone = document.getElementById('miZone');
+  const miText = document.getElementById('miText');
+
+  function updateModelInsight(j){
+    try{
+      const ins = j && j.insight ? j.insight : {};
+      if (miZone){ miZone.textContent = String(ins.zone||'-'); miZone.className = 'badge ' + (ins.zone==='BLUE'?'bg-info':'bg-warning'); }
+      if (miText){
+        const blueAdj = (ins.pct_blue||0);
+        const orangeAdj = (ins.pct_orange||0);
+        const blueRaw = (ins.pct_blue_raw!=null? ins.pct_blue_raw : blueAdj);
+        const orangeRaw = (ins.pct_orange_raw!=null? ins.pct_orange_raw : orangeAdj);
+        miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | conf=${(ins.zone_conf||0).toFixed(3)} | w=${(ins.w||0).toFixed(3)}<br/>`+
+          `dist_high=${(ins.dist_high||0).toFixed(3)} | dist_low=${(ins.dist_low||0).toFixed(3)} | gap=${(ins.extreme_gap||0).toFixed(3)} | ema_diff=${(ins.ema_diff||0).toFixed(1)}<br/>`+
+          `min_r=${(ins.zone_min_r!=null? ins.zone_min_r: ins.r||0).toFixed(3)} | max_r=${(ins.zone_max_r!=null? ins.zone_max_r: ins.r||0).toFixed(3)} | extreme_r=${(ins.zone_extreme_r!=null? ins.zone_extreme_r: ins.r||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)}`;
+      }
+    }catch(_){ }
+  }
   const mlMetricsBtn = document.getElementById('btnMlMetrics');
   const mlRandomBtn = document.getElementById('btnMlRandom');
   const mlRandNEl = document.getElementById('mlRandN');
@@ -44,6 +62,12 @@
   const logBox = document.getElementById('logBox');
   const logAuto = document.getElementById('logAutoscroll');
   const logClearBtn = document.getElementById('btnClearLog');
+  const LOG_MAX_LINES = 50;
+  // Orders bottom log elements
+  const orderLog = document.getElementById('orderLog');
+  const orderClearBtn = document.getElementById('btnOrderClear');
+  const orderExportBtn = document.getElementById('btnOrderExport');
+  let orderKeys = new Set();
   const mlMetricsBox = document.getElementById('mlMetricsBox');
   const emaFilterEl = document.getElementById('emaFilter');
   const nbFromEmaEl = document.getElementById('nbFromEma');
@@ -64,7 +88,21 @@
       const ts = new Date().toISOString();
       const detail = data? (typeof data==='string'? data: JSON.stringify(data)) : '';
       const line = `[${ts}] ${msg}${detail? ' ' + detail: ''}`;
-      if (logBox){ logBox.textContent += (line + "\n"); if (!logAuto || logAuto.checked){ logBox.scrollTop = logBox.scrollHeight; } }
+      if (logBox){
+        // append
+        const nearBottom = (logBox.scrollHeight - logBox.clientHeight - logBox.scrollTop) <= 16;
+        logBox.textContent += (line + "\n");
+        // trim to last LOG_MAX_LINES
+        try{
+          const parts = logBox.textContent.split('\n');
+          if (parts.length > LOG_MAX_LINES+1){
+            logBox.textContent = parts.slice(-LOG_MAX_LINES-1).join('\n');
+          }
+        }catch(_){ }
+        // autoscroll only if toggle is on, or if user was already near bottom
+        const shouldScroll = (logAuto ? !!logAuto.checked : nearBottom);
+        if (shouldScroll){ logBox.scrollTop = logBox.scrollHeight; }
+      }
       console.log(line);
     }catch(_){ }
   }
@@ -519,9 +557,15 @@
       if (outMax.length){ if (sNbMax) sNbMax.textContent = Number(outMax[outMax.length-1].value).toLocaleString(); }
       if (outMin.length){ if (sNbMin) sNbMin.textContent = Number(outMin[outMin.length-1].value).toLocaleString(); }
       if (sNbState && outMax.length && outMin.length){
-        const diff = outMax[outMax.length-1].value - outMin[outMin.length-1].value;
-        if (diff >= 0) { sNbState.textContent = 'OK (Max ≥ Min)'; sNbState.className='badge bg-success'; }
-        else { sNbState.textContent = 'Warning (Max < Min)'; sNbState.className='badge bg-danger'; }
+        const mx = outMax[outMax.length-1].value;
+        const mn = outMin[outMin.length-1].value;
+        const hi = Math.max(mx, mn);
+        const lo = Math.min(mx, mn);
+        const crossed = mn > mx;
+        sNbState.textContent = crossed
+          ? `Zone crossover (Min>Max): Hi ${hi.toLocaleString()} / Lo ${lo.toLocaleString()}`
+          : `Hi/Lo: ${hi.toLocaleString()} / ${lo.toLocaleString()}`;
+        sNbState.className = crossed ? 'badge bg-info' : 'badge bg-secondary';
       }
       // labeled price lines disabled in wave-only mode
     }catch(e){ /* ignore */ }
@@ -616,8 +660,18 @@
   }
   function pushOrderMarker(o, interval){
     if (!o||!o.ts) return;
+    const sideStr = String(o.side||'').toUpperCase();
+    const key = `${Number(o.ts)||0}|${sideStr}|${Math.round(Number(o.price||0))}|${o.paper?1:0}`;
+    if (orderKeys.has(key)){
+      return;
+    }
+    orderKeys.add(key);
+    if (orderKeys.size>2000){
+      // prune oldest by reconstructing from current log length
+      try{ orderKeys = new Set(Array.from(orderKeys).slice(-1500)); }catch(_){ }
+    }
     const sec = msToSec(bucketTs(Number(o.ts), interval||getInterval()));
-    const isBuy = String(o.side).toUpperCase()==='BUY';
+    const isBuy = sideStr==='BUY';
     baseMarkers.push({
       time: sec,
       position: isBuy ? 'belowBar' : 'aboveBar',
@@ -627,6 +681,18 @@
     });
     if (baseMarkers.length>500) baseMarkers = baseMarkers.slice(-500);
     candle.setMarkers([...baseMarkers, ...nbMarkers]);
+    // Append to bottom order log
+    try{
+      if (orderLog){
+        const ts = new Date(Number(o.ts)).toLocaleString();
+        const line = `[${ts}] ${isBuy? 'BUY':'SELL'} @${Number(o.price||0).toLocaleString()} ${o.size? '('+Number(o.size).toFixed(6)+')':''} ${o.paper? '[PAPER]':''}`;
+        const div = document.createElement('div');
+        div.textContent = line;
+        orderLog.prepend(div);
+        // keep last 200
+        while (orderLog.childElementCount>200){ orderLog.removeChild(orderLog.lastElementChild); }
+      }
+    }catch(_){ }
   }
 
   function seed(interval){
@@ -827,7 +893,11 @@
           await sleep(800);
           await backtestAfterReady(3000);
           const pred = await fetchJsonStrict('/api/ml/predict');
-          if (pred && pred.ok){ uiLog('ML Auto 랜덤 예측', `action=${pred.action}, pred=${pred.pred}`); if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`; }
+          if (pred && pred.ok){
+            uiLog('ML Auto 랜덤 예측', `action=${pred.action}, pred=${pred.pred}`);
+            if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`;
+            updateModelInsight(pred);
+          }
         }catch(_){ }
       };
       const sec = Math.max(5, parseInt(autoBtSecEl?.value||'15',10));
@@ -983,12 +1053,33 @@
     try{
       await fetch('/api/orders/clear', { method:'POST' });
       baseMarkers = []; candle.setMarkers([...baseMarkers, ...nbMarkers]);
+      if (orderLog) orderLog.innerHTML='';
+      orderKeys.clear();
     }catch(_){ }
   });
 
   if (ordersToggle) ordersToggle.addEventListener('change', ()=>{
     if (!ordersToggle.checked){ baseMarkers=[]; candle.setMarkers([...nbMarkers]); }
     else { seed(getInterval()); }
+  });
+
+  // Orders bottom log: clear & export
+  if (orderClearBtn) orderClearBtn.addEventListener('click', async ()=>{
+    try{ await fetch('/api/orders/clear', { method:'POST' }); if (orderLog) orderLog.innerHTML=''; orderKeys.clear(); }catch(_){ }
+  });
+  if (orderExportBtn) orderExportBtn.addEventListener('click', async ()=>{
+    try{
+      const j = await fetchJsonStrict('/api/orders');
+      const rows = (j && j.data) ? j.data : [];
+      const header = ['ts','side','price','size','paper','market'];
+      const csv = [header.join(',')].concat(rows.map(r=>[
+        r.ts, r.side, r.price, r.size, r.paper, r.market
+      ].join(','))).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `orders-${Date.now()}.csv`; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    }catch(_){ }
   });
 
   if (optBtn) optBtn.addEventListener('click', ()=>{ optimizeNb(); });
@@ -1030,7 +1121,11 @@
   if (mlPredictBtn) mlPredictBtn.addEventListener('click', async ()=>{
     try{
       const j = await fetchJsonStrict('/api/ml/predict');
-      if (j && j.ok){ uiLog('ML 예측', `action=${j.action}, pred=${j.pred}`); if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`; }
+      if (j && j.ok){
+        uiLog('ML 예측', `action=${j.action}, pred=${j.pred}`);
+        if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
+        updateModelInsight(j);
+      }
       else { uiLog('ML 예측 실패', JSON.stringify(j)); }
     }catch(e){ uiLog('ML 예측 에러', String(e)); }
   });
