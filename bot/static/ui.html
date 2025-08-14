@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
+    html, body{ overflow-anchor: none; }
     body{background:#0b1220;color:#ffffff;font-family:-apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial, sans-serif;font-size:14px}
     .card{background:#1e2329;border:1px solid rgba(255,255,255,0.08)}
     #tvChart{width:100%;height:82vh;min-height:460px}
@@ -33,13 +34,25 @@
     .asset-bar.krw .fill{background:linear-gradient(90deg,#4285f4,#72a6ff)}
     .chip{display:inline-block;padding:3px 8px;margin:2px;border-radius:999px;background:#2b3139;border:1px solid rgba(255,255,255,0.12);font-size:12px;color:#ffffff}
     /* Win list */
-    #winList{display:flex;flex-direction:column;gap:6px;overflow:hidden}
+    #winList{display:flex;flex-direction:column;gap:6px;overflow-y:auto;overflow-x:hidden}
+    #winList{scrollbar-width:none;-ms-overflow-style:none}
+    #winList::-webkit-scrollbar{width:0;height:0}
+    /* Win card scroll hide scrollbar */
+    #winCard{scrollbar-width:none;-ms-overflow-style:none}
+    #winCard::-webkit-scrollbar{width:0;height:0}
     .win-chip{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 10px;color:#ffffff;background:#1b2437;transition:transform .2s ease, box-shadow .2s ease;min-height:32px}
     .win-chip.positive{background:linear-gradient(90deg,rgba(14,203,129,0.35),rgba(14,203,129,0.10));}
     .win-chip.negative{background:linear-gradient(90deg,rgba(246,70,93,0.35),rgba(246,70,93,0.10));}
     .win-chip:hover{transform:translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,0.35)}
     .win-chip .meta{font-size:12px;color:#d9e2f3;white-space:nowrap}
     .win-chip .val{font-weight:700;white-space:normal;word-break:break-word;flex:1}
+    /* Zone badge on win buttons */
+    .zone-badge{display:inline-block;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:700;color:#0b1220}
+    .zone-blue{background:#00d1ff;color:#0b1220}
+    .zone-orange{background:#ffb703;color:#0b1220}
+    /* Win card zone theming */
+    .win-card-blue{background:linear-gradient(180deg,rgba(0,209,255,0.12),rgba(0,209,255,0.04)) !important}
+    .win-card-orange{background:linear-gradient(180deg,rgba(255,183,3,0.12),rgba(255,183,3,0.04)) !important}
     /* PnL slider glow */
     @keyframes glowGreen { 0%{ box-shadow:0 0 0 rgba(14,203,129,0);} 50%{ box-shadow:0 0 12px rgba(14,203,129,0.8);} 100%{ box-shadow:0 0 0 rgba(14,203,129,0);} }
     @keyframes glowRed { 0%{ box-shadow:0 0 0 rgba(246,70,93,0);} 50%{ box-shadow:0 0 12px rgba(246,70,93,0.8);} 100%{ box-shadow:0 0 0 rgba(246,70,93,0);} }
@@ -48,7 +61,7 @@
     #pnlLeftLabel,#pnlRightLabel{ color:#ffffff }
   </style>
 </head>
-<body>
+<body class="text-white">
   <div class="container-xxl py-3">
     <!-- Global Profit/Loss slider (uses Win% from backtest) -->
     <div class="card border-secondary rounded-3 p-2 mb-3">
@@ -70,9 +83,18 @@
     <!-- Top Status + Layout switch: chart left, assets right -->
     <div class="row g-3 align-items-stretch mb-3">
       <div class="col-12 col-lg-2">
-        <div class="card border-secondary rounded-3 p-3 h-100 d-flex flex-column">
-          <div class="mb-2"><strong>Win%</strong></div>
-          <div id="winList" class="flex-grow-1"></div>
+        <div id="winCard" class="card border-secondary rounded-3 p-3 h-100 d-flex flex-column win-card-orange" style="overflow-y:auto; scrollbar-width:none; max-height:920px;">
+          <div class="mb-2 d-flex justify-content-between align-items-center">
+            <strong class="text-white">Win%</strong>
+            <div class="d-flex align-items-center" style="gap:6px">
+              <span id="winMajor" class="badge bg-white text-dark">-</span>
+              <span id="winZoneNow" class="badge bg-white text-dark">-</span>
+            </div>
+          </div>
+          <div id="winFillTrack" style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; margin-bottom:8px;">
+            <div id="winFillBar" style="height:100%; width:1%; background:#ffffff; transition:width .4s ease"></div>
+          </div>
+          <div id="winList" class="flex-grow-1" style="overflow-y:auto;overflow-x:hidden;"></div>
           <div class="mt-2 d-flex justify-content-end">
             <button id="winClear" class="btn btn-sm btn-outline-light">Clear</button>
           </div>
@@ -85,19 +107,38 @@
         <div class="card border-secondary rounded-3 p-3 h-100">
           <div class="d-flex justify-content-between align-items-center">
             <div><strong>Assets</strong> <span id="assetsMeta" class="text-muted"></span> <span id="mlCount" class="text-muted"></span></div>
-            <div>
-              <button id="assetsRefresh" class="btn btn-sm btn-outline-light">Refresh</button>
-              <div class="form-check form-switch d-inline-block ms-2">
-                <input class="form-check-input" type="checkbox" id="assetsAuto" checked>
-                <label class="form-check-label text-muted" for="assetsAuto">Auto</label>
-              </div>
-            </div>
+            <div></div>
           </div>
           <div class="mt-2">
             <div class="asset-stat"><div class="label">총 자산(추정 KRW)</div><div id="assetTotal" class="value">-</div></div>
             <div class="asset-stat mt-2"><div class="label">매수 가능(KRW)</div><div id="assetBuyable" class="value">-</div></div>
             <div class="asset-stat mt-2"><div class="label">매도 가능</div><div id="assetSellable" style="margin-top:4px"></div></div>
             <div id="assetsBars" class="asset-bars mt-3"></div>
+            <div class="mt-auto pt-3">
+              <div class="row g-2">
+                <div class="col-12">
+                  <button id="assetsRefresh" class="btn btn-sm btn-outline-light w-100">Refresh</button>
+                </div>
+                <div class="col-12">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="assetsAuto" checked>
+                    <label class="form-check-label text-muted" for="assetsAuto">Auto</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="optAutoSave" checked>
+                    <label class="form-check-label text-muted" for="optAutoSave">Auto Save</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="enforceZoneSide">
+                    <label class="form-check-label text-muted" for="enforceZoneSide">Zone-Side Only (BUY@BLUE / SELL@ORANGE)</label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -140,7 +181,7 @@
             <div class="col-12 col-lg-4">
               <div class="card border-secondary rounded-3 p-2" style="min-height:80px">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                  <strong>Model Insight</strong>
+                  <strong class="text-white">Model Insight</strong>
                   <span id="miZone" class="badge bg-secondary">-</span>
                 </div>
                 <div id="miText" style="font-size:12px; color:#e6eefc">-</div>
@@ -231,16 +272,16 @@
           </div>
           <hr class="text-secondary"/>
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>실시간 로그</strong>
+            <strong class="text-white">실시간 로그</strong>
             <div>
               <button id="btnClearLog" class="btn btn-sm btn-outline-light me-2">Clear</button>
               <div class="form-check form-switch d-inline-block">
-                <input class="form-check-input" type="checkbox" id="logAutoscroll" checked>
+                <input class="form-check-input" type="checkbox" id="logAutoscroll">
                 <label class="form-check-label text-muted" for="logAutoscroll">Auto</label>
               </div>
             </div>
           </div>
-          <pre id="logBox" style="height:160px;overflow:auto;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#a7b4d7;font-size:12px;line-height:1.35"></pre>
+          <pre id="logBox" style="height:160px;overflow:auto;overflow-anchor:none;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#a7b4d7;font-size:12px;line-height:1.35"></pre>
           <div id="mlMetricsBox" class="mt-2" style="font-size:12px;color:#e6eefc"></div>
         </div>
       </div>
@@ -252,13 +293,13 @@
     <div class="col-12">
       <div class="card border-secondary rounded-3 p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <strong>주문 로그</strong>
+          <strong class="text-white">주문 로그</strong>
           <div>
             <button id="btnOrderExport" class="btn btn-sm btn-outline-light me-2">Export CSV</button>
             <button id="btnOrderClear" class="btn btn-sm btn-outline-danger">Clear</button>
           </div>
         </div>
-        <div id="orderLog" style="height:180px;overflow:auto;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#e6eefc;font-size:12px;line-height:1.35"></div>
+        <div id="orderLog" style="height:180px;overflow:auto;overflow-anchor:none;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#e6eefc;font-size:12px;line-height:1.35"></div>
       </div>
     </div>
   </div>

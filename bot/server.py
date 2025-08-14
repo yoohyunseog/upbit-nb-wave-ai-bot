@@ -124,6 +124,17 @@ bot_ctrl = {
         'market': None,
         'interval_sec': None,
         'require_ml': None,  # if true, require ML confirmation to place orders
+        'zone100_only': None,  # if true, place orders only when zone prob is 100%
+        'require_group': None,  # if true, require multi-timeframe group consensus
+        'group_intervals': None,  # e.g., ["minute1","minute3","minute5"]
+        'group_buy_th': None,    # 0~100
+        'group_sell_th': None,   # 0~100
+        'min_order_gap_sec': None, # enforce minimal seconds between orders
+        'require_pullback': None,   # require pullback from extreme before ordering
+        'pullback_r': None,         # minimum extreme_gap in r (e.g., 0.02)
+        'pullback_bars': None,      # minimum bars since extreme (zone_extreme_age)
+        # Enforce side by zone: ONLY BUY in BLUE, ONLY SELL in ORANGE
+        'enforce_zone_side': None,
         # runtime key injection (avoid restarting server)
         'access_key': None,
         'secret_key': None,
@@ -226,6 +237,23 @@ def _build_features(df: pd.DataFrame, window: int, ema_fast: int = 10, ema_slow:
     cur_zone_min_idx = None
     cur_zone_max_idx = None
     cur_extreme_idx = None
+    # Zone progression helpers
+    zone_start_idx = 0
+    zmin_prev = None
+    zmax_prev = None
+    zmin_slope_list = []
+    zmax_slope_list = []
+    zone_len_list = []
+    zone_pos_list = []  # 0~1, position of current zone segment within the last `window` bars (0=left,1=right)
+    # Previous completed zone extrema (for BLUE min and ORANGE max)
+    prev_blue_min_completed = None
+    prev_orange_max_completed = None
+    zmin_vs_prev_list = []
+    zmax_vs_prev_list = []
+    blue_min_last_list = []
+    orange_max_last_list = []
+    blue_min_cur_list = []
+    orange_max_cur_list = []
     close_vals = out['close'].astype(float).fillna(method='bfill').fillna(method='ffill').fillna(0.0).values.tolist()
     r_vals = r.fillna(0.5).astype(float).values.tolist()
     for i, rv in enumerate(r_vals):
@@ -236,21 +264,34 @@ def _build_features(df: pd.DataFrame, window: int, ema_fast: int = 10, ema_slow:
             cur_zone_min_idx = i
             cur_zone_max_idx = i
             cur_extreme_idx = i
+            zone_start_idx = i
         # update extremes per zone
         if cur_zone == 'BLUE' and rv >= HIGH:
+            # BLUE completed → record its min before switching
+            try:
+                prev_blue_min_completed = float(cur_zone_min_r if cur_zone_min_r is not None else rv)
+            except Exception:
+                prev_blue_min_completed = float(rv)
             cur_zone = 'ORANGE'
             cur_zone_min_r = rv
             cur_zone_max_r = rv
             cur_zone_min_idx = i
             cur_zone_max_idx = i
             cur_extreme_idx = i
+            zone_start_idx = i
         elif cur_zone == 'ORANGE' and rv <= LOW:
+            # ORANGE completed → record its max before switching
+            try:
+                prev_orange_max_completed = float(cur_zone_max_r if cur_zone_max_r is not None else rv)
+            except Exception:
+                prev_orange_max_completed = float(rv)
             cur_zone = 'BLUE'
             cur_zone_min_r = rv
             cur_zone_max_r = rv
             cur_zone_min_idx = i
             cur_zone_max_idx = i
             cur_extreme_idx = i
+            zone_start_idx = i
         # track within-zone min/max r and their indices
         cur_zone_min_r = rv if cur_zone_min_r is None else min(cur_zone_min_r, rv)
         cur_zone_max_r = rv if cur_zone_max_r is None else max(cur_zone_max_r, rv)
@@ -271,6 +312,73 @@ def _build_features(df: pd.DataFrame, window: int, ema_fast: int = 10, ema_slow:
         # current zone's defining extreme r
         cur_extreme_r = (cur_zone_min_r if cur_zone == 'BLUE' else cur_zone_max_r)
         extreme_gap.append(abs(rv - float(cur_extreme_r)))
+        # slopes of zone extrema (delta since previous bar)
+        try:
+            zmin_slope = (0.0 if zmin_prev is None else float(cur_zone_min_r) - float(zmin_prev))
+        except Exception:
+            zmin_slope = 0.0
+        try:
+            zmax_slope = (0.0 if zmax_prev is None else float(cur_zone_max_r) - float(zmax_prev))
+        except Exception:
+            zmax_slope = 0.0
+        zmin_prev = float(cur_zone_min_r if cur_zone_min_r is not None else rv)
+        zmax_prev = float(cur_zone_max_r if cur_zone_max_r is not None else rv)
+        zmin_slope_list.append(zmin_slope)
+        zmax_slope_list.append(zmax_slope)
+        # bars since current zone started
+        try:
+            zone_len_list.append(int(i - zone_start_idx))
+        except Exception:
+            zone_len_list.append(0)
+        # zone position within the last `window` bars
+        try:
+            win_start = max(0, i - window + 1)
+            z_start = max(zone_start_idx, win_start)
+            z_end = i
+            denom = max(1, (i - win_start))
+            zone_mid = (z_start + z_end) / 2.0
+            zone_pos = (zone_mid - win_start) / denom  # 0=left, 1=right
+            if not np.isfinite(zone_pos): zone_pos = 0.5
+        except Exception:
+            zone_pos = 0.5
+        zone_pos_list.append(float(max(0.0, min(1.0, zone_pos))))
+        # compare current zone's extreme vs previous completed same-zone extreme
+        if cur_zone == 'BLUE':
+            try:
+                zmin_vs_prev = (float(cur_zone_min_r) - float(prev_blue_min_completed)) if prev_blue_min_completed is not None else 0.0
+            except Exception:
+                zmin_vs_prev = 0.0
+            zmax_vs_prev = 0.0
+        else:
+            try:
+                zmax_vs_prev = (float(cur_zone_max_r) - float(prev_orange_max_completed)) if prev_orange_max_completed is not None else 0.0
+            except Exception:
+                zmax_vs_prev = 0.0
+            zmin_vs_prev = 0.0
+        zmin_vs_prev_list.append(zmin_vs_prev)
+        zmax_vs_prev_list.append(zmax_vs_prev)
+        # emit both BLUE and ORANGE extrema regardless of current zone
+        try:
+            blue_min_last = float(prev_blue_min_completed) if prev_blue_min_completed is not None else float(zmin_prev)
+        except Exception:
+            blue_min_last = float(rv)
+        try:
+            orange_max_last = float(prev_orange_max_completed) if prev_orange_max_completed is not None else float(zmax_prev)
+        except Exception:
+            orange_max_last = float(rv)
+        blue_min_last_list.append(blue_min_last)
+        orange_max_last_list.append(orange_max_last)
+        # current estimates: current zone's extreme if matching, else last completed for that zone
+        try:
+            blue_min_cur = float(cur_zone_min_r) if cur_zone == 'BLUE' and cur_zone_min_r is not None else blue_min_last
+        except Exception:
+            blue_min_cur = blue_min_last
+        try:
+            orange_max_cur = float(cur_zone_max_r) if cur_zone == 'ORANGE' and cur_zone_max_r is not None else orange_max_last
+        except Exception:
+            orange_max_cur = orange_max_last
+        blue_min_cur_list.append(blue_min_cur)
+        orange_max_cur_list.append(orange_max_cur)
         # append zone-wide extrema and their prices
         zone_min_r_list.append(float(cur_zone_min_r if cur_zone_min_r is not None else rv))
         zone_max_r_list.append(float(cur_zone_max_r if cur_zone_max_r is not None else rv))
@@ -296,6 +404,17 @@ def _build_features(df: pd.DataFrame, window: int, ema_fast: int = 10, ema_slow:
         out['zone_extreme_r'] = pd.Series(zone_extreme_r_list, index=out.index)
         out['zone_extreme_price'] = pd.Series(zone_extreme_price_list, index=out.index)
         out['zone_extreme_age'] = pd.Series(zone_extreme_age_list, index=out.index)
+        # trend helpers: extrema slopes and prior comparisons
+        out['zmin_slope'] = pd.Series(zmin_slope_list, index=out.index)
+        out['zmax_slope'] = pd.Series(zmax_slope_list, index=out.index)
+        out['zone_len'] = pd.Series(zone_len_list, index=out.index)
+        out['zone_pos'] = pd.Series(zone_pos_list, index=out.index)
+        out['zmin_vs_prev'] = pd.Series(zmin_vs_prev_list, index=out.index)
+        out['zmax_vs_prev'] = pd.Series(zmax_vs_prev_list, index=out.index)
+        out['blue_min_last'] = pd.Series(blue_min_last_list, index=out.index)
+        out['orange_max_last'] = pd.Series(orange_max_last_list, index=out.index)
+        out['blue_min_cur'] = pd.Series(blue_min_cur_list, index=out.index)
+        out['orange_max_cur'] = pd.Series(orange_max_cur_list, index=out.index)
     except Exception:
         pass
     # Time-of-day and weekly cycle features (help model learn time-localized BLUE/ORANGE behaviors)
@@ -346,6 +465,80 @@ def _load_ml(interval: str | None = None):
     if os.path.exists(ML_MODEL_PATH):
         return joblib.load(ML_MODEL_PATH)
     return None
+
+def _make_insight(df: pd.DataFrame, window: int, ema_fast: int, ema_slow: int, interval: str, pack: dict | None = None) -> dict:
+    try:
+        feat = _build_features(df, window, ema_fast, ema_slow, 5).dropna().copy()
+        if feat.empty:
+            return {}
+        last = feat.iloc[-1]
+        zone_flag = int(round(float(last.get('zone_flag', 0))))
+        zone = 'BLUE' if zone_flag == 1 else ('ORANGE' if zone_flag == -1 else 'UNKNOWN')
+        try:
+            HIGH = float(os.getenv('NB_HIGH', '0.55'))
+            LOW = float(os.getenv('NB_LOW', '0.45'))
+        except Exception:
+            HIGH, LOW = 0.55, 0.45
+        rng = max(1e-9, HIGH - LOW)
+        rv = float(last.get('r', 0.5))
+        p_blue_raw = max(0.0, min(1.0, (HIGH - rv) / rng))
+        p_orange_raw = max(0.0, min(1.0, (rv - LOW) / rng))
+        s0 = p_blue_raw + p_orange_raw
+        if s0 > 0:
+            p_blue_raw, p_orange_raw = p_blue_raw/s0, p_orange_raw/s0
+        # Trend weighting
+        try:
+            trend_k = int(os.getenv('NB_TREND_K', '30'))
+            trend_alpha = float(os.getenv('NB_TREND_ALPHA', '0.5'))
+        except Exception:
+            trend_k, trend_alpha = 30, 0.5
+        p_blue, p_orange = p_blue_raw, p_orange_raw
+        try:
+            r_series = _compute_r_from_ohlcv(df, window).astype(float)
+            if len(r_series) >= trend_k*2:
+                tail_now = r_series.iloc[-trend_k:]
+                tail_prev = r_series.iloc[-trend_k*2:-trend_k]
+                zmax_now, zmax_prev = float(tail_now.max()), float(tail_prev.max())
+                zmin_now, zmin_prev = float(tail_now.min()), float(tail_prev.min())
+                trend_orange = max(0.0, (zmax_prev - zmax_now) / rng)
+                trend_blue = max(0.0, (zmin_now - zmin_prev) / rng)
+                p_orange = max(0.0, min(1.0, p_orange_raw * (1.0 - trend_alpha * trend_orange)))
+                p_blue = max(0.0, min(1.0, p_blue_raw * (1.0 - trend_alpha * trend_blue)))
+                s = p_blue + p_orange
+                if s > 0:
+                    p_blue, p_orange = p_blue/s, p_orange/s
+        except Exception:
+            pass
+        ins = {
+            'r': rv,
+            'zone_flag': zone_flag,
+            'zone': zone,
+            'zone_conf': float(last.get('zone_conf', 0.0)),
+            'dist_high': float(last.get('dist_high', 0.0)),
+            'dist_low': float(last.get('dist_low', 0.0)),
+            'extreme_gap': float(last.get('extreme_gap', 0.0)),
+            'zone_min_r': float(last.get('zone_min_r', rv)),
+            'zone_max_r': float(last.get('zone_max_r', rv)),
+            'zone_extreme_r': float(last.get('zone_extreme_r', rv)),
+            'zone_extreme_age': int(last.get('zone_extreme_age', 0)),
+            'zone_min_price': float(last.get('zone_min_price', last.get('close', 0.0))),
+            'zone_max_price': float(last.get('zone_max_price', last.get('close', 0.0))),
+            'zone_extreme_price': float(last.get('zone_extreme_price', last.get('close', 0.0))),
+            'w': float(last.get('w', 0.0)),
+            'ema_diff': float(last.get('ema_diff', 0.0)),
+            'pct_blue_raw': float(p_blue_raw*100.0),
+            'pct_orange_raw': float(p_orange_raw*100.0),
+            'pct_blue': float(p_blue*100.0),
+            'pct_orange': float(p_orange*100.0),
+        }
+        # record observation bucket for grouping
+        try:
+            _record_group_observation(interval, window, rv, ins['pct_blue'], ins['pct_orange'], int(time.time()*1000))
+        except Exception:
+            pass
+        return ins
+    except Exception:
+        return {}
 
 def _simulate_pnl_from_preds(prices: pd.Series, preds: np.ndarray, fee_bps: float = 10.0) -> dict:
     pos = 0
@@ -542,15 +735,45 @@ def api_ml_train():
             # align labels to feature frame
             idx_map = { ts: i for i, ts in enumerate(df.index) }
             y = np.array([ labels[idx_map.get(ts, 0)] for ts in feat.index ], dtype=int)
-        X = feat[['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']]
-        # Sample weights to reduce HOLD dominance
+        base_cols = ['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']
+        ext_cols = ['zone_flag','dist_high','dist_low','extreme_gap','zone_conf','zone_min_r','zone_max_r','zone_extreme_r','zone_extreme_age','zmin_slope','zmax_slope','zone_len','zmin_vs_prev','zmax_vs_prev']
+        use_cols = base_cols + [c for c in ext_cols if c in feat.columns]
+        X = feat[use_cols]
+        # Sample weights: class-balance + zone-time/extreme-aware weighting
         total_n = len(X)
         c_neg = int((y==-1).sum()); c_zero = int((y==0).sum()); c_pos = int((y==1).sum())
-        denom = max(1, c_neg) + max(1, c_zero) + max(1, c_pos)
         w_neg = float(total_n) / max(1, 3*c_neg)
         w_zero = float(total_n) / max(1, 3*c_zero)
         w_pos = float(total_n) / max(1, 3*c_pos)
         w = np.where(y==-1, w_neg, np.where(y==0, w_zero, w_pos)).astype(float)
+        # Context multiplier:
+        # - SELL(-1): emphasize when zones are far apart (long zone_len) and ORANGE max exceeds previous (zmax_vs_prev > 0)
+        # - BUY(+1): emphasize when zones are close (short zone_len) and BLUE min exceeds previous (zmin_vs_prev > 0)
+        try:
+            zone_len = feat['zone_len'].reindex(X.index) if hasattr(X, 'index') else feat['zone_len']
+            zmin_vs_prev = feat['zmin_vs_prev'].reindex(X.index) if hasattr(X, 'index') else feat['zmin_vs_prev']
+            zmax_vs_prev = feat['zmax_vs_prev'].reindex(X.index) if hasattr(X, 'index') else feat['zmax_vs_prev']
+            # normalize zone_len by window
+            zl = np.clip((zone_len.astype(float).values / max(1, window)), 0.0, 1.0)
+            zp = feat['zone_pos'].reindex(X.index).astype(float).values if 'zone_pos' in feat.columns else np.zeros_like(zl)
+            zvp_min = np.clip(np.maximum(0.0, zmin_vs_prev.astype(float).values), 0.0, 1.0)
+            zvp_max = np.clip(np.maximum(0.0, zmax_vs_prev.astype(float).values), 0.0, 1.0)
+            try:
+                alpha_buy = float(os.getenv('TW_ALPHA_BUY', '0.5'))
+            except Exception:
+                alpha_buy = 0.5
+            try:
+                alpha_sell = float(os.getenv('TW_ALPHA_SELL', '0.5'))
+            except Exception:
+                alpha_sell = 0.5
+            ctx = np.ones_like(w, dtype=float)
+            # SELL: farther zones (zl high) + positioned to the right (zp high) + stronger ORANGE max (zvp_max high)
+            ctx = np.where(y==-1, ctx * (1.0 + alpha_sell * (zvp_max * zl * (0.5 + 0.5*zp))), ctx)
+            # BUY: closer zones (zl low) + positioned to the left (zp low) + stronger BLUE min (zvp_min high)
+            ctx = np.where(y== 1, ctx * (1.0 + alpha_buy  * (zvp_min * (1.0 - zl) * (1.0 - 0.5*zp))), ctx)
+            w = w * ctx
+        except Exception:
+            pass
 
         # Hyperparameter search with time-series CV (weighted)
         from sklearn.ensemble import GradientBoostingClassifier
@@ -607,9 +830,9 @@ def api_ml_train():
         }
         # persist the exact feature order used for training
         try:
-            feature_names = list(feat[['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']].columns)
+            feature_names = list(X.columns)
         except Exception:
-            feature_names = ['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']
+            feature_names = use_cols
         pack = { 'model': base, 'window': window, 'ema_fast': ema_fast, 'ema_slow': ema_slow, 'horizon': horizon, 'tau': tau, 'interval': interval, 'metrics': metrics, 'trained_at': int(time.time()*1000), 'feature_names': feature_names }
         # save model per-interval
         try:
@@ -715,6 +938,15 @@ def api_ml_predict():
                 'zone_max_r': float(last.get('zone_max_r', rv)),
                 'zone_extreme_r': float(last.get('zone_extreme_r', rv)),
                 'zone_extreme_age': int(last.get('zone_extreme_age', 0)),
+                # also expose corresponding prices
+                'zone_min_price': float(last.get('zone_min_price', last.get('close', 0.0))),
+                'zone_max_price': float(last.get('zone_max_price', last.get('close', 0.0))),
+                'zone_extreme_price': float(last.get('zone_extreme_price', last.get('close', 0.0))),
+                # cross-zone extrema snapshots
+                'blue_min_last': float(last.get('blue_min_last', rv)),
+                'orange_max_last': float(last.get('orange_max_last', rv)),
+                'blue_min_cur': float(last.get('blue_min_cur', rv)),
+                'orange_max_cur': float(last.get('orange_max_cur', rv)),
                 'w': float(last.get('w', 0.0)),
                 'ema_diff': float(last.get('ema_diff', 0.0)),
                 'pct_blue_raw': float(p_blue_raw*100.0),
@@ -973,6 +1205,7 @@ def trade_loop():
         # ML model cache for confirmation
         ml_pack = None
         ml_interval = None
+        last_order_ts = 0
         while bot_ctrl['running']:
             try:
                 cfg = _resolve_config()
@@ -1000,11 +1233,27 @@ def trade_loop():
                 state['signal'] = sig if sig != 'HOLD' else state.get('signal', 'HOLD')
                 state['price'] = price
                 if sig in ('BUY','SELL') and sig != last_signal:
+                    # cooldown between orders (to avoid near-simultaneous flips)
+                    try:
+                        min_gap = int(bot_ctrl['cfg_override'].get('min_order_gap_sec') or os.getenv('MIN_ORDER_GAP_SEC', '10'))
+                    except Exception:
+                        min_gap = 10
+                    now_ms = int(time.time()*1000)
+                    if last_order_ts and (now_ms - last_order_ts) < max(0,min_gap)*1000:
+                        last_signal = sig
+                        bot_ctrl['last_signal'] = sig
+                        time.sleep(max(1, _resolve_config().interval_sec))
+                        continue
                     # Optional: require ML confirmation
                     try:
                         require_ml = bool(bot_ctrl['cfg_override'].get('require_ml')) if bot_ctrl['cfg_override'].get('require_ml') is not None else (os.getenv('REQUIRE_ML_CONFIRM', 'false').lower()=='true')
                     except Exception:
                         require_ml = False
+                    # Optional: require 100% zone probability
+                    try:
+                        zone100_only = bool(bot_ctrl['cfg_override'].get('zone100_only')) if bot_ctrl['cfg_override'].get('zone100_only') is not None else (os.getenv('ZONE100_ONLY', 'false').lower()=='true')
+                    except Exception:
+                        zone100_only = False
                     if require_ml:
                         try:
                             if ml_interval != cfg.candle or ml_pack is None:
@@ -1042,11 +1291,87 @@ def trade_loop():
                                     bot_ctrl['last_signal'] = sig
                                     time.sleep(max(1, _resolve_config().interval_sec))
                                     continue
-                                if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL'):
+                                # Pullback from extreme enforcement
+                                allow_by_pullback = True
+                                try:
+                                    need_pullback = bool(bot_ctrl['cfg_override'].get('require_pullback') or os.getenv('REQUIRE_PULLBACK', 'false').lower()=='true')
+                                except Exception:
+                                    need_pullback = False
+                                try:
+                                    pullback_r = float(bot_ctrl['cfg_override'].get('pullback_r') or os.getenv('PULLBACK_R', '0.02'))
+                                except Exception:
+                                    pullback_r = 0.02
+                                try:
+                                    pullback_bars = int(bot_ctrl['cfg_override'].get('pullback_bars') or os.getenv('PULLBACK_BARS', '2'))
+                                except Exception:
+                                    pullback_bars = 2
+                                if need_pullback:
+                                    try:
+                                        snap_pb = snap if 'snap' in locals() and isinstance(snap, dict) else _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, ml_pack)
+                                        eg = float(snap_pb.get('extreme_gap', 0.0) or 0.0)
+                                        age = int(snap_pb.get('zone_extreme_age', 0) or 0)
+                                        allow_by_pullback = (eg >= pullback_r) and (age >= pullback_bars)
+                                    except Exception:
+                                        allow_by_pullback = False
+                                # Zone 100% enforcement using latest insight snapshot
+                                allow_by_zone100 = True
+                                if zone100_only:
+                                    try:
+                                        snap = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, ml_pack)
+                                        pb = float(snap.get('pct_blue', 0.0) or 0.0)
+                                        po = float(snap.get('pct_orange', 0.0) or 0.0)
+                                        allow_by_zone100 = (pb >= 99.95 or po >= 99.95)
+                                    except Exception:
+                                        allow_by_zone100 = False
+                                # Multi-timeframe group consensus
+                                allow_by_group = True
+                                try:
+                                    need_group = bool(bot_ctrl['cfg_override'].get('require_group') or os.getenv('REQUIRE_GROUP', 'false').lower()=='true')
+                                except Exception:
+                                    need_group = False
+                                if need_group:
+                                    try:
+                                        intervals = bot_ctrl['cfg_override'].get('group_intervals') or ['minute1','minute3','minute5']
+                                        buy_th = float(bot_ctrl['cfg_override'].get('group_buy_th') or os.getenv('GROUP_BUY_TH','70'))
+                                        sell_th = float(bot_ctrl['cfg_override'].get('group_sell_th') or os.getenv('GROUP_SELL_TH','70'))
+                                        blue_sum=0.0; orange_sum=0.0; cnt=0
+                                        for iv in intervals:
+                                            dfx = get_candles(cfg.market, iv, count=max(120, window*2))
+                                            rvx = float(_compute_r_from_ohlcv(dfx, window).iloc[-1]) if len(dfx) else 0.5
+                                            HIGH = float(os.getenv('NB_HIGH', '0.55')); LOW = float(os.getenv('NB_LOW', '0.45'))
+                                            rng = max(1e-9, HIGH-LOW)
+                                            pbx = max(0.0, min(1.0, (HIGH - rvx)/rng))
+                                            pox = max(0.0, min(1.0, (rvx - LOW)/rng))
+                                            s0 = pbx+pox
+                                            if s0>0: pbx,pox=pbx/s0,pox/s0
+                                            blue_sum += pbx; orange_sum += pox; cnt += 1
+                                        pb = (blue_sum/cnt*100.0) if cnt else 0.0
+                                        po = (orange_sum/cnt*100.0) if cnt else 0.0
+                                        if sig=='BUY': allow_by_group = (pb >= buy_th)
+                                        elif sig=='SELL': allow_by_group = (po >= sell_th)
+                                    except Exception:
+                                        allow_by_group = False
+                                if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL') or (not allow_by_pullback) or (not allow_by_zone100) or (not allow_by_group):
                                     last_signal = sig
                                     bot_ctrl['last_signal'] = sig
                                     time.sleep(max(1, _resolve_config().interval_sec))
                                     continue
+                        except Exception:
+                            pass
+                    # Enforce: only BUY in BLUE zone, only SELL in ORANGE zone (toggle-able)
+                    try:
+                        need_enforce = bool(bot_ctrl['cfg_override'].get('enforce_zone_side')) if bot_ctrl['cfg_override'].get('enforce_zone_side') is not None else (os.getenv('ENFORCE_ZONE_SIDE','false').lower()=='true')
+                    except Exception:
+                        need_enforce = False
+                    if need_enforce:
+                        try:
+                            snap_guard = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, ml_pack)
+                            z_now = str(snap_guard.get('zone') or ('ORANGE' if r_last >= 0.5 else 'BLUE')).upper()
+                            if (sig == 'BUY' and z_now != 'BLUE') or (sig == 'SELL' and z_now != 'ORANGE'):
+                                last_signal = sig
+                                bot_ctrl['last_signal'] = sig
+                                time.sleep(max(1, _resolve_config().interval_sec))
+                                continue
                         except Exception:
                             pass
                     # Update trader's dynamic pnl_ratio before each order
@@ -1055,6 +1380,11 @@ def trade_loop():
                     except Exception:
                         trader.cfg.pnl_ratio = 0.0
                     o = trader.place(sig, price)
+                    # snapshot current insight at order time
+                    try:
+                        snap_insight = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, ml_pack)
+                    except Exception:
+                        snap_insight = {}
                     order = {
                         'ts': int(time.time()*1000),
                         'side': sig,
@@ -1062,8 +1392,10 @@ def trade_loop():
                         'size': (o.get('size') if isinstance(o, dict) else None) or 0,
                         'paper': cfg.paper,
                         'market': cfg.market,
+                        'insight': snap_insight,
                     }
                     orders.append(order)
+                    last_order_ts = int(order['ts'])
                     bot_ctrl['last_order'] = order
                 last_signal = sig
                 bot_ctrl['last_signal'] = sig
@@ -1653,7 +1985,7 @@ def api_bot_config():
         if data.get('reload_env'):
             _reload_env_vars()
         ov = bot_ctrl['cfg_override']
-        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec','require_ml',
+        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec','require_ml','enforce_zone_side',
                   'access_key','secret_key','open_api_access_key','open_api_secret_key'):
             if k in data:
                 ov[k] = data[k]

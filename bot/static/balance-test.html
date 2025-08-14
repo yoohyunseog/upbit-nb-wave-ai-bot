@@ -43,11 +43,51 @@
       if (oak && osk){ body.open_api_access_key = oak; body.open_api_secret_key = osk; }
       if (!Object.keys(body).length){ out('입력된 키가 없습니다.'); return; }
       out('Loading...'); out(await postJson(base() + '/api/bot/config', body));
+      // autosave on apply if enabled
+      try{
+        const autoSave = document.getElementById('autoSaveKeys').checked;
+        if (autoSave){
+          localStorage.setItem('eightbit_keys', JSON.stringify({ ak, sk, oak, osk }));
+        }
+      }catch(_){ }
     }
     window.addEventListener('DOMContentLoaded', ()=>{
       const saved = localStorage.getItem('eightbit_base');
       if (saved){ document.getElementById('base').value = saved; }
       document.getElementById('base').addEventListener('change', (e)=>{ localStorage.setItem('eightbit_base', e.target.value); });
+      // load keys + toggles
+      try{
+        const t1 = localStorage.getItem('eightbit_keys_auto_save');
+        const t2 = localStorage.getItem('eightbit_keys_auto_apply');
+        if (t1!==null) document.getElementById('autoSaveKeys').checked = (t1==='true');
+        if (t2!==null) document.getElementById('autoApplyKeys').checked = (t2==='true');
+      }catch(_){ }
+      try{
+        const ks = JSON.parse(localStorage.getItem('eightbit_keys')||'{}');
+        if (ks.ak) document.getElementById('ak').value = ks.ak;
+        if (ks.sk) document.getElementById('sk').value = ks.sk;
+        if (ks.oak) document.getElementById('oak').value = ks.oak;
+        if (ks.osk) document.getElementById('osk').value = ks.osk;
+        // auto-apply on load if enabled
+        if (document.getElementById('autoApplyKeys').checked && (ks.ak||ks.oak)){
+          setKeys();
+        }
+      }catch(_){ }
+      // auto save on input changes when enabled
+      const sync = ()=>{
+        try{
+          if (!document.getElementById('autoSaveKeys').checked) return;
+          const ak = document.getElementById('ak').value.trim();
+          const sk = document.getElementById('sk').value.trim();
+          const oak = document.getElementById('oak').value.trim();
+          const osk = document.getElementById('osk').value.trim();
+          localStorage.setItem('eightbit_keys', JSON.stringify({ ak, sk, oak, osk }));
+        }catch(_){ }
+      };
+      ['ak','sk','oak','osk'].forEach(id=>{ const el = document.getElementById(id); if (el) el.addEventListener('input', sync); });
+      // persist toggle states
+      const s1 = document.getElementById('autoSaveKeys'); if (s1) s1.addEventListener('change', (e)=>{ try{ localStorage.setItem('eightbit_keys_auto_save', String(!!e.target.checked)); }catch(_){ } });
+      const s2 = document.getElementById('autoApplyKeys'); if (s2) s2.addEventListener('change', (e)=>{ try{ localStorage.setItem('eightbit_keys_auto_apply', String(!!e.target.checked)); }catch(_){ } });
     });
   </script>
 </head>
@@ -75,6 +115,8 @@
     <input id="osk" type="text" placeholder="UPBIT_OPEN_API_SECRET_KEY" />
     <div class="row">
       <button onclick="setKeys()">키 적용(서버 즉시 반영)</button>
+      <label style="display:flex;align-items:center;gap:6px"><input id="autoSaveKeys" type="checkbox" checked> 자동 저장</label>
+      <label style="display:flex;align-items:center;gap:6px"><input id="autoApplyKeys" type="checkbox"> 자동 적용(로드 시)</label>
     </div>
 
     <pre id="out">결과가 여기에 표시됩니다.</pre>

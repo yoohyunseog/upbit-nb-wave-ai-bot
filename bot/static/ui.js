@@ -23,15 +23,29 @@
   function updateModelInsight(j){
     try{
       const ins = j && j.insight ? j.insight : {};
-      if (miZone){ miZone.textContent = String(ins.zone||'-'); miZone.className = 'badge ' + (ins.zone==='BLUE'?'bg-info':'bg-warning'); }
+      try{ window.lastInsight = ins; }catch(_){ }
+      if (miZone){ miZone.textContent = String(ins.zone||'-'); miZone.className = 'badge bg-white text-dark'; }
+      // reflect current zone majority on Win% card header and background
+      try{
+        const winZoneNow = document.getElementById('winZoneNow');
+        const winCard = document.getElementById('winCard');
+        if (winZoneNow){ winZoneNow.textContent = String(ins.zone||'-'); winZoneNow.className = 'badge bg-white text-dark'; }
+        if (winCard){
+          winCard.classList.remove('win-card-blue','win-card-orange');
+          const pb = Number(ins.pct_blue||0), po = Number(ins.pct_orange||0);
+          if (po >= pb && po>0){ winCard.classList.add('win-card-orange'); }
+          else if (pb > po && pb>0){ winCard.classList.add('win-card-blue'); }
+        }
+      }catch(_){ }
       if (miText){
         const blueAdj = (ins.pct_blue||0);
         const orangeAdj = (ins.pct_orange||0);
         const blueRaw = (ins.pct_blue_raw!=null? ins.pct_blue_raw : blueAdj);
         const orangeRaw = (ins.pct_orange_raw!=null? ins.pct_orange_raw : orangeAdj);
-        miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | conf=${(ins.zone_conf||0).toFixed(3)} | w=${(ins.w||0).toFixed(3)}<br/>`+
+        miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | zone=${String(ins.zone||'-')} | conf=${(ins.zone_conf||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)} | w=${(ins.w||0).toFixed(3)}<br/>`+
           `dist_high=${(ins.dist_high||0).toFixed(3)} | dist_low=${(ins.dist_low||0).toFixed(3)} | gap=${(ins.extreme_gap||0).toFixed(3)} | ema_diff=${(ins.ema_diff||0).toFixed(1)}<br/>`+
-          `min_r=${(ins.zone_min_r!=null? ins.zone_min_r: ins.r||0).toFixed(3)} | max_r=${(ins.zone_max_r!=null? ins.zone_max_r: ins.r||0).toFixed(3)} | extreme_r=${(ins.zone_extreme_r!=null? ins.zone_extreme_r: ins.r||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)}`;
+          `zone_min_r=${(ins.zone_min_r!=null? ins.zone_min_r: ins.r||0).toFixed(3)} | zone_max_r=${(ins.zone_max_r!=null? ins.zone_max_r: ins.r||0).toFixed(3)} | zone_extreme_r=${(ins.zone_extreme_r!=null? ins.zone_extreme_r: ins.r||0).toFixed(3)}<br/>`+
+          `blue_min_cur=${(ins.blue_min_cur!=null? ins.blue_min_cur: ins.zone_min_r||0).toFixed(3)} | blue_min_last=${(ins.blue_min_last!=null? ins.blue_min_last: ins.zone_min_r||0).toFixed(3)} | orange_max_cur=${(ins.orange_max_cur!=null? ins.orange_max_cur: ins.zone_max_r||0).toFixed(3)} | orange_max_last=${(ins.orange_max_last!=null? ins.orange_max_last: ins.zone_max_r||0).toFixed(3)}`;
       }
     }catch(_){ }
   }
@@ -53,6 +67,7 @@
   const assetsBars = document.getElementById('assetsBars');
   let assetsTimer = null;
   const assetsSummary = null;
+  const enforceZoneSideEl = document.getElementById('enforceZoneSide');
   const mlCountEl = document.getElementById('mlCount');
   const trainCountEl = document.getElementById('trainCount');
   const trainSegEl = document.getElementById('trainSeg');
@@ -89,8 +104,8 @@
       const detail = data? (typeof data==='string'? data: JSON.stringify(data)) : '';
       const line = `[${ts}] ${msg}${detail? ' ' + detail: ''}`;
       if (logBox){
-        // append
-        const nearBottom = (logBox.scrollHeight - logBox.clientHeight - logBox.scrollTop) <= 16;
+        // append without forcing scroll
+        const prevTop = logBox.scrollTop;
         logBox.textContent += (line + "\n");
         // trim to last LOG_MAX_LINES
         try{
@@ -99,9 +114,8 @@
             logBox.textContent = parts.slice(-LOG_MAX_LINES-1).join('\n');
           }
         }catch(_){ }
-        // autoscroll only if toggle is on, or if user was already near bottom
-        const shouldScroll = (logAuto ? !!logAuto.checked : nearBottom);
-        if (shouldScroll){ logBox.scrollTop = logBox.scrollHeight; }
+        // No auto-scroll: always keep previous position
+        try{ logBox.scrollTop = prevTop; }catch(_){ }
       }
       console.log(line);
     }catch(_){ }
@@ -170,10 +184,10 @@
     }catch(_){ }
   }
 
-  // Aggregate last up to 9 win buttons
+  // Aggregate last up to 25 win buttons
   function updateTopPnlFromList(){
     if (!winListEl || !pnlLeft || !pnlRight) return;
-    const items = Array.from(winListEl.children).slice(0,9);
+    const items = Array.from(winListEl.children).slice(0,25);
     const total = items.length;
     const positives = items.filter(el=> el.classList.contains('positive')).length;
     const profitPct = total ? (positives/total*100) : 0;
@@ -182,6 +196,27 @@
     pnlRight.style.width = `${lossPct/2}%`;
     if (pnlLeftLabel) pnlLeftLabel.textContent = `Profit ${profitPct.toFixed(1)}%`;
     if (pnlRightLabel) pnlRightLabel.textContent = `Loss ${lossPct.toFixed(1)}%`;
+    // compute majority zone from buttons' text
+    try{
+      let blue=0, orange=0;
+      for (const el of items){
+        const txt = (el.textContent||'').toUpperCase();
+        if (txt.includes('BLUE')) blue++;
+        else if (txt.includes('ORANGE')) orange++;
+      }
+      const maj = (orange>=blue && orange>0)? 'ORANGE' : (blue>orange? 'BLUE' : '-');
+      const winMajor = document.getElementById('winMajor');
+      if (winMajor){ winMajor.textContent = maj; winMajor.className = 'badge bg-white text-dark'; }
+    }catch(_){ }
+    // also update local fill bar on periodic refresh (1%..100%)
+    try{
+      const bar = document.getElementById('winFillBar');
+      if (bar){
+        const n = Math.min(25, (winListEl?.childElementCount||0));
+        const pct = Math.max(1, Math.round((n/25)*100));
+        bar.style.width = `${pct}%`;
+      }
+    }catch(_){ }
     // Push profit/loss ratios to server for order sizing
     try {
       postJson('/api/bot/config', { pnl_profit_ratio: profitPct, pnl_loss_ratio: lossPct }).catch(()=>{});
@@ -198,41 +233,43 @@
   const winClearBtn = document.getElementById('winClear');
   let winKeys = new Set();
   const makeWinKey = (pnl, winRate)=> `${Math.round(pnl)}|${Number(winRate).toFixed(1)}`;
-  function pushWinItem({ ts, pnl, winRate }){
+  function pushWinItem({ ts, pnl, winRate, zone }){
     if (!winListEl) return;
     const key = makeWinKey(pnl, winRate);
     // If duplicate exists, refresh its content and move to top
     const dup = Array.from(winListEl.children).find(el=> el.dataset && el.dataset.key === key);
     if (dup){
-      dup.classList.remove('positive','negative');
-      dup.classList.add(pnl>=0? 'positive':'negative');
       const timeStr = new Date(ts).toLocaleTimeString();
-      const meta = dup.querySelector('.meta'); if (meta) meta.textContent = timeStr;
-      const sign = pnl>=0? '+':'-'; const abs = Math.abs(pnl);
-      const wrSign = pnl>=0? '+':'-';
-      const full = `PnL ${sign}${abs.toLocaleString()} | Win% ${wrSign}${Number(winRate).toFixed(1)}%`;
-      const val = dup.querySelector('.val'); if (val) val.textContent = full;
+      const zDup = (zone|| (window.lastInsight && window.lastInsight.zone)) || '-';
+      const meta = dup.querySelector('.meta'); if (meta) meta.textContent = `${timeStr} ${String(zDup).toUpperCase()}`;
+      const val = dup.querySelector('.val'); if (val) try{ val.remove(); }catch(_){ }
       winListEl.prepend(dup);
       updateTopPnlFromList();
       return;
     }
     const item = document.createElement('button');
     item.type = 'button';
-    item.className = 'win-chip btn btn-sm ' + (pnl>=0? 'positive':'negative');
-    const sign = pnl>=0? '+':'-';
-    const abs = Math.abs(pnl);
-    const wrSign = pnl>=0? '+':'-';
+    item.className = 'win-chip btn btn-sm';
     const timeStr = new Date(ts).toLocaleTimeString();
-    const full = `PnL ${sign}${abs.toLocaleString()} | Win% ${wrSign}${winRate.toFixed(1)}%`;
-    item.title = `${timeStr}  ${full}`;
-    item.innerHTML = `<div class='meta'>${timeStr}</div><div class='val'>${full}</div>`;
+    const z = (zone|| (window.lastInsight && window.lastInsight.zone)) || '-';
+    item.title = `${timeStr}  ${z && z!=='-'? `Zone ${String(z).toUpperCase()}`:'-'}`;
+    item.innerHTML = `<div class='meta'>${timeStr} ${String(z).toUpperCase()}</div>`;
     item.dataset.key = key;
     winListEl.prepend(item);
-    // keep last 9
-    while (winListEl.childElementCount>9){ const last = winListEl.lastElementChild; if (last && last.dataset && last.dataset.key) winKeys.delete(last.dataset.key); winListEl.removeChild(last); }
+    // keep last 25
+    while (winListEl.childElementCount>25){ const last = winListEl.lastElementChild; if (last && last.dataset && last.dataset.key) winKeys.delete(last.dataset.key); winListEl.removeChild(last); }
     winKeys.add(key);
     // refresh top aggregate slider
     updateTopPnlFromList();
+    // update local fill bar (1%..100% while filling up to 25)
+    try{
+      const bar = document.getElementById('winFillBar');
+      if (bar){
+        const n = Math.min(25, winListEl.childElementCount||0);
+        const pct = Math.max(1, Math.round((n/25)*100));
+        bar.style.width = `${pct}%`;
+      }
+    }catch(_){ }
   }
   if (winClearBtn) winClearBtn.addEventListener('click', ()=>{ if (winListEl) winListEl.innerHTML=''; winKeys.clear(); updateTopPnlFromList(); });
 
@@ -249,7 +286,7 @@
     const next = { ...cur, ...partial };
     try{ localStorage.setItem(LS_KEY, JSON.stringify(next)); }catch(_){ }
   }
-  const saveOpts = ()=>{ try{ writeOpts(snapshotOpts()); }catch(_){ } };
+  const saveOpts = ()=>{ try{ const o = snapshotOpts(); if (o.opt_auto_save === undefined || o.opt_auto_save){ writeOpts(o); } }catch(_){ } };
   function snapshotOpts(){
     return {
       timeframe: tfEl ? tfEl.value : undefined,
@@ -281,6 +318,7 @@
       ichi_kijun: ichiKijunEl ? ichiKijunEl.value : undefined,
       train_count: (typeof trainCountEl !== 'undefined' && trainCountEl) ? trainCountEl.value : undefined,
       train_seg: (typeof trainSegEl !== 'undefined' && trainSegEl) ? trainSegEl.value : undefined,
+      enforce_zone_side: enforceZoneSideEl ? !!enforceZoneSideEl.checked : undefined,
     };
   }
 
@@ -327,6 +365,7 @@
       ema_fast: emaFastEl ? parseInt(emaFastEl.value||'10',10) : 10,
       ema_slow: emaSlowEl ? parseInt(emaSlowEl.value||'30',10) : 30,
       candle: getInterval(),
+      enforce_zone_side: enforceZoneSideEl ? !!enforceZoneSideEl.checked : undefined,
     };
   }
 
@@ -685,7 +724,22 @@
     try{
       if (orderLog){
         const ts = new Date(Number(o.ts)).toLocaleString();
-        const line = `[${ts}] ${isBuy? 'BUY':'SELL'} @${Number(o.price||0).toLocaleString()} ${o.size? '('+Number(o.size).toFixed(6)+')':''} ${o.paper? '[PAPER]':''}`;
+        let line = `[${ts}] ${isBuy? 'BUY':'SELL'} @${Number(o.price||0).toLocaleString()} ${o.size? '('+Number(o.size).toFixed(6)+')':''} ${o.paper? '[PAPER]':''}`;
+        // Append model insight snapshot if present
+        try{
+          const ins = o.insight || (typeof window!=='undefined' && window.lastInsight ? window.lastInsight : {});
+          if (ins && (typeof ins === 'object')){
+            const r = isFinite(ins.r)? Number(ins.r).toFixed(3) : '-';
+            const zone = String(ins.zone||'-');
+            const cb = isFinite(ins.pct_blue)? Number(ins.pct_blue).toFixed(1) : (isFinite(ins.pct_blue_raw)? Number(ins.pct_blue_raw).toFixed(1) : '-');
+            const co = isFinite(ins.pct_orange)? Number(ins.pct_orange).toFixed(1) : (isFinite(ins.pct_orange_raw)? Number(ins.pct_orange_raw).toFixed(1) : '-');
+            const minr = isFinite(ins.zone_min_r)? Number(ins.zone_min_r).toFixed(3) : '-';
+            const maxr = isFinite(ins.zone_max_r)? Number(ins.zone_max_r).toFixed(3) : '-';
+            const exr = isFinite(ins.zone_extreme_r)? Number(ins.zone_extreme_r).toFixed(3) : '-';
+            const age = isFinite(ins.zone_extreme_age)? Number(ins.zone_extreme_age) : '-';
+            line += ` | r=${r} | zone=${zone} | BLUE=${cb}% | ORANGE=${co}% | min_r=${minr} | max_r=${maxr} | ex_r=${exr} | age=${age}`;
+          }
+        }catch(_){ }
         const div = document.createElement('div');
         div.textContent = line;
         orderLog.prepend(div);
@@ -769,6 +823,13 @@
     if (ichiKijunEl && o.ichi_kijun) ichiKijunEl.value = o.ichi_kijun;
     if (typeof trainCountEl !== 'undefined' && trainCountEl && o.train_count) trainCountEl.value = o.train_count;
     if (typeof trainSegEl !== 'undefined' && trainSegEl && o.train_seg) trainSegEl.value = o.train_seg;
+    // extras
+    try{
+      const enforceZoneSideEl = document.getElementById('enforceZoneSide');
+      if (enforceZoneSideEl && typeof o.enforce_zone_side !== 'undefined') enforceZoneSideEl.checked = !!o.enforce_zone_side;
+      const optAutoSaveEl = document.getElementById('optAutoSave');
+      if (optAutoSaveEl && typeof o.opt_auto_save !== 'undefined') optAutoSaveEl.checked = !!o.opt_auto_save;
+    }catch(_){ }
     // push restored config to server and persist again
     pushConfig().catch(()=>{});
     // fetch persisted NB params from server and apply
@@ -799,6 +860,14 @@
   if (typeof fcToggleEl !== 'undefined' && fcToggleEl) fcToggleEl.addEventListener('change', ()=>{ updateForecast(); saveOpts(); });
   if (ordersToggle) ordersToggle.addEventListener('change', saveOpts);
   if (autoBtSecEl) autoBtSecEl.addEventListener('change', saveOpts);
+  try{
+    const enforceZoneSideEl2 = document.getElementById('enforceZoneSide');
+    const assetsAutoToggle2 = document.getElementById('assetsAuto');
+    const optAutoSaveEl2 = document.getElementById('optAutoSave');
+    if (enforceZoneSideEl2) enforceZoneSideEl2.addEventListener('change', ()=>{ saveOpts(); pushConfig(); });
+    if (assetsAutoToggle2) assetsAutoToggle2.addEventListener('change', saveOpts);
+    if (optAutoSaveEl2) optAutoSaveEl2.addEventListener('change', ()=>{ writeOpts({ opt_auto_save: !!optAutoSaveEl2.checked }); });
+  }catch(_){ }
   if (showSMAEl) showSMAEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
   if (sma50El) sma50El.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
   if (sma100El) sma100El.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
@@ -1229,7 +1298,8 @@
   });
   // kick off initial load
   refreshAssets().catch(()=>{});
-  if (assetsAutoToggle && assetsAutoToggle.checked){ assetsTimer = setInterval(refreshAssets, 30*1000); }
+    if (assetsAutoToggle && assetsAutoToggle.checked){ assetsTimer = setInterval(refreshAssets, 30*1000); }
+    if (enforceZoneSideEl && typeof o.enforce_zone_side !== 'undefined') enforceZoneSideEl.checked = !!o.enforce_zone_side;
   if (logClearBtn) logClearBtn.addEventListener('click', ()=>{ if (logBox) logBox.textContent=''; });
 })();
 
