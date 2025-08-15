@@ -1436,21 +1436,18 @@
         // If current bar has diagnostics, append a compact reason list below the strip
         try{
           const curCoin = cur || null;
-          const reasons = (curCoin && Array.isArray(curCoin.reasons)) ? curCoin.reasons.slice(-5) : [];
-          if (reasons.length){
-            const diag = document.createElement('div');
-            diag.className = 'text-muted';
-            diag.style.fontSize = '11px';
-            diag.style.marginTop = '4px';
-            const title = 'Why no trade';
-            // show most frequent first if blocks map is available
-            let blocks = [];
-            try{
-              const m = curCoin.blocks||{};
-              blocks = Object.keys(m).map(k=>({k, c: m[k]})).sort((a,b)=> b.c-a.c).slice(0,5).map(x=>`${x.k}×${x.c}`);
-            }catch(_){ }
-            diag.textContent = blocks.length ? `${title}: ${blocks.join(', ')}` : `${title}: ${reasons.join(', ')}`;
-            strip.parentElement?.appendChild(diag);
+          const reasonsBox = document.getElementById('nbCoinReasons');
+          if (reasonsBox){
+            const m = (curCoin && curCoin.blocks) ? curCoin.blocks : {};
+            const top = Object.keys(m).map(k=>({k, c: m[k]})).sort((a,b)=> b.c-a.c).slice(0,5);
+            if (top.length){
+              // card-style list
+              reasonsBox.innerHTML = top.map(x=>`<div class='d-flex justify-content-between'><span class='text-muted'>${x.k.replace('blocked:','')}</span><span class='badge bg-secondary'>×${x.c}</span></div>`).join('');
+            } else {
+              // fallback to recent reasons
+              const reasons = (curCoin && Array.isArray(curCoin.reasons)) ? curCoin.reasons.slice(-5) : [];
+              reasonsBox.textContent = reasons.length ? reasons.join(', ') : '-';
+            }
           }
         }catch(_){ }
       }
