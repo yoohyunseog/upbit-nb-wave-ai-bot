@@ -3031,6 +3031,39 @@ def api_nb_coin():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/nb/coins/summary', methods=['GET'])
+def api_nb_coins_summary():
+    try:
+        cfg = _resolve_config()
+        # total owned coins = sum of per-interval counters
+        try:
+            total_owned = int(sum(int(v) for v in _nb_coin_counter.values()))
+        except Exception:
+            total_owned = 0
+        # price per coin from setting (order_krw), default 5100
+        try:
+            price_per_coin = int(getattr(cfg, 'order_krw', 5100))
+        except Exception:
+            price_per_coin = 5100
+        # available KRW
+        avail_krw = 0.0
+        try:
+            upbit = None
+            if (not cfg.paper) and cfg.access_key and cfg.secret_key:
+                upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+            if upbit:
+                avail_krw = float(upbit.get_balance('KRW') or 0.0)
+        except Exception:
+            avail_krw = 0.0
+        try:
+            buyable = int(avail_krw // max(1, int(price_per_coin)))
+        except Exception:
+            buyable = 0
+        return jsonify({'ok': True, 'total_owned': total_owned, 'price_per_coin': int(price_per_coin), 'krw': float(avail_krw), 'buyable_by_krw': int(buyable)})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 def run():
     threading.Thread(target=updater, daemon=True).start()
     threading.Thread(target=nb_auto_opt_loop, daemon=True).start()

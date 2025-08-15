@@ -1544,6 +1544,25 @@
   refreshNbCoinStrip().catch(()=>{});
   setInterval(()=>{ refreshNbCoinStrip(); }, 8000);
 
+  // N/B COIN summary (owned/buyable)
+  async function refreshNbCoinSummary(){
+    try{
+      const box = document.getElementById('nbCoinSummary');
+      if (!box) return;
+      const j = await fetchJsonStrict('/api/nb/coins/summary');
+      if (!(j && j.ok)){ box.textContent = `-`; return; }
+      const lines = [
+        `Owned coins (sum): ${j.total_owned}`,
+        `Price per coin (KRW): ${Number(j.price_per_coin||0).toLocaleString()}`,
+        `KRW available: ${Math.round(Number(j.krw||0)).toLocaleString()}`,
+        `Buyable by KRW: ${Number(j.buyable_by_krw||0).toLocaleString()}`
+      ];
+      box.textContent = lines.join(' | ');
+    }catch(_){ }
+  }
+  refreshNbCoinSummary().catch(()=>{});
+  setInterval(()=>{ refreshNbCoinSummary(); }, 10000);
+
   // Zone Win% mini gauge updater (from winMajor)
   function refreshMiniWinGaugeFromWinMajor(){
     try{
