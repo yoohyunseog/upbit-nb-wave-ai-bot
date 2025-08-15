@@ -147,6 +147,9 @@ def _ensure_nb_coin(interval: str, market: str, bucket_sec: int) -> dict:
             'side': 'NONE',  # NONE | BUY | SELL
             'orders': [],
             'ts': int(time.time()*1000),
+            'reasons': [],            # list of strings describing why no trade yet
+            'checked_ts': None,       # last time we evaluated trade conditions
+            'blocks': {},             # aggregated counters per reason
         }
         # trim to last ~2000 coins
         if len(_nb_coin_store) > 2500:
@@ -174,6 +177,31 @@ def _mark_nb_coin(interval: str, market: str, side: str, ts_ms: int | None = Non
                 })
             except Exception:
                 pass
+    except Exception:
+        pass
+
+def _mark_nb_coin_block(interval: str, market: str, reasons: list[str] | None = None, ts_ms: int | None = None, meta: dict | None = None):
+    try:
+        b = _bucket_ts_interval(ts_ms or int(time.time()*1000), interval)
+        coin = _ensure_nb_coin(interval, market, b)
+        coin['checked_ts'] = int(time.time()*1000)
+        # Do not override side if already traded; still record reasons for diagnostics
+        rs = reasons or []
+        if rs:
+            # append unique recent reasons (cap 20)
+            for r in rs:
+                try:
+                    r = str(r)
+                except Exception:
+                    continue
+                coin['reasons'].append(r)
+                if isinstance(coin.get('blocks'), dict):
+                    coin['blocks'][r] = int(coin['blocks'].get(r, 0)) + 1
+            if len(coin['reasons']) > 20:
+                coin['reasons'] = coin['reasons'][-20:]
+        if meta and isinstance(meta, dict):
+            # store a tiny snapshot
+            coin['meta'] = {k: meta[k] for k in list(meta.keys())[:12]}
     except Exception:
         pass
 
@@ -1522,6 +1550,11 @@ def trade_loop():
                 if sig in ('BUY','SELL') and sig != last_signal:
                     # One-order-per-bar: skip if we already ordered on this bar
                     if last_order_bar_ts and bar_ts == last_order_bar_ts:
+                        # already ordered this bar; record reason and skip
+                        try:
+                            _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:already_ordered_this_bar"], int(time.time()*1000), { 'price': price })
+                        except Exception:
+                            pass
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1533,6 +1566,10 @@ def trade_loop():
                         min_gap = 10
                     now_ms = int(time.time()*1000)
                     if last_order_ts and (now_ms - last_order_ts) < max(0,min_gap)*1000:
+                        try:
+                            _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:cooldown({min_gap}s)"], now_ms, { 'price': price })
+                        except Exception:
+                            pass
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1544,12 +1581,20 @@ def trade_loop():
                         pos = 'FLAT'
                     # Disallow consecutive BUYs; require SELL to flatten first
                     if sig == 'BUY' and pos == 'LONG':
+                        try:
+                            _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:already_long"], int(time.time()*1000), { 'price': price })
+                        except Exception:
+                            pass
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
                         continue
                     # Disallow SELL when already flat (no prior BUY)
                     if sig == 'SELL' and pos != 'LONG':
+                        try:
+                            _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:not_long"], int(time.time()*1000), { 'price': price })
+                        except Exception:
+                            pass
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1603,6 +1648,10 @@ def trade_loop():
                                     bot_ctrl['cfg_override']['candle'] = ml_used_interval
                                     state['candle'] = ml_used_interval
                                     # Skip this tick to reload with new interval
+                                    try:
+                                        _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:ml_interval_switch->{ml_used_interval}"])
+                                    except Exception:
+                                        pass
                                     last_signal = sig
                                     bot_ctrl['last_signal'] = sig
                                     time.sleep(max(1, _resolve_config().interval_sec))
@@ -1671,12 +1720,27 @@ def trade_loop():
                                 if getattr(cfg_now, 'ml_only', False):
                                     # ML-only: only require ML direction to match NB signal
                                     if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL'):
+                                        try:
+                                            _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:ml_dir_mismatch pred={ml_pred} sig={sig}"])
+                                        except Exception:
+                                            pass
                                         last_signal = sig
                                         bot_ctrl['last_signal'] = sig
                                         time.sleep(max(1, _resolve_config().interval_sec))
                                         continue
                                 else:
                                     if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL') or (not allow_by_pullback) or (not allow_by_zone100) or (not allow_by_group):
+                                        try:
+                                            rs = []
+                                            if ml_pred == 0: rs.append('blocked:ml_hold')
+                                            if (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL'):
+                                                rs.append('blocked:ml_dir_mismatch')
+                                            if not allow_by_pullback: rs.append('blocked:pullback')
+                                            if not allow_by_zone100: rs.append('blocked:zone100')
+                                            if not allow_by_group: rs.append('blocked:group')
+                                            _mark_nb_coin_block(str(cfg.candle), str(cfg.market), rs)
+                                        except Exception:
+                                            pass
                                         last_signal = sig
                                         bot_ctrl['last_signal'] = sig
                                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1693,6 +1757,10 @@ def trade_loop():
                             snap_guard = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, ml_pack)
                             z_now = str(snap_guard.get('zone') or ('ORANGE' if r_last >= 0.5 else 'BLUE')).upper()
                             if (sig == 'BUY' and z_now != 'BLUE') or (sig == 'SELL' and z_now != 'ORANGE'):
+                                try:
+                                    _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:enforce_zone_side zone={z_now} sig={sig}"])
+                                except Exception:
+                                    pass
                                 last_signal = sig
                                 bot_ctrl['last_signal'] = sig
                                 time.sleep(max(1, _resolve_config().interval_sec))
@@ -1716,6 +1784,10 @@ def trade_loop():
                         snap_insight = {}
                     # If live mode and order was not placed (e.g., min notional, no balance), skip logging
                     if (not cfg.paper) and (not isinstance(o, dict)):
+                        try:
+                            _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:live_min_notional_or_balance"])
+                        except Exception:
+                            pass
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1750,6 +1822,7 @@ def trade_loop():
                             bot_ctrl['position'] = 'FLAT'
                     except Exception:
                         pass
+                # No state change (HOLD) or after handling
                 last_signal = sig
                 bot_ctrl['last_signal'] = sig
             except Exception:

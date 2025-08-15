@@ -1433,6 +1433,19 @@
           el.style.background = side==='BUY' ? '#0ecb81' : (side==='SELL' ? '#f6465d' : '#2b3139');
           strip.appendChild(el);
         });
+        // If current bar has diagnostics, append a compact reason list below the strip
+        try{
+          const curCoin = cur || null;
+          const reasons = (curCoin && Array.isArray(curCoin.reasons)) ? curCoin.reasons.slice(-5) : [];
+          if (reasons.length){
+            const diag = document.createElement('div');
+            diag.className = 'text-muted';
+            diag.style.fontSize = '11px';
+            diag.style.marginTop = '4px';
+            diag.textContent = `Why no trade: ${reasons.join(', ')}`;
+            strip.parentElement?.appendChild(diag);
+          }
+        }catch(_){ }
       }
     }catch(_){ }
   }
