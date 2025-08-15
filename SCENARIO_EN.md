@@ -1,53 +1,41 @@
-## Chapter 2 — The Heart of a Moving Village (N/B Guild, Ruin-Refit Mobile Settlement)
+## The Moving Village of the N/B Guild — BTC‑Chasing, Ruin‑Refit Settlement (Village‑Only Scenario)
 
-- Present Anchorage: on the seam of minute-candles, where a pale tide folds in
-- Current Zone: BLUE dominant; a distant ORANGE swell is forming
-- Village Energy (E): 53.7 — slowly recovering
-- Treasury: 1,250,000 KRW, Coins: 0 (first coin is the spark we seek)
-- Elder’s Broadcast: “BUY only in BLUE, SELL only in ORANGE. Today, we wait for pullback confirmation.”
+### Identity
+- Affiliation: N/B Guild (discipline: NB‑wave)
+- Origin: a high‑drain ruined settlement rebuilt into a mobile village — modular outer plating, decks, card slots, legged chassis, pipes and valves
 
-### Identity — N/B Guild and Ruin-Refit Origin
-- Guild: the village belongs to the N/B Guild, whose discipline is the NB-wave.
-- Origin: this is a mobile village rebuilt from a high-drain, ruined settlement; modular decks, cards, and a resilient treasury were retrofitted for travel.
+### Core Discipline
+- Navigate by NB‑wave: current zone (ORANGE/BLUE), extremes, pullback, flip ETA
+- Operate on Energy E (0–100): time decay + losses/violations drain; profits/discipline/rest recharge
 
-### The Elder (Guild Branch Chief)
-- Compass, accountant, and expedition captain in one.
-- Calls: “Zone BLUE, slope +1.1 bp/bar, no nearby flip expected.”
-- Rule of thumb: BUY-in-BLUE, SELL-in-ORANGE (a directive, not an absolute law).
-- Treasury audits: KRW balance, coin inventory, and the fixed coin price (~5,100 KRW) are kept live.
-- Consequences and rewards:
-  - If a villager defies guidance and realizes a loss, coin count may go negative (penalty grows on violations).
-  - On profitable cycles, Energy E replenishes; notable deeds are announced in the square.
-- Energy rites:
-  - Low E (<30): tighten gates (require Zone-100% and pullback confirmation).
-  - Very low E (≤5): temporary trading halt; refit the treasury and regroup.
+### BTC Tracker
+- The village constantly seeks Bitcoin markets.
+- Bitcoin markets are “off‑map” zones — airborne fortresses, remote sea isles, nomad outposts — pioneered by guilds and coalitions across the world.
+- The village follows Bitcoin signals (zone/slope/pullback), enters a BTC market to BUY coins, then travels to another market/village to SELL and realize spread.
+- A portion of realized profit is tithed to the N/B Guild.
 
-### The Residents (Four Strategy Heads)
-- Trend Follower: “Ride with the wind.” Leads when slope and zone align.
-- Mean Reversion Adept: “Wait for the return of the tide.” Looks for BLUE pullbacks to buy.
-- Breakout Seeker: “The threshold breaks only once.” Watches the edges for decisive breaks.
-- Pullback Sentinel: “After extremes, seek confirmation.” Acts on extreme-gap and age gates.
-- Autonomy and learning:
-  - They listen to the Elder, but act only when finance, energy, and confirmation gates align.
-  - In live mode, insufficient KRW or zero inventory becomes a self-check (BUY× / SELL×).
-  - After the very first BUY, they take a short REST (REST_BARS) — the “breathing rite.”
+### Core Organs (Systems)
+1) E‑Core (Energy Heart): propulsion fuel for movement (0–100)
+2) N/B Mast (Nav Tower): projects NB‑wave signals/confirmations
+3) Coin Crucible: converts realized profit into fuel warrants (coin → E)
+4) Pullback Clutch: engages drive only under confirmation (pullback/extreme‑age)
+5) Zone Shield: blocks mis‑actions against the active zone
+6) Gait Engine: bar‑closed “jumps” from one anchorage to the next
+7) S.L Dock (Memory Dock): per‑timeframe cards logging side/NONE, reasons, coin accounting
 
-### The March (How the Village Moves)
-- The village is a vessel on market waves; every bar is a temporary homeland.
-- The cycle per bar:
-  1) Mooring: Elder declares zone, slope, and flip ETA.
-  2) Foraging: BLUE favors BUY; ORANGE favors SELL.
-  3) Settlement: coin/energy updated by realized PnL and discipline.
-  4) Departure: new bar opens; the caravan moves.
-- Fuel: Energy E
-  - Drains with time and failed/blocked attempts.
-  - Recovers on disciplined, profitable trades.
+### Voyage Cycle (per bar)
+- Mooring (check zone/slope) → Forage (seek BUY/SELL) → Settle (update coins/E) → Jump (next anchorage)
+- Low E: enforce Zone‑100% and pullback confirmation; Very low E: halt/maintenance
+- High E: expand gradually only in high‑edge setups (discipline required)
 
-### Mechanics of Motion and Energy (Concept)
-- Bar-by-bar translation: the village “jumps” from one temporary anchorage to the next as candles close; each jump costs Energy.
-- Guidance-as-helm: NB-wave guides heading (zone, extremes, pullback), Elder declares helmsman rules.
-- Energy sinks: time decay; repeated attempt blocks (cooldown, zone100 unmet, finance issues); discipline violations with realized loss.
-- Energy sources: profitable BUY→SELL cycles; trades that respect zone and pullback confirmation; brief REST after the first coin to prevent overheating.
+### Safety / Adaptation
+- Leg stroke adapts to rough terrain; overheat cutoffs; minimum reserves for fuel/coins
+- Multi‑timeframe antennae and long‑range (Day) sailing kits are pluggable
+
+### One‑Line Declaration
+- “We are a BTC‑chasing moving village walking off the map — we run on confirmation, breathe in Energy, and live with our Guild.”
+
+— Signed: Yoo Hyunseok, NPC of the Ruined Village
 
 ### The Ledger — N/B COIN S.L
 - Each timeframe has a card that records: what we did, or why we did not.
