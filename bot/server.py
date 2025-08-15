@@ -732,10 +732,16 @@ def _simulate_pnl_from_preds(prices: pd.Series, preds: np.ndarray, fee_bps: floa
     win_rate = (wins / trades * 100.0) if trades else 0.0
     return { 'pnl': float(pnl), 'trades': int(trades), 'wins': int(wins), 'win_rate': float(win_rate) }
 
-@app.route('/api/ml/train', methods=['POST'])
+@app.route('/api/ml/train', methods=['GET','POST'])
 def api_ml_train():
     try:
-        payload = request.get_json(force=True) if request.is_json else {}
+        try:
+            if request.method == 'POST':
+                payload = request.get_json(force=True) if request.is_json else (request.form.to_dict() if request.form else {})
+            else:
+                payload = request.args.to_dict()
+        except Exception:
+            payload = {}
         window = int(payload.get('window', load_nb_params().get('window', 50)))
         ema_fast = int(payload.get('ema_fast', 10))
         ema_slow = int(payload.get('ema_slow', 30))
@@ -1112,7 +1118,10 @@ def api_ml_predict():
         horizon = int(pack.get('horizon', 5))
         cfg = load_config()
         df = get_candles(cfg.market, cur_interval, count=max(400, window*3))
-        feat = _build_features(df, window, ema_fast, ema_slow, horizon).dropna().copy()
+        try:
+            feat = _build_features(df, window, ema_fast, ema_slow, horizon).dropna().copy()
+        except Exception:
+            feat = pd.DataFrame()
         # IMPORTANT: Use same feature set and order as model was trained on
         base_cols = ['r','w','ema_f','ema_s','ema_diff','r_ema3','r_ema5','dr','ret1','ret3','ret5']
         ext_cols = ['zone_flag','dist_high','dist_low','extreme_gap','zone_conf','zone_min_r','zone_max_r','zone_extreme_r','zone_extreme_age']
@@ -1343,7 +1352,31 @@ def api_ml_predict():
         except Exception:
             return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins, 'zone_actions': zone_actions, 'label_mode': label_mode, 'pred_nb': None, 'horizon': horizon, 'interval': cur_interval, 'score0': 0.0})
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        # Robust fallback: never 500; return minimal insight so UI can render
+        try:
+            cur_interval = state.get('candle') or load_config().candle
+            cfg = load_config()
+            window = int(load_nb_params().get('window', 50))
+            df = get_candles(cfg.market, cur_interval, count=max(200, window*2))
+            try:
+                HIGH = float(os.getenv('NB_HIGH', '0.55'))
+                LOW = float(os.getenv('NB_LOW', '0.45'))
+            except Exception:
+                HIGH, LOW = 0.55, 0.45
+            rng = max(1e-9, HIGH - LOW)
+            try:
+                r_series = _compute_r_from_ohlcv(df, window)
+                rv = float(r_series.iloc[-1]) if len(r_series) else 0.5
+            except Exception:
+                rv = 0.5
+            p_blue = max(0.0, min(1.0, (HIGH - rv) / rng)); p_orange = max(0.0, min(1.0, (rv - LOW) / rng))
+            s = p_blue + p_orange
+            if s > 0: p_blue, p_orange = p_blue/s, p_orange/s
+            zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+            ins = {'r': rv, 'zone_flag': (-1 if zone=='ORANGE' else 1), 'zone': zone, 'pct_blue': float(p_blue*100.0), 'pct_orange': float(p_orange*100.0)}
+            return jsonify({'ok': True, 'action': zone, 'pred': 0, 'probs': [], 'train_count': int(ml_state.get('train_count', 0)), 'insight': ins, 'zone_actions': {'sell_in_orange': False, 'buy_in_blue': False}, 'label_mode': 'zone', 'steep': None, 'pred_nb': None, 'horizon': 5, 'interval': cur_interval, 'score0': float(max(p_blue, p_orange))})
+        except Exception as e2:
+            return jsonify({'ok': False, 'error': f'predict_fallback_failed: {e2}'}), 500
 
 @app.route('/api/ml/metrics', methods=['GET'])
 def api_ml_metrics():
