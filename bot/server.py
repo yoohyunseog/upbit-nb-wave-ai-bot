@@ -712,6 +712,11 @@ def api_ml_train():
 
         cfg = load_config()
         df = get_candles(cfg.market, interval, count=count)
+        # Prefill NB COINs for the training interval so UI has coins during random learning
+        try:
+            _prefill_nb_coins(str(interval), str(cfg.market), how_many=min(200, max(60, count)))
+        except Exception:
+            pass
         feat = _build_features(df, window, ema_fast, ema_slow, horizon).dropna().copy()
         # label: depends on label_mode
         if label_mode == 'fwd_return':
