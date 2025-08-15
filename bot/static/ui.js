@@ -1411,14 +1411,20 @@
       const nowBadge = document.getElementById('nbCoinNow');
       const nowInline = document.getElementById('nbCoinNowInline');
       if (!strip && !nowBadge && !nowInline) return;
-      const cs = await fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(getInterval())}&n=50`);
-      if (!cs || !cs.ok) return;
-      const cur = cs.current; const recent = cs.recent||[];
+      let cs = null; let cur = null; let recent = [];
+      try{
+        cs = await fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(getInterval())}&n=50`);
+        if (cs && cs.ok){ cur = cs.current||null; recent = cs.recent||[]; }
+      }catch(_){ }
       const label = cur && cur.side ? cur.side : '-';
       if (nowBadge){ nowBadge.textContent = label; }
       if (nowInline){ nowInline.textContent = label; }
       if (strip){
         strip.innerHTML = '';
+        // fallback placeholders when no data
+        if (!recent || recent.length===0){
+          recent = Array.from({length:50}).map((_,i)=>({ bucket: 0, side:'NONE' }));
+        }
         // left older → right newer
         recent.reverse().forEach(c=>{
           const el = document.createElement('div');
