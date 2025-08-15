@@ -12,7 +12,7 @@
   const shotBtn = document.getElementById('btnShot');
   const btBtn = document.getElementById('btnBacktest');
   const clearBtn = document.getElementById('btnClearOrders');
-  const ordersToggle = document.getElementById('ordersToggle');
+  const ordersToggle = null;
   const optBtn = document.getElementById('btnOptimize');
   const trainBtn = document.getElementById('btnTrain');
   const mlTrainBtn = document.getElementById('btnMlTrain');
@@ -110,6 +110,9 @@
   const autoPending = document.getElementById('autoPending');
   const autoPendingBar = document.getElementById('autoPendingBar');
   const btnCancelPending = document.getElementById('btnCancelPending');
+  const autoTradeToggle = document.getElementById('autoTradeToggle');
+  // Additional toggles
+  let mlOnlyToggle = null;
   let autoPendingTimer = null;
   const btnPreflight = document.getElementById('btnPreflight');
   const tradeReadyBox = document.getElementById('tradeReadyBox');
@@ -339,7 +342,7 @@
       fc_window: (typeof fcWindowEl !== 'undefined' && fcWindowEl) ? fcWindowEl.value : undefined,
       fc_horizon: (typeof fcHorizonEl !== 'undefined' && fcHorizonEl) ? fcHorizonEl.value : undefined,
       fc_show: (typeof fcToggleEl !== 'undefined' && fcToggleEl) ? !!fcToggleEl.checked : undefined,
-      show_orders: (typeof ordersToggle !== 'undefined' && ordersToggle) ? !!ordersToggle.checked : undefined,
+      show_orders: undefined,
       auto_bt: (typeof autoBtToggle !== 'undefined' && autoBtToggle) ? !!autoBtToggle.checked : undefined,
       auto_bt_sec: (typeof autoBtSecEl !== 'undefined' && autoBtSecEl) ? autoBtSecEl.value : undefined,
       show_sma: showSMAEl ? !!showSMAEl.checked : undefined,
@@ -735,6 +738,8 @@
       const times = data.map(d=>d.time);
       const closeNow = last.close ?? last.value;
       const interval = j.interval || getInterval();
+      const curIv = getInterval();
+      const sameIv = (String(interval) === String(curIv));
       const horizon = Math.max(1, Number(j.horizon||5));
       const bpPerBar = (ins.zone==='BLUE' ? steep.blue_up_slope : steep.orange_down_slope);
       let v = closeNow;
@@ -756,7 +761,7 @@
       // NB signal marker at predicted flip time
       try{
         const nb = j.pred_nb;
-        if (nb && nb.ts){
+        if (sameIv && nb && nb.ts){
           const m = [{ time: msToSec(nb.ts), value: v }];
           predMarkerSeries.setData(m);
           candle.setMarkers([
@@ -777,6 +782,36 @@
           const line = `Current zone: ${zone}. Model projects a ${slope!=null ? (zone==='ORANGE'?'down':'up') : 'flat'} slope of ${slopeBp} bp/bar. Expected NB flip: ${nbTxt}.`;
           box.textContent = line;
           if (badge) { badge.textContent = zone; badge.className = 'badge bg-white text-dark'; }
+        }
+      }catch(_){ }
+      // Place one ML signal per zone segment at its extreme if certain, and persist to server
+      try{
+        const zone = String(ins.zone||'-').toUpperCase();
+        if (mlSegPrevZone !== zone){ mlSegPrevZone = zone; mlSegPlaced = false; }
+        const barSec = (times[times.length-1] - times[times.length-2]) || 60; // seconds per bar
+        const age = Number(ins.zone_extreme_age||0);
+        const extremeTime = last.time - Math.max(0, age)*barSec;
+        const extremePrice = (ins.zone_extreme_price!=null) ? Number(ins.zone_extreme_price) : closeNow;
+        const pb = Number(ins.pct_blue||ins.pct_blue_raw||0);
+        const po = Number(ins.pct_orange||ins.pct_orange_raw||0);
+        const pctMajor = Math.max(pb, po);
+        const slope = (j.steep && (j.steep.blue_up_slope!=null ? j.steep.blue_up_slope : j.steep.orange_down_slope));
+        const slopeBp = (slope!=null) ? (slope*10000) : 0;
+        const predOk = !!(j.pred_nb && j.pred_nb.ts);
+        const confTh = 99.95, minBp = 1.0, minAge = 3;
+        const gated = (pctMajor >= confTh) && (Math.abs(slopeBp) >= minBp) && predOk && (age >= minAge);
+        const extreme = (zone==='ORANGE') ? 'TOP' : (zone==='BLUE' ? 'BOTTOM' : '-');
+        const sideBuy = (zone==='BLUE');
+        const key = `${interval}|${zone}|${extreme}|${Math.floor(extremeTime)}`;
+        if (sameIv && zone!=='-' && extreme!=='-' && gated && !mlSegPlaced && !mlSignalKeys.has(key)){
+          const marker = { time: Math.floor(extremeTime), position: sideBuy?'belowBar':'aboveBar', color: sideBuy?'#ffd166':'#00d1ff', shape:'circle', text:`ML ${sideBuy?'BUY':'SELL'}` };
+          baseMarkers.push(marker);
+          if (baseMarkers.length>500) baseMarkers = baseMarkers.slice(-500);
+          candle.setMarkers([...baseMarkers, ...nbMarkers]);
+          mlSegPlaced = true;
+          mlSignalKeys.add(key);
+          const body = { ts: Math.floor(extremeTime*1000), zone, extreme, price: extremePrice, pct_major: pctMajor, slope_bp: slopeBp, horizon, pred_nb: j.pred_nb||null, interval, score0: Number(j.score0||0) };
+          postJson('/api/signal/log', body).catch(()=>{});
         }
       }catch(_){ }
     }catch(_){ predSeries.setData([]); }
@@ -812,16 +847,39 @@
 
   let baseMarkers = [];
   let nbMarkers = [];
+  // ML segment state and logged keys to avoid duplicate markers per segment
+  let mlSegPrevZone = null;
+  let mlSegPlaced = false;
+  let mlSignalKeys = new Set();
+
+  // Helper: show order markers only if there is an ML signal near the order time on this timeframe
+  function hasMlSignalNear(orderTimeSec, interval){
+    try{
+      const curIv = interval || getInterval();
+      const data = candle.data();
+      if (!data || data.length < 2) return false;
+      const barSec = (data[data.length-1].time - data[data.length-2].time) || 60;
+      const maxDelta = barSec * 2; // within ±2 bars
+      // baseMarkers contains both ML signal markers (text starts with 'ML') and order markers
+      for (const m of baseMarkers){
+        try{
+          if (!m || !m.text) continue;
+          if (String(m.text).startsWith('ML')){
+            if (Math.abs(Number(m.time) - Number(orderTimeSec)) <= maxDelta) return true;
+          }
+        }catch(_){ }
+      }
+      return false;
+    }catch(_){ return false; }
+  }
   // NB wave based lightweight signals on the UI
   let nbPosition = 'FLAT';
   let nbPeakRatio = 0; // highest ratio seen while LONG
   const NB_UP_TH = 0.7; // buy threshold
   const NB_DN_TH = 0.3; // sell floor
   function pushNBSignal(timeSec, side){
-    const isBuy = side==='BUY';
-    nbMarkers.push({ time: timeSec, position: isBuy?'belowBar':'aboveBar', color: isBuy?'#ffd166':'#00d1ff', shape:'circle', text:`NB ${side}` });
-    if (nbMarkers.length>500) nbMarkers = nbMarkers.slice(-500);
-    candle.setMarkers([...baseMarkers, ...nbMarkers]);
+    // Disabled NB system markers; showing ML NB markers only
+    return;
   }
   function pushOrderMarker(o, interval){
     if (!o||!o.ts) return;
@@ -835,7 +893,13 @@
       // prune oldest by reconstructing from current log length
       try{ orderKeys = new Set(Array.from(orderKeys).slice(-1500)); }catch(_){ }
     }
-    const sec = msToSec(bucketTs(Number(o.ts), interval||getInterval()));
+    const curIv = getInterval();
+    const orderIv = String(o.interval||'');
+    // Show orders only when they belong to current chart interval
+    if (orderIv && String(orderIv) !== String(curIv)) return;
+    const sec = msToSec(bucketTs(Number(o.ts), curIv));
+    // Skip if there is no ML signal near this order time
+    if (!hasMlSignalNear(sec, curIv)) return;
     const isBuy = sideStr==='BUY';
     baseMarkers.push({
       time: sec,
@@ -919,10 +983,15 @@
       updateNB();
       updateForecast();
     }).then(()=>{
-      // load existing orders (only when toggle on)
-      if (ordersToggle && !ordersToggle.checked){ markers=[]; candle.setMarkers([...nbMarkers]); return; }
+      // load existing orders; show only when order interval matches current chart interval
+      const curIv = getInterval();
       return fetch(`${base}/api/orders`).then(r=>r.json()).then(or=>{
-        markers=[]; (or.data||[]).forEach(o=>pushOrderMarker(o, interval));
+        markers=[]; (or.data||[]).forEach(o=>{
+          try{
+            const ok = !o.interval || String(o.interval)===String(curIv);
+            if (ok) pushOrderMarker(o, interval);
+          }catch(_){ pushOrderMarker(o, interval); }
+        });
       });
     }).catch(()=>{});
   }
@@ -946,7 +1015,7 @@
     if (typeof fcWindowEl !== 'undefined' && fcWindowEl && o.fc_window) fcWindowEl.value = o.fc_window;
     if (typeof fcHorizonEl !== 'undefined' && fcHorizonEl && o.fc_horizon) fcHorizonEl.value = o.fc_horizon;
     if (typeof fcToggleEl !== 'undefined' && fcToggleEl && typeof o.fc_show !== 'undefined') fcToggleEl.checked = !!o.fc_show;
-    if (typeof ordersToggle !== 'undefined' && ordersToggle && typeof o.show_orders !== 'undefined') ordersToggle.checked = !!o.show_orders;
+    // ordersToggle removed
     if (typeof autoBtToggle !== 'undefined' && autoBtToggle && typeof o.auto_bt !== 'undefined') autoBtToggle.checked = !!o.auto_bt;
     if (typeof autoBtSecEl !== 'undefined' && autoBtSecEl && o.auto_bt_sec) autoBtSecEl.value = o.auto_bt_sec;
     if (showSMAEl && typeof o.show_sma !== 'undefined') showSMAEl.checked = !!o.show_sma;
@@ -978,7 +1047,7 @@
       }
     }).catch(()=>{});
     // re-arm auto BT if enabled
-    if (autoBtToggle && autoBtToggle.checked){ autoBtToggle.dispatchEvent(new Event('change')); }
+    // Do not auto-start anything here
   })();
 
   seed(getInterval());
@@ -996,7 +1065,7 @@
   if (typeof fcWindowEl !== 'undefined' && fcWindowEl) fcWindowEl.addEventListener('change', ()=>{ updateForecast(); saveOpts(); });
   if (typeof fcHorizonEl !== 'undefined' && fcHorizonEl) fcHorizonEl.addEventListener('change', ()=>{ updateForecast(); saveOpts(); });
   if (typeof fcToggleEl !== 'undefined' && fcToggleEl) fcToggleEl.addEventListener('change', ()=>{ updateForecast(); saveOpts(); });
-  if (ordersToggle) ordersToggle.addEventListener('change', saveOpts);
+  // ordersToggle removed
   if (autoBtSecEl) autoBtSecEl.addEventListener('change', saveOpts);
   try{
     const enforceZoneSideEl2 = document.getElementById('enforceZoneSide');
@@ -1027,8 +1096,8 @@
   // Start/Stop bot
   if (startBtn) startBtn.addEventListener('click', async ()=>{
     await pushConfig();
-    await postJson('/api/bot/start', {});
-    if (sBot) sBot.textContent = 'running';
+    // Start bot only via explicit Auto Trade toggle; here we do nothing to avoid accidental starts
+    uiLog('Hint', 'Use Auto Trade toggle to start the bot');
   });
   if (stopBtn) stopBtn.addEventListener('click', async ()=>{
     await postJson('/api/bot/stop', {});
@@ -1113,8 +1182,6 @@
       };
       const sec = Math.max(5, parseInt(autoBtSecEl?.value||'15',10));
       uiLog('ML Auto random ON', `interval=${sec}s`);
-      // Auto-trade: start bot when ML Auto starts
-      try{ postJson('/api/bot/start', {}).then(()=>{ if (sBot) sBot.textContent='running'; }).catch(()=>{}); }catch(_){ }
       run();
       mlAutoTimer = setInterval(run, sec*1000);
     } else {
@@ -1269,10 +1336,7 @@
     }catch(_){ }
   });
 
-  if (ordersToggle) ordersToggle.addEventListener('change', ()=>{
-    if (!ordersToggle.checked){ baseMarkers=[]; candle.setMarkers([...nbMarkers]); }
-    else { seed(getInterval()); }
-  });
+  // ordersToggle removed
 
   // Orders bottom log: clear & export
   if (orderClearBtn) orderClearBtn.addEventListener('click', async ()=>{
@@ -1314,9 +1378,19 @@
         ? `after SELL: ${sellRemain.toFixed(8)} ${sym} left (sell ${sellSize.toFixed(8)} ≈ ${Math.round(sellSize*price).toLocaleString()} KRW)`
         : `need ≥ 5,000 KRW notional (bal=${coinBal.toFixed(8)} ${sym})`;
       if (tradeReadyBox){
+        // Fetch current N/B COIN status
+        let coinTxt = '-';
+        try{
+          const cs = await fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(getInterval())}`);
+          if (cs && cs.ok){
+            const c = cs.current;
+            if (c && c.side){ coinTxt = c.side; }
+          }
+        }catch(_){ }
         const minSellSize = price>0 ? (5000/price) : 0;
         tradeReadyBox.innerHTML = `
           <div>Price: <b>${price? price.toLocaleString(): '-'}</b></div>
+          <div>N/B COIN (this bar): <b id="nbCoinNowInline">${coinTxt}</b></div>
           <div>Buy: <b>${buyLine}</b></div>
           <div>Sell: <b>${sellLine}</b></div>
           <div>Min SELL size (~5,000 KRW): <b>${minSellSize>0? minSellSize.toFixed(8): '-'}</b> ${sym}</div>
@@ -1329,6 +1403,37 @@
   refreshTradeReady().catch(()=>{});
   setInterval(()=>{ refreshTradeReady(); }, 15000);
   if (assetsRefresh) assetsRefresh.addEventListener('click', ()=>{ refreshTradeReady(); });
+
+  // N/B COIN strip renderer
+  async function refreshNbCoinStrip(){
+    try{
+      const strip = document.getElementById('nbCoinStrip');
+      const nowBadge = document.getElementById('nbCoinNow');
+      const nowInline = document.getElementById('nbCoinNowInline');
+      if (!strip && !nowBadge && !nowInline) return;
+      const cs = await fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(getInterval())}&n=50`);
+      if (!cs || !cs.ok) return;
+      const cur = cs.current; const recent = cs.recent||[];
+      const label = cur && cur.side ? cur.side : '-';
+      if (nowBadge){ nowBadge.textContent = label; }
+      if (nowInline){ nowInline.textContent = label; }
+      if (strip){
+        strip.innerHTML = '';
+        // left older → right newer
+        recent.reverse().forEach(c=>{
+          const el = document.createElement('div');
+          el.style.height = '8px'; el.style.flex = '1 1 auto'; el.style.margin = '0 1px'; el.title = `${new Date((c.bucket||0)*1000).toLocaleTimeString()} ${c.side||'NONE'}`;
+          const side = String(c.side||'NONE').toUpperCase();
+          el.style.background = side==='BUY' ? '#0ecb81' : (side==='SELL' ? '#f6465d' : '#2b3139');
+          strip.appendChild(el);
+        });
+      }
+    }catch(_){ }
+  }
+  // initial and periodic refresh for N/B COIN
+  refreshNbCoinStrip().catch(()=>{});
+  setInterval(()=>{ refreshNbCoinStrip(); }, 8000);
+
   // Zone Win% mini gauge updater (from winMajor)
   function refreshMiniWinGaugeFromWinMajor(){
     try{
@@ -1361,6 +1466,7 @@
         const j = await postJson('/api/trade/buy', {});
         if (j && j.ok && j.order){ pushOrderMarker(j.order); uiLog('Manual BUY', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper })); }
         else { uiLog('Manual BUY failed', JSON.stringify(j)); }
+        try{ refreshTradeReady(); }catch(_){ }
       });
     }catch(e){ uiLog('Manual BUY error', String(e)); }
   });
@@ -1370,6 +1476,7 @@
         const j = await postJson('/api/trade/sell', {});
         if (j && j.ok && j.order){ pushOrderMarker(j.order); uiLog('Manual SELL', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper })); }
         else { uiLog('Manual SELL failed', JSON.stringify(j)); }
+        try{ refreshTradeReady(); }catch(_){ }
       });
     }catch(e){ uiLog('Manual SELL error', String(e)); }
   });
@@ -1411,6 +1518,41 @@
       uiLog('Preflight', lines.join(' | '));
     }catch(e){ uiLog('Preflight error', String(e)); }
   });
+
+  // Auto Trade toggle: start/stop server trade loop
+  if (autoTradeToggle){
+    autoTradeToggle.addEventListener('change', async ()=>{
+      try{
+        if (autoTradeToggle.checked){
+          await postJson('/api/bot/start', {});
+          uiLog('Auto Trade', 'started');
+        } else {
+          await postJson('/api/bot/stop', {});
+          uiLog('Auto Trade', 'stopped');
+        }
+      }catch(e){ uiLog('Auto Trade toggle error', String(e)); }
+    });
+  }
+  // Inject ML-only/ML-seg-only toggles next to Auto Trade (runtime only)
+  try{
+    const parent = document.getElementById('autoTradeToggle')?.closest('.card');
+    const holder = document.getElementById('tradeReadyBox')?.parentElement;
+    if (holder){
+      const wrap = document.createElement('div');
+      wrap.className = 'mt-2';
+      wrap.innerHTML = `<div class=\"form-check form-switch\"><input class=\"form-check-input\" type=\"checkbox\" id=\"mlOnlyToggle\"><label class=\"form-check-label text-muted\" for=\"mlOnlyToggle\">ML-only Auto Trade</label></div>
+      <div class=\"form-check form-switch mt-1\"><input class=\"form-check-input\" type=\"checkbox\" id=\"mlSegOnlyToggle\"><label class=\"form-check-label text-muted\" for=\"mlSegOnlyToggle\">ML segment-only (extreme only)</label></div>`;
+      holder.appendChild(wrap);
+      mlOnlyToggle = document.getElementById('mlOnlyToggle');
+      mlOnlyToggle.addEventListener('change', async ()=>{
+        try{ await postJson('/api/bot/config', { ml_only: !!mlOnlyToggle.checked }); uiLog('Config', `ml_only=${mlOnlyToggle.checked}`); }catch(_){ }
+      });
+      mlSegOnlyToggle = document.getElementById('mlSegOnlyToggle');
+      mlSegOnlyToggle && mlSegOnlyToggle.addEventListener('change', async ()=>{
+        try{ await postJson('/api/bot/config', { ml_seg_only: !!mlSegOnlyToggle.checked }); uiLog('Config', `ml_seg_only=${mlSegOnlyToggle.checked}`); }catch(_){ }
+      });
+    }
+  }catch(_){ }
 
   if (optBtn) optBtn.addEventListener('click', ()=>{ optimizeNb(); });
   if (trainBtn) trainBtn.addEventListener('click', async ()=>{

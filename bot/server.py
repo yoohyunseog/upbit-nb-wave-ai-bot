@@ -105,6 +105,77 @@ def _record_group_observation(interval: str, window: int, r_val: float,
 
 # In-memory order log for UI markers
 orders = deque(maxlen=500)  # each item: {ts, side, price, size, paper, market}
+# ML signal log (in-memory; optionally persisted)
+signals = []  # each: {id, ts, zone, extreme, price, pct_major, slope_bp, horizon, pred_nb, interval, market, score0, realized_score}
+
+# N/B COIN tracking per candle bucket
+_nb_coin_store: dict[str, dict] = {}
+
+def _interval_to_sec(iv: str) -> int:
+    try:
+        s = str(iv or 'minute1')
+        if s.startswith('minute'):
+            return int(s.replace('minute','')) * 60
+        if s == 'day':
+            return 86400
+        if s == 'week':
+            return 7*86400
+        if s == 'month':
+            return 30*86400
+    except Exception:
+        pass
+    return 60
+
+def _bucket_ts_interval(ts_ms: int | None, iv: str) -> int:
+    try:
+        sec = _interval_to_sec(iv)
+        t = int((ts_ms or int(time.time()*1000)) / 1000)
+        return (t // sec) * sec
+    except Exception:
+        return int(time.time())
+
+def _coin_key(interval: str, market: str, bucket_sec: int) -> str:
+    return f"{market}|{interval}|{bucket_sec}"
+
+def _ensure_nb_coin(interval: str, market: str, bucket_sec: int) -> dict:
+    key = _coin_key(interval, market, bucket_sec)
+    if key not in _nb_coin_store:
+        _nb_coin_store[key] = {
+            'bucket': int(bucket_sec),
+            'interval': str(interval),
+            'market': str(market),
+            'side': 'NONE',  # NONE | BUY | SELL
+            'orders': [],
+            'ts': int(time.time()*1000),
+        }
+        # trim to last ~2000 coins
+        if len(_nb_coin_store) > 2500:
+            for k in sorted(_nb_coin_store.keys())[:-2000]:
+                try:
+                    del _nb_coin_store[k]
+                except Exception:
+                    pass
+    return _nb_coin_store[key]
+
+def _mark_nb_coin(interval: str, market: str, side: str, ts_ms: int | None = None, order_obj: dict | None = None):
+    try:
+        b = _bucket_ts_interval(ts_ms or int(time.time()*1000), interval)
+        coin = _ensure_nb_coin(interval, market, b)
+        # Once any order happens in the bucket, mark the side (prefer SELL over BUY if multiple; or latest wins)
+        coin['side'] = str(side).upper()
+        if order_obj:
+            try:
+                coin['orders'].append({
+                    'ts': int(order_obj.get('ts') or int(time.time()*1000)),
+                    'side': str(order_obj.get('side') or side).upper(),
+                    'price': float(order_obj.get('price') or 0.0),
+                    'size': float(order_obj.get('size') or 0.0),
+                    'paper': bool(order_obj.get('paper')),
+                })
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 # Bot controller for start/stop from UI
 bot_ctrl = {
@@ -1173,9 +1244,15 @@ def api_ml_predict():
                             pred_nb = {'side':'BUY','bars':bars,'ts': last_ts_ms + bars*bar_sec*1000}
             except Exception:
                 pred_nb = None
-            return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins, 'zone_actions': zone_actions, 'label_mode': label_mode, 'steep': steep, 'pred_nb': pred_nb, 'horizon': horizon, 'interval': cur_interval})
+            # derive a simple confidence and default score0
+            try:
+                pct_major = max(float(ins.get('pct_blue') or ins.get('pct_blue_raw') or 0.0), float(ins.get('pct_orange') or ins.get('pct_orange_raw') or 0.0))
+            except Exception:
+                pct_major = 0.0
+            score0 = float(max(0.0, min(1.0, pct_major/100.0)))
+            return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins, 'zone_actions': zone_actions, 'label_mode': label_mode, 'steep': steep, 'pred_nb': pred_nb, 'horizon': horizon, 'interval': cur_interval, 'score0': score0})
         except Exception:
-            return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins, 'zone_actions': zone_actions, 'label_mode': label_mode, 'pred_nb': None, 'horizon': horizon, 'interval': cur_interval})
+            return jsonify({'ok': True, 'action': action, 'pred': pred, 'probs': probs, 'train_count': ml_state.get('train_count', 0), 'insight': ins, 'zone_actions': zone_actions, 'label_mode': label_mode, 'pred_nb': None, 'horizon': horizon, 'interval': cur_interval, 'score0': 0.0})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
@@ -1320,6 +1397,15 @@ def _resolve_config():
     # keys (if provided via API)
     base.access_key = base.access_key if ov['access_key'] is None else str(ov['access_key'])
     base.secret_key = base.secret_key if ov['secret_key'] is None else str(ov['secret_key'])
+    # Feature flag: ML-only autotrade (ignore zone-side/order checks except min notional)
+    try:
+        base.ml_only = bool(ov.get('ml_only'))
+    except Exception:
+        base.ml_only = False
+    try:
+        base.ml_seg_only = bool(ov.get('ml_seg_only'))
+    except Exception:
+        base.ml_seg_only = False
     return base
 
 def _get_runtime_keys():
@@ -1565,11 +1651,20 @@ def trade_loop():
                                         elif sig=='SELL': allow_by_group = (po >= sell_th)
                                     except Exception:
                                         allow_by_group = False
-                                if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL') or (not allow_by_pullback) or (not allow_by_zone100) or (not allow_by_group):
-                                    last_signal = sig
-                                    bot_ctrl['last_signal'] = sig
-                                    time.sleep(max(1, _resolve_config().interval_sec))
-                                    continue
+                                cfg_now = _resolve_config()
+                                if getattr(cfg_now, 'ml_only', False):
+                                    # ML-only: only require ML direction to match NB signal
+                                    if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL'):
+                                        last_signal = sig
+                                        bot_ctrl['last_signal'] = sig
+                                        time.sleep(max(1, _resolve_config().interval_sec))
+                                        continue
+                                else:
+                                    if (ml_pred == 0) or (ml_pred == 1 and sig != 'BUY') or (ml_pred == -1 and sig != 'SELL') or (not allow_by_pullback) or (not allow_by_zone100) or (not allow_by_group):
+                                        last_signal = sig
+                                        bot_ctrl['last_signal'] = sig
+                                        time.sleep(max(1, _resolve_config().interval_sec))
+                                        continue
                         except Exception:
                             pass
                     # Enforce: only BUY in BLUE zone, only SELL in ORANGE zone (toggle-able)
@@ -1616,12 +1711,18 @@ def trade_loop():
                         'size': (o.get('size') if isinstance(o, dict) else None) or 0,
                         'paper': cfg.paper or bool((isinstance(o, dict) and o.get('paper'))),
                         'market': cfg.market,
+                        'interval': str(cfg.candle),
+                        'live_ok': bool(o.get('live_ok')) if isinstance(o, dict) else False,
                         'nb_signal': sig,
                         'nb_window': int(window),
                         'nb_r': float(r_last),
                         'insight': snap_insight,
                     }
                     orders.append(order)
+                    try:
+                        _mark_nb_coin(str(cfg.candle), str(cfg.market), sig, order.get('ts'), order)
+                    except Exception:
+                        pass
                     last_order_ts = int(order['ts'])
                     last_order_bar_ts = int(bar_ts)
                     bot_ctrl['last_order'] = order
@@ -1721,10 +1822,7 @@ def api_ohlcv():
 def api_orders():
     """Return recent orders for plotting markers on the chart."""
     try:
-        return jsonify({
-            'market': state.get('market'),
-            'data': list(orders),
-        })
+        return jsonify({'ok': True, 'market': state.get('market'), 'data': list(orders)})
     except Exception as e:
         return jsonify({'error': str(e), 'data': []}), 500
 
@@ -1747,6 +1845,10 @@ def api_order_create():
             'market': payload.get('market') or state.get('market'),
         }
         orders.append(order)
+        try:
+            _mark_nb_coin(str(state.get('candle') or load_config().candle), str(order.get('market') or state.get('market') or load_config().market), str(order.get('side') or 'NONE'), int(order.get('ts') or int(time.time()*1000)), order)
+        except Exception:
+            pass
         return jsonify({'ok': True, 'order': order})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
@@ -1760,6 +1862,50 @@ def api_orders_clear():
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/signal/log', methods=['POST'])
+def api_signal_log():
+    """Append an ML signal marker for later scoring/training.
+    Body: { ts, zone, extreme, price, pct_major, slope_bp, horizon, pred_nb, interval }
+    """
+    try:
+        payload = request.get_json(force=True)
+        s = {
+            'id': int(time.time()*1000),
+            'ts': int(payload.get('ts')),
+            'zone': str(payload.get('zone','')).upper(),
+            'extreme': str(payload.get('extreme','')).upper(),
+            'price': float(payload.get('price') or 0.0),
+            'pct_major': float(payload.get('pct_major') or 0.0),
+            'slope_bp': float(payload.get('slope_bp') or 0.0),
+            'horizon': int(payload.get('horizon') or 0),
+            'pred_nb': payload.get('pred_nb'),
+            'interval': str(payload.get('interval') or (state.get('candle') or 'minute5')),
+            'market': str(state.get('market') or load_config().market),
+            'score0': max(0.0, min(1.0, float(payload.get('score0') or 0.0))),
+            'realized_score': None,
+        }
+        signals.append(s)
+        try:
+            _mark_nb_coin(str(s.get('interval') or (state.get('candle') or 'minute5')),
+                          str(s.get('market') or (state.get('market') or load_config().market)),
+                          'BUY' if str(s.get('zone')).upper()=='BLUE' else ('SELL' if str(s.get('zone')).upper()=='ORANGE' else 'NONE'),
+                          int(s.get('ts') or int(time.time()*1000)), None)
+        except Exception:
+            pass
+        # optional: append to disk
+        try:
+            base_dir = os.path.dirname(__file__)
+            path = os.path.join(base_dir, 'data', 'signals.jsonl')
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(s, ensure_ascii=False) + '\n')
+        except Exception:
+            pass
+        return jsonify({'ok': True, 'signal': s})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
 
 
 def _compute_r_from_ohlcv(df: pd.DataFrame, window: int) -> pd.Series:
@@ -2382,6 +2528,10 @@ def api_trade_buy():
         orders.append(order)
     except Exception:
         pass
+    try:
+        _mark_nb_coin(str(cfg.candle), str(cfg.market), 'BUY', order.get('ts'), order)
+    except Exception:
+        pass
     return jsonify({'ok': True, 'order': order})
 
 @app.route('/api/trade/sell', methods=['POST'])
@@ -2480,6 +2630,10 @@ def api_trade_sell():
         orders.append(order)
     except Exception:
         pass
+    try:
+        _mark_nb_coin(str(cfg.candle), str(cfg.market), 'SELL', order.get('ts'), order)
+    except Exception:
+        pass
     return jsonify({'ok': True, 'order': order})
 @app.route('/api/bot/config', methods=['POST'])
 def api_bot_config():
@@ -2489,7 +2643,7 @@ def api_bot_config():
         if data.get('reload_env'):
             _reload_env_vars()
         ov = bot_ctrl['cfg_override']
-        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec','require_ml','enforce_zone_side','nb_force','nb_window',
+        for k in ('paper','order_krw','pnl_ratio','pnl_profit_ratio','pnl_loss_ratio','ema_fast','ema_slow','candle','market','interval_sec','require_ml','enforce_zone_side','nb_force','nb_window','ml_only','ml_seg_only',
                   'access_key','secret_key','open_api_access_key','open_api_secret_key'):
             if k in data:
                 ov[k] = data[k]
@@ -2541,10 +2695,17 @@ def api_bot_status():
         log_env_keys()
     except Exception:
         pass
+    # current N/B coin for this interval bucket
+    try:
+        b = _bucket_ts_interval(int(time.time()*1000), str(cfg.candle))
+        coin = _nb_coin_store.get(_coin_key(str(cfg.candle), str(cfg.market), b))
+    except Exception:
+        coin = None
     return jsonify({
         'running': bot_ctrl['running'],
         'last_signal': bot_ctrl.get('last_signal', 'HOLD'),
         'last_order': bot_ctrl.get('last_order'),
+        'coin': coin,
         'config': {
             'paper': cfg.paper,
             'order_krw': cfg.order_krw,
@@ -2557,6 +2718,34 @@ def api_bot_status():
             'has_keys': bool((_get_runtime_keys()[0] and _get_runtime_keys()[1]) or (_get_runtime_keys()[2] and _get_runtime_keys()[3]))
         }
     })
+
+
+@app.route('/api/nb/coin', methods=['GET'])
+def api_nb_coin():
+    """Return current and recent N/B COINs (per-candle buckets)."""
+    try:
+        cfg = _resolve_config()
+        iv = str(request.args.get('interval') or cfg.candle)
+        market = str(request.args.get('market') or cfg.market)
+        now_b = _bucket_ts_interval(int(time.time()*1000), iv)
+        # collect recent N buckets
+        try:
+            n = int(request.args.get('n') or 50)
+        except Exception:
+            n = 50
+        sec = _interval_to_sec(iv)
+        buckets = [(now_b - i*sec) for i in range(max(1, n))]
+        coins = []
+        for b in buckets:
+            c = _nb_coin_store.get(_coin_key(iv, market, b))
+            if c:
+                coins.append(c)
+            else:
+                coins.append({'bucket': int(b), 'interval': iv, 'market': market, 'side': 'NONE', 'orders': []})
+        cur = _nb_coin_store.get(_coin_key(iv, market, now_b))
+        return jsonify({'ok': True, 'current': cur, 'recent': coins})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 
 def run():
