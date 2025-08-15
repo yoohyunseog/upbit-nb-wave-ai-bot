@@ -1,3 +1,4 @@
+ 
 import os
 import math
 import threading
@@ -13,6 +14,8 @@ import numpy as np
 import joblib
 import uuid
 import requests
+import hashlib
+import random
 
 from main import load_config, get_candles
 from dotenv import load_dotenv
@@ -73,6 +76,41 @@ ml_state = {
 GROUP_BUCKET_SEC = int(os.getenv('NB_GROUP_BUCKET_SEC', '60'))  # group by 1m default
 GROUP_MIN_SIZE = int(os.getenv('NB_GROUP_MIN_SIZE', '25'))
 _nb_groups: dict[int, list] = {}
+_npc_hashes: set[str] = set()
+
+# Zone reputation learned from narratives/policy (-1 .. +1)
+_zone_reputation: dict[str, dict] = {
+    'ORANGE': {'score': 0.0, 'updated_ms': None, 'notes': []},
+    'BLUE':   {'score': 0.0, 'updated_ms': None, 'notes': []},
+}
+
+def _narrative_store_path() -> str:
+    try:
+        base_dir = os.path.dirname(__file__)
+        data_dir = os.path.join(base_dir, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, 'narratives.jsonl')
+    except Exception:
+        return 'narratives.jsonl'
+
+def _update_zone_reputation(zone: str, delta: float, note: str | None = None) -> dict:
+    try:
+        z = str(zone or '').upper()
+        if z not in _zone_reputation:
+            _zone_reputation[z] = {'score': 0.0, 'updated_ms': None, 'notes': []}
+        row = _zone_reputation[z]
+        row['score'] = float(max(-1.0, min(1.0, float(row.get('score', 0.0)) + float(delta))))
+        row['updated_ms'] = int(time.time()*1000)
+        if note:
+            notes = row.get('notes') or []
+            notes.append(str(note))
+            # cap notes list
+            if len(notes) > 20:
+                notes = notes[-20:]
+            row['notes'] = notes
+        return row
+    except Exception:
+        return {'score': 0.0}
 
 def _bucket_ts(ts_ms: int | None = None, bucket_sec: int | None = None) -> int:
     try:
@@ -112,6 +150,87 @@ signals = []  # each: {id, ts, zone, extreme, price, pct_major, slope_bp, horizo
 _nb_coin_store: dict[str, dict] = {}
 _nb_coin_counter: dict[str, int] = {}          # per-interval coin count (card-level)
 _nb_open_entry: dict[str, float] = {}           # per-interval open entry price for BUY→SELL cycle
+_nb_rest_until: dict[str, int] = {}             # per-interval rest window end bucket (exclusive)
+_village_energy: dict[str, dict] = {}           # per-interval energy state: { E: float(0..100), last_ms: int, idle_bars: int }
+
+# Village Council (trainer consensus) state
+_council_state: dict = {
+    'ts': None,
+    'intervals': {},   # iv -> { chosen, intent, feasible, zone, slope_bp }
+    'consensus': {'intent': 'HOLD', 'votes': {}},
+}
+_council_thread: threading.Thread | None = None
+_council_running: bool = False
+
+def _energy_state(iv: str) -> dict:
+    try:
+        iv = str(iv)
+        st = _village_energy.get(iv)
+        if not st:
+            st = { 'E': 50.0, 'last_ms': int(time.time()*1000), 'idle_bars': 0 }
+            _village_energy[iv] = st
+        return st
+    except Exception:
+        return { 'E': 50.0, 'last_ms': int(time.time()*1000), 'idle_bars': 0 }
+
+def _energy_tick(iv: str) -> float:
+    try:
+        st = _energy_state(iv)
+        now = int(time.time()*1000)
+        dt_sec = max(0.0, (now - int(st.get('last_ms') or now)) / 1000.0)
+        decay = float(os.getenv('ENERGY_DECAY_PER_SEC', '0.001'))
+        st['E'] = float(max(0.0, min(100.0, float(st.get('E', 50.0)) - decay * dt_sec)))
+        st['last_ms'] = now
+        return float(st['E'])
+    except Exception:
+        return 0.0
+
+def _energy_adjust(iv: str, delta: float, reason: str | None = None) -> float:
+    try:
+        st = _energy_state(iv)
+        _energy_tick(iv)
+        st['E'] = float(max(0.0, min(100.0, float(st.get('E', 50.0)) + float(delta))))
+        if reason:
+            st['last_reason'] = str(reason)
+        return float(st['E'])
+    except Exception:
+        return 0.0
+
+@app.route('/api/village/state')
+def api_village_state():
+    try:
+        iv = request.args.get('interval') if request.args else None
+        if not iv:
+            iv = state.get('candle') or load_config().candle
+        # tick and read
+        E = _energy_tick(str(iv))
+        st = _energy_state(str(iv))
+        last_reason = st.get('last_reason')
+        # attach learned zone reputation snapshot
+        rep = {
+            'BLUE': dict(_zone_reputation.get('BLUE', {})),
+            'ORANGE': dict(_zone_reputation.get('ORANGE', {})),
+        }
+        # compose minimal treasury snapshot via existing summary
+        try:
+            total_owned = int(sum(int(v) for v in _nb_coin_counter.values()))
+        except Exception:
+            total_owned = 0
+        # KRW/price/ buyable from summary helper (reuse logic inline)
+        price_per_coin = int(getattr(_resolve_config(), 'order_krw', 5100))
+        krw = 0.0
+        try:
+            cfg = _resolve_config()
+            if (not cfg.paper) and cfg.access_key and cfg.secret_key:
+                upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+                if upbit:
+                    krw = float(upbit.get_balance('KRW') or 0.0)
+        except Exception:
+            krw = 0.0
+        buyable = int(krw // max(1, price_per_coin))
+        return jsonify({ 'ok': True, 'interval': str(iv), 'energy': E, 'last_reason': last_reason, 'reputation': rep, 'treasury': { 'krw': krw, 'coins': total_owned, 'price_per_coin': price_per_coin, 'buyable': buyable } })
+    except Exception as e:
+        return jsonify({ 'ok': False, 'error': str(e) }), 500
 
 def _interval_to_sec(iv: str) -> int:
     try:
@@ -148,6 +267,38 @@ def _coin_store_path() -> str:
     except Exception:
         return 'nb_coins_store.json'
 
+def _npc_store_path() -> str:
+    try:
+        base_dir = os.path.dirname(__file__)
+        data_dir = os.path.join(base_dir, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, 'npc_messages.jsonl')
+    except Exception:
+        return 'npc_messages.jsonl'
+
+def _load_npc_hashes() -> int:
+    try:
+        path = _npc_store_path()
+        if not os.path.exists(path):
+            return 0
+        cnt = 0
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    h = str(obj.get('hash') or _hash_text(str(obj.get('text') or '')))
+                    if h not in _npc_hashes:
+                        _npc_hashes.add(h)
+                        cnt += 1
+                except Exception:
+                    continue
+        return cnt
+    except Exception:
+        return 0
+
 def _save_nb_coins() -> bool:
     try:
         path = _coin_store_path()
@@ -172,6 +323,28 @@ def _load_nb_coins() -> int:
     except Exception:
         return 0
 
+def _hash_text(s: str) -> str:
+    try:
+        return hashlib.sha1(s.encode('utf-8')).hexdigest()
+    except Exception:
+        return str(uuid.uuid4())
+
+def _npc_add(msg: dict) -> bool:
+    try:
+        text = str(msg.get('text') or '')
+        h = _hash_text(text)
+        if h in _npc_hashes:
+            return False
+        _npc_hashes.add(h)
+        msg['id'] = str(uuid.uuid4())
+        msg['hash'] = h
+        path = _npc_store_path()
+        with open(path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(msg, ensure_ascii=False) + '\n')
+        return True
+    except Exception:
+        return False
+
 def _ensure_nb_coin(interval: str, market: str, bucket_sec: int) -> dict:
     key = _coin_key(interval, market, bucket_sec)
     if key not in _nb_coin_store:
@@ -186,6 +359,7 @@ def _ensure_nb_coin(interval: str, market: str, bucket_sec: int) -> dict:
             'checked_ts': None,       # last time we evaluated trade conditions
             'blocks': {},             # aggregated counters per reason
             'coin_count': int(_nb_coin_counter.get(str(interval), 0)),
+            'rest_until': int(_nb_rest_until.get(str(interval), 0)),
         }
         # trim to last ~2000 coins
         if len(_nb_coin_store) > 2500:
@@ -231,7 +405,18 @@ def _apply_coin_accounting(interval: str, price: float, side: str):
             if iv not in _nb_open_entry:
                 _nb_open_entry[iv] = float(price)
                 # On BUY success, save 1 coin
-                _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) + 1
+                prev = int(_nb_coin_counter.get(iv, 0))
+                _nb_coin_counter[iv] = prev + 1
+                # If this is the first coin (0 -> 1), schedule rest window
+                try:
+                    if prev <= 0 and (_nb_coin_counter.get(iv, 0) or 0) >= 1:
+                        rest_on = (os.getenv('REST_AFTER_FIRST_COIN', 'true').lower() == 'true')
+                        rest_bars = int(os.getenv('REST_BARS', '3'))
+                        if rest_on and rest_bars > 0:
+                            b = _bucket_ts_interval(int(time.time()*1000), iv)
+                            _nb_rest_until[iv] = int(b + rest_bars)
+                except Exception:
+                    pass
         elif side.upper() == 'SELL' and (price or 0) > 0:
             if iv in _nb_open_entry:
                 entry = float(_nb_open_entry.get(iv) or 0.0)
@@ -239,9 +424,36 @@ def _apply_coin_accounting(interval: str, price: float, side: str):
                 if profit:
                     # profit: add one more coin
                     _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) + 1
+                    try:
+                        _energy_adjust(iv, +1.5, 'sell_profit')
+                    except Exception:
+                        pass
                 else:
-                    # loss: remove one coin (allow negatives per user rule)
-                    _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) - 1
+                    # loss: remove coin(s); stronger penalty if Elder guidance was violated
+                    # Elder guidance: BUY only in BLUE, SELL only in ORANGE
+                    try:
+                        z = str((_nb_coin_store.get(_coin_key(iv, load_config().market, _bucket_ts_interval(int(time.time()*1000), iv)) ) or {}).get('zone') or '').upper()
+                    except Exception:
+                        z = ''
+                    violated = False
+                    try:
+                        # If last known zone is BLUE and we SOLD, or ORANGE and we BOUGHT (opposite of guidance)
+                        violated = (z == 'BLUE' and True)  # SELL in BLUE is violation; if z unknown keep False
+                    except Exception:
+                        violated = False
+                    penalty = int(os.getenv('ELDER_VIOLATION_PENALTY', '2'))
+                    if violated:
+                        _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) - max(1, penalty)
+                        try:
+                            _energy_adjust(iv, -2.0, 'sell_loss_violation')
+                        except Exception:
+                            pass
+                    else:
+                        _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) - 1
+                        try:
+                            _energy_adjust(iv, -1.0, 'sell_loss')
+                        except Exception:
+                            pass
                 # close the open cycle
                 _nb_open_entry.pop(iv, None)
         # reflect latest coin_count into current bucket coin if exists
@@ -255,10 +467,205 @@ def _apply_coin_accounting(interval: str, price: float, side: str):
     except Exception:
         pass
 
+
+def _score_strategies(interval: str) -> dict:
+    """Return simple heuristic scores for four strategies and a suggested action.
+    Heads: trend, meanrev, breakout, pullback
+    """
+    try:
+        iv = str(interval)
+        cfg = _resolve_config()
+        df = get_candles(cfg.market, iv, count=max(200, cfg.ema_slow+50))
+        window = int(load_nb_params().get('window', 50))
+        ins = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, iv, None) or {}
+        zone = str(ins.get('zone') or '').upper()
+        rv = float(ins.get('r', 0.5) or 0.5)
+        try:
+            HIGH = float(os.getenv('NB_HIGH', '0.55')); LOW = float(os.getenv('NB_LOW', '0.45'))
+        except Exception:
+            HIGH,LOW = 0.55,0.45
+        rng = max(1e-9, HIGH-LOW)
+        # slope approx
+        slope_bp = 0.0
+        try:
+            n_tail = max(20, min(120, window))
+            closes = df['close'].astype(float).tail(n_tail)
+            if len(closes) >= 5:
+                import numpy as _np
+                y = _np.log(closes.replace(0, _np.nan)).fillna(method='bfill').fillna(method='ffill').values
+                x = _np.arange(len(y), dtype=float)
+                b1 = _np.polyfit(x, y, 1)[0]
+                slope_bp = float(b1*10000.0)
+        except Exception:
+            slope_bp = 0.0
+        # features for heads
+        trend_align = (zone=='BLUE' and slope_bp>0) or (zone=='ORANGE' and slope_bp<0)
+        near_extreme = (zone=='BLUE' and (rv-LOW) <= (0.15*rng)) or (zone=='ORANGE' and (HIGH-rv) <= (0.15*rng))
+        try:
+            hi = float(df['high'].rolling(window).max().iloc[-1]); lo = float(df['low'].rolling(window).min().iloc[-1]); c = float(df['close'].iloc[-1])
+        except Exception:
+            hi=lo=c=0.0
+        breakout_up = c >= (hi*0.999)
+        breakout_dn = c <= (lo*1.001)
+        eg = float(ins.get('extreme_gap', 0.0) or 0.0); age = int(ins.get('zone_extreme_age', 0) or 0)
+        try:
+            pb_r = float(os.getenv('PULLBACK_R', '0.02'))
+            pb_bars = int(os.getenv('PULLBACK_BARS', '2'))
+        except Exception:
+            pb_r, pb_bars = 0.02, 2
+        pull_ok = (eg >= pb_r) and (age >= pb_bars)
+        # scores (0..1)
+        s_trend = 1.0 if trend_align else 0.2
+        s_mean = 1.0 if ((zone=='BLUE' and slope_bp<0 and near_extreme) or (zone=='ORANGE' and slope_bp>0 and near_extreme)) else 0.2
+        s_break = 1.0 if (breakout_up or breakout_dn) else 0.2
+        s_pull = 1.0 if pull_ok else 0.2
+        # Reputation-aware adjustment: penalize actions that conflict with learned zone reputation
+        rep_orange = float((_zone_reputation.get('ORANGE') or {}).get('score') or 0.0)
+        rep_blue = float((_zone_reputation.get('BLUE') or {}).get('score') or 0.0)
+        rep_penalty = 0.15
+        if zone == 'ORANGE' and rep_orange < 0:
+            s_trend *= (1.0 + rep_orange * rep_penalty)
+            s_mean  *= (1.0 + rep_orange * rep_penalty)
+            s_pull  *= (1.0 + rep_orange * rep_penalty)
+        if zone == 'BLUE' and rep_blue < 0:
+            s_trend *= (1.0 + rep_blue * rep_penalty)
+            s_mean  *= (1.0 + rep_blue * rep_penalty)
+            s_pull  *= (1.0 + rep_blue * rep_penalty)
+        head_scores = {'trend': s_trend, 'meanrev': s_mean, 'breakout': s_break, 'pullback': s_pull}
+        # choose best (favor recent realized pnl via simple tie-break)
+        chosen = max(head_scores.items(), key=lambda x: (x[1], 0))[0]
+        # intent
+        intent = 'HOLD'
+        if chosen=='trend':
+            intent = 'BUY' if zone=='BLUE' and slope_bp>0 else ('SELL' if zone=='ORANGE' and slope_bp<0 else 'HOLD')
+        elif chosen=='meanrev':
+            intent = 'BUY' if zone=='BLUE' and slope_bp<0 and near_extreme else ('SELL' if zone=='ORANGE' and slope_bp>0 and near_extreme else 'HOLD')
+        elif chosen=='breakout':
+            intent = 'BUY' if breakout_up else ('SELL' if breakout_dn else 'HOLD')
+        elif chosen=='pullback':
+            intent = 'BUY' if zone=='BLUE' and pull_ok else ('SELL' if zone=='ORANGE' and pull_ok else 'HOLD')
+        # feasibility
+        coin = int(_nb_coin_counter.get(iv, 0))
+        price_per_coin = int(getattr(cfg, 'order_krw', 5100))
+        avail_krw = 0.0
+        try:
+            upbit = None
+            if (not cfg.paper) and cfg.access_key and cfg.secret_key:
+                upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+            if upbit:
+                avail_krw = float(upbit.get_balance('KRW') or 0.0)
+        except Exception:
+            avail_krw = 0.0
+        buyable = int(avail_krw // max(1, price_per_coin))
+        feasible = {'can_buy': buyable>0, 'can_sell': coin>0}
+        return {
+            'ok': True,
+            'interval': iv,
+            'insight': ins,
+            'slope_bp': slope_bp,
+            'head_scores': head_scores,
+            'chosen': chosen,
+            'intent': intent,
+            'feasible': feasible,
+            'coin_count': coin,
+            'buyable_by_krw': buyable,
+            'reputation': {
+                'BLUE': float(rep_blue),
+                'ORANGE': float(rep_orange),
+            },
+        }
+    except Exception as e:
+        return {'ok': False, 'error': str(e)}
+
+
+@app.route('/api/trainer/suggest')
+def api_trainer_suggest():
+    try:
+        iv = request.args.get('interval') if request.args else None
+        if not iv:
+            iv = state.get('candle') or load_config().candle
+        res = _score_strategies(str(iv))
+        # update council view for this interval
+        try:
+            if res.get('ok'):
+                _council_state['ts'] = int(time.time()*1000)
+                ivs = _council_state.setdefault('intervals', {})
+                ivs[str(iv)] = {
+                    'chosen': res.get('chosen'),
+                    'intent': res.get('intent'),
+                    'feasible': res.get('feasible'),
+                    'zone': (res.get('insight') or {}).get('zone'),
+                    'slope_bp': res.get('slope_bp'),
+                }
+                # derive a simple consensus by majority of intents among feasible ones
+                votes = {}
+                for _, row in ivs.items():
+                    intent = str(row.get('intent') or 'HOLD').upper()
+                    feas = row.get('feasible') or {}
+                    if intent == 'BUY' and not feas.get('can_buy'): intent = 'HOLD'
+                    if intent == 'SELL' and not feas.get('can_sell'): intent = 'HOLD'
+                    votes[intent] = votes.get(intent, 0) + 1
+                if votes:
+                    intent_cons = max(votes.items(), key=lambda x: x[1])[0]
+                    _council_state['consensus'] = { 'intent': intent_cons, 'votes': votes }
+        except Exception:
+            pass
+        return jsonify(res), (200 if res.get('ok') else 500)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/api/narrative/add', methods=['POST'])
+def api_narrative_add():
+    try:
+        payload = request.get_json(force=True) if request.is_json else request.form.to_dict()
+        text = str(payload.get('text') or '')
+        zone = str(payload.get('zone') or '').upper()
+        # simple sentiment mapping: if explicit negative, penalize; else small nudge
+        negative = bool(payload.get('negative') or ('negative' in text.lower()) or ('risk' in text.lower()) or ('lock' in text.lower()))
+        delta = float(payload.get('delta') or (-0.3 if negative else 0.1))
+        row = _update_zone_reputation(zone, delta, note=(payload.get('title') or text[:120]))
+        # persist narrative
+        obj = {
+            'id': str(uuid.uuid4()),
+            'ts': int(time.time()*1000),
+            'zone': zone,
+            'text': text,
+            'delta': delta,
+            'rep_after': float(row.get('score', 0.0)),
+        }
+        try:
+            with open(_narrative_store_path(), 'a', encoding='utf-8') as f:
+                f.write(json.dumps(obj, ensure_ascii=False) + '\n')
+        except Exception:
+            pass
+        # broadcast a brief NPC line
+        _npc_add({'text': f"Narrative updated: {zone} reputation {row.get('score',0.0):.2f}.", 'ts': obj['ts']})
+        return jsonify({'ok': True, 'reputation': _zone_reputation, 'saved': obj})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/api/council/state')
+def api_council_state():
+    try:
+        return jsonify({ 'ok': True, 'state': _council_state })
+    except Exception as e:
+        return jsonify({ 'ok': False, 'error': str(e) }), 500
+
 def _mark_nb_coin_block(interval: str, market: str, reasons: list[str] | None = None, ts_ms: int | None = None, meta: dict | None = None):
     try:
         b = _bucket_ts_interval(ts_ms or int(time.time()*1000), interval)
         coin = _ensure_nb_coin(interval, market, b)
+        # Rest-after-first-coin gate annotation
+        try:
+            iv = str(interval)
+            rest_until = int(_nb_rest_until.get(iv) or 0)
+            if rest_until and b < rest_until:
+                if reasons is None:
+                    reasons = []
+                if 'rest:scheduled' not in reasons:
+                    reasons = list(reasons) + ['rest:scheduled']
+        except Exception:
+            pass
         coin['checked_ts'] = int(time.time()*1000)
         # Do not override side if already traded; still record reasons for diagnostics
         rs = reasons or []
@@ -813,8 +1220,12 @@ def api_ml_train():
         tau = float(payload.get('tau', 0.002))  # 0.2%
         count = int(payload.get('count', 1800))
         interval = payload.get('interval') or load_config().candle
-        # Force default to 'zone' so the model learns zones by default
-        label_mode = str(payload.get('label_mode', 'zone'))  # 'zone' | 'nb_zone' | 'fwd_return' | 'nb_extreme'
+        # Default label mode can be overridden via env NB_LABEL_MODE_DEFAULT
+        try:
+            _lm_def = os.getenv('NB_LABEL_MODE_DEFAULT', 'zone')
+        except Exception:
+            _lm_def = 'zone'
+        label_mode = str(payload.get('label_mode', _lm_def))  # 'zone' | 'nb_zone' | 'fwd_return' | 'nb_extreme' | 'nb_best_trade'
         # Optional: extreme-based labels tuning
         try:
             pullback_pct = float(payload.get('pullback_pct', os.getenv('NB_PULLBACK_PCT', '40')))
@@ -1122,8 +1533,12 @@ def api_ml_train():
 @app.route('/api/ml/predict', methods=['GET'])
 def api_ml_predict():
     try:
-        # load model for current interval
-        cur_interval = state.get('candle') or load_config().candle
+        # load model for requested or current interval
+        try:
+            req_iv = request.args.get('interval') if request.args else None
+        except Exception:
+            req_iv = None
+        cur_interval = str(req_iv or (state.get('candle') or load_config().candle))
         pack = _load_ml(cur_interval)
         if not pack:
             # Graceful fallback: return lightweight insight so UI narrative can render
@@ -1349,11 +1764,10 @@ def api_ml_predict():
         action = 'HOLD'
         if label_mode in ('zone','zone_flag'):
             action = ('BLUE' if pred>0 else 'ORANGE')
-        else:
-            if pred > 0:
-                action = 'BUY'
-            elif pred < 0:
-                action = 'SELL'
+        elif pred > 0:
+            action = 'BUY'
+        elif pred < 0:
+            action = 'SELL'
         # Zone-aware intent: whether model would act in the current zone context
         try:
             z_now = str(ins.get('zone') or '').upper()
@@ -1445,7 +1859,11 @@ def api_ml_predict():
 @app.route('/api/ml/metrics', methods=['GET'])
 def api_ml_metrics():
     try:
-        cur_interval = state.get('candle') or load_config().candle
+        try:
+            req_iv = request.args.get('interval') if request.args else None
+        except Exception:
+            req_iv = None
+        cur_interval = str(req_iv or (state.get('candle') or load_config().candle))
         pack = _load_ml(cur_interval)
         if not pack:
             return jsonify({'ok': False, 'error': 'model_not_trained'}), 400
@@ -1529,6 +1947,10 @@ def updater():
     # Prefill N/B COIN buckets for recent candles
     try:
         _prefill_nb_coins(str(cfg.candle), str(cfg.market), how_many=120)
+    except Exception:
+        pass
+    try:
+        _load_npc_hashes()
     except Exception:
         pass
     # Initial seed with candles
@@ -1721,6 +2143,10 @@ def trade_loop():
                             _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:cooldown({min_gap}s)"], now_ms, { 'price': price })
                         except Exception:
                             pass
+                        try:
+                            _energy_tick(str(cfg.candle))
+                        except Exception:
+                            pass
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1736,6 +2162,10 @@ def trade_loop():
                             _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:already_long"], int(time.time()*1000), { 'price': price })
                         except Exception:
                             pass
+                        try:
+                            _energy_adjust(str(cfg.candle), -0.5, 'already_long')
+                        except Exception:
+                            pass
                         last_signal = sig
                         bot_ctrl['last_signal'] = sig
                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1744,6 +2174,10 @@ def trade_loop():
                     if sig == 'SELL' and pos != 'LONG':
                         try:
                             _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:not_long"], int(time.time()*1000), { 'price': price })
+                        except Exception:
+                            pass
+                        try:
+                            _energy_adjust(str(cfg.candle), -0.5, 'not_long')
                         except Exception:
                             pass
                         last_signal = sig
@@ -1755,6 +2189,19 @@ def trade_loop():
                         require_ml = bool(bot_ctrl['cfg_override'].get('require_ml')) if bot_ctrl['cfg_override'].get('require_ml') is not None else (os.getenv('REQUIRE_ML_CONFIRM', 'false').lower()=='true')
                     except Exception:
                         require_ml = False
+                    # Rest-after-first-coin: if within rest window, skip placing orders
+                    try:
+                        iv_rest = str(cfg.candle)
+                        bnow = _bucket_ts_interval(int(time.time()*1000), iv_rest)
+                        ru = int(_nb_rest_until.get(iv_rest) or 0)
+                        if ru and bnow < ru:
+                            _mark_nb_coin_block(iv_rest, str(cfg.market), ["rest:scheduled"], int(time.time()*1000), { 'price': price })
+                            last_signal = sig
+                            bot_ctrl['last_signal'] = sig
+                            time.sleep(max(1, _resolve_config().interval_sec))
+                            continue
+                    except Exception:
+                        pass
                     # Optional: require 100% zone probability
                     try:
                         zone100_only = bool(bot_ctrl['cfg_override'].get('zone100_only')) if bot_ctrl['cfg_override'].get('zone100_only') is not None else (os.getenv('ZONE100_ONLY', 'false').lower()=='true')
@@ -1765,6 +2212,28 @@ def trade_loop():
                         nb_force = bool(bot_ctrl['cfg_override'].get('nb_force')) if bot_ctrl['cfg_override'].get('nb_force') is not None else (os.getenv('NB_FORCE','false').lower()=='true')
                     except Exception:
                         nb_force = False
+
+                    # Energy-aware gating (E low → enforce stronger guards; very low → pause)
+                    try:
+                        E = float(_energy_tick(str(cfg.candle)))
+                        e_block = float(os.getenv('ENERGY_BLOCK_TH', '5'))
+                        e_pull = float(os.getenv('ENERGY_ENFORCE_PULLBACK_TH', '30'))
+                        e_zone = float(os.getenv('ENERGY_ENFORCE_ZONE100_TH', '30'))
+                        if E <= e_block:
+                            try:
+                                _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:energy_low({E:.1f})"], int(time.time()*1000), { 'price': price })
+                            except Exception:
+                                pass
+                            last_signal = sig
+                            bot_ctrl['last_signal'] = sig
+                            time.sleep(max(1, _resolve_config().interval_sec))
+                            continue
+                        # below thresholds → tighten gates
+                        energy_enforce_pullback = (E < e_pull)
+                        energy_enforce_zone100 = (E < e_zone)
+                    except Exception:
+                        energy_enforce_pullback = False
+                        energy_enforce_zone100 = False
 
                     if not nb_force and require_ml:
                         try:
@@ -1807,12 +2276,15 @@ def trade_loop():
                                     bot_ctrl['last_signal'] = sig
                                     time.sleep(max(1, _resolve_config().interval_sec))
                                     continue
-                                # Pullback from extreme enforcement
+                                # Pullback from extreme enforcement (may be forced by low energy)
                                 allow_by_pullback = True
                                 try:
                                     need_pullback = bool(bot_ctrl['cfg_override'].get('require_pullback') or os.getenv('REQUIRE_PULLBACK', 'false').lower()=='true')
                                 except Exception:
                                     need_pullback = False
+                                # Energy may force pullback requirement
+                                if energy_enforce_pullback:
+                                    need_pullback = True
                                 try:
                                     pullback_r = float(bot_ctrl['cfg_override'].get('pullback_r') or os.getenv('PULLBACK_R', '0.02'))
                                 except Exception:
@@ -1831,7 +2303,7 @@ def trade_loop():
                                         allow_by_pullback = False
                                 # Zone 100% enforcement using latest insight snapshot
                                 allow_by_zone100 = True
-                                if zone100_only:
+                                if zone100_only or energy_enforce_zone100:
                                     try:
                                         snap = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, cfg.candle, ml_pack)
                                         pb = float(snap.get('pct_blue', 0.0) or 0.0)
@@ -1875,6 +2347,10 @@ def trade_loop():
                                             _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:ml_dir_mismatch pred={ml_pred} sig={sig}"])
                                         except Exception:
                                             pass
+                                        try:
+                                            _energy_adjust(str(cfg.candle), -0.5, 'ml_dir_mismatch')
+                                        except Exception:
+                                            pass
                                         last_signal = sig
                                         bot_ctrl['last_signal'] = sig
                                         time.sleep(max(1, _resolve_config().interval_sec))
@@ -1890,6 +2366,10 @@ def trade_loop():
                                             if not allow_by_zone100: rs.append('blocked:zone100')
                                             if not allow_by_group: rs.append('blocked:group')
                                             _mark_nb_coin_block(str(cfg.candle), str(cfg.market), rs)
+                                        except Exception:
+                                            pass
+                                        try:
+                                            _energy_adjust(str(cfg.candle), -0.5, 'blocked')
                                         except Exception:
                                             pass
                                         last_signal = sig
@@ -1912,12 +2392,35 @@ def trade_loop():
                                     _mark_nb_coin_block(str(cfg.candle), str(cfg.market), [f"blocked:enforce_zone_side zone={z_now} sig={sig}"])
                                 except Exception:
                                     pass
+                                try:
+                                    _energy_adjust(str(cfg.candle), -0.5, 'enforce_zone_side')
+                                except Exception:
+                                    pass
                                 last_signal = sig
                                 bot_ctrl['last_signal'] = sig
                                 time.sleep(max(1, _resolve_config().interval_sec))
                                 continue
                         except Exception:
                             pass
+                    # Finance-aware gating by residents (live only)
+                    try:
+                        if not cfg.paper:
+                            res = _score_strategies(str(cfg.candle))
+                            feas = res.get('feasible') if isinstance(res, dict) else None
+                            if sig == 'BUY' and (not feas or not feas.get('can_buy')):
+                                _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:finance:no_buyable"], int(time.time()*1000), { 'price': price })
+                                last_signal = sig
+                                bot_ctrl['last_signal'] = sig
+                                time.sleep(max(1, _resolve_config().interval_sec))
+                                continue
+                            if sig == 'SELL' and (not feas or not feas.get('can_sell')):
+                                _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:finance:no_inventory"], int(time.time()*1000), { 'price': price })
+                                last_signal = sig
+                                bot_ctrl['last_signal'] = sig
+                                time.sleep(max(1, _resolve_config().interval_sec))
+                                continue
+                    except Exception:
+                        pass
                     # Update trader's dynamic pnl_ratio before each order
                     try:
                         trader.cfg.pnl_ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
@@ -1937,6 +2440,10 @@ def trade_loop():
                     if (not cfg.paper) and (not isinstance(o, dict)):
                         try:
                             _mark_nb_coin_block(str(cfg.candle), str(cfg.market), ["blocked:live_min_notional_or_balance"])
+                        except Exception:
+                            pass
+                        try:
+                            _energy_adjust(str(cfg.candle), -1.0, 'live_fail')
                         except Exception:
                             pass
                         last_signal = sig
@@ -1973,6 +2480,7 @@ def trade_loop():
                             bot_ctrl['position'] = 'FLAT'
                     except Exception:
                         pass
+                    # Energy reward/penalty on order outcome will be applied when accounting updates coin_count
                 # No state change (HOLD) or after handling
                 last_signal = sig
                 bot_ctrl['last_signal'] = sig
@@ -3060,6 +3568,134 @@ def api_nb_coins_summary():
         except Exception:
             buyable = 0
         return jsonify({'ok': True, 'total_owned': total_owned, 'price_per_coin': int(price_per_coin), 'krw': float(avail_krw), 'buyable_by_krw': int(buyable)})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/npc/generate', methods=['POST'])
+def api_npc_generate():
+    """Generate N random NPC dialogue messages based on current narrative/state.
+    Body: { n?: int, interval?: string }
+    Writes unique messages to data/npc_messages.jsonl and returns the new ones.
+    """
+    try:
+        payload = request.get_json(force=True) if request.is_json else {}
+        try:
+            n = max(1, min(50, int(payload.get('n', 10))))
+        except Exception:
+            n = 10
+        try:
+            iv = str(payload.get('interval')) if payload.get('interval') else (state.get('candle') or load_config().candle)
+        except Exception:
+            iv = state.get('candle') or load_config().candle
+        # lightweight insight snapshot (avoid calling Flask handlers directly)
+        cfg = _resolve_config()
+        try:
+            df = get_candles(cfg.market, iv, count=max(120, cfg.ema_slow + 5))
+        except Exception:
+            df = pd.DataFrame()
+        try:
+            window = int(load_nb_params().get('window', 50))
+        except Exception:
+            window = 50
+        try:
+            ins = _make_insight(df, window, cfg.ema_fast, cfg.ema_slow, iv, None) or {}
+        except Exception:
+            ins = {}
+        zone = str(ins.get('zone') or '').upper() if ins else None
+        # approximate slope per bar (bp) if possible
+        slope = None
+        try:
+            closes = df['close'].astype(float).tail(max(20, min(120, window)))
+            if len(closes) >= 5:
+                import numpy as _np
+                y = _np.log(closes.replace(0, _np.nan)).fillna(method='bfill').fillna(method='ffill').values
+                x = _np.arange(len(y), dtype=float)
+                b1 = _np.polyfit(x, y, 1)[0]
+                slope = float(b1)  # per-bar log slope (approx bp/bar after scale)
+        except Exception:
+            slope = None
+        flip = None  # optional: can be added later
+        # templates
+        personas = ['Analyst','Scout','Guardian','Elder']
+        frames = [
+            "{p}({iv}): {zone} with slope {s} bp/bar. Flip ETA: {f} bars.",
+            "{p}({iv}): I favor {act} while momentum holds. {guard}",
+            "{p}({iv}): Feasibility → BUY={can_buy} SELL={can_sell}. coin={coin} buyable={buy}",
+            "{p}({iv}): If conditions soften, I will stand down and wait for better alignment."
+        ]
+        # feasibility snapshot
+        coin = int(_nb_coin_counter.get(iv, 0))
+        # buyable via KRW balance and order_krw(coin price)
+        try:
+            price_per_coin = int(getattr(cfg, 'order_krw', 5100))
+        except Exception:
+            price_per_coin = 5100
+        avail_krw = 0.0
+        try:
+            upbit = None
+            if (not cfg.paper) and cfg.access_key and cfg.secret_key:
+                upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+            if upbit:
+                avail_krw = float(upbit.get_balance('KRW') or 0.0)
+        except Exception:
+            avail_krw = 0.0
+        try:
+            buy = int(avail_krw // max(1, price_per_coin))
+        except Exception:
+            buy = 0
+        can_buy = (buy > 0); can_sell = (coin > 0)
+        guard = "Zone-side & cooldown OK"  # placeholder; detailed guards available elsewhere
+        # If OpenAI key present or provider specified, generate via GPT-4o-mini first
+        provider = str(payload.get('provider') or '').lower()
+        openai_key = os.getenv('OPENAI_API_KEY')
+        out = []
+        if openai_key and (provider == 'openai' or os.getenv('NPC_PROVIDER','').lower()=='openai'):
+            try:
+                url = 'https://api.openai.com/v1/chat/completions'
+                headers = { 'Authorization': f'Bearer {openai_key}', 'Content-Type': 'application/json' }
+                sys = "You are an NPC villager speaking concise, context-aware trading lines in English. Keep each line short (<= 140 chars), natural, and grounded in the given signals."
+                context = f"interval={iv}, zone={zone}, slope={slope}, flip={flip}, coin_count={coin}, buyable={buy}, can_buy={can_buy}, can_sell={can_sell}"
+                # we will request one-by-one to enforce de-duplication and keep responses crisp
+                tries = 0
+                while len(out) < n and tries < n*3:
+                    tries += 1
+                    persona = random.choice(personas)
+                    usr = f"As {persona} at {iv}, say ONE short line about: {context}. Include a clear intent (BUY/SELL/HOLD) only if feasible."
+                    body = {
+                        'model': 'gpt-4o-mini',
+                        'messages': [
+                            { 'role': 'system', 'content': sys },
+                            { 'role': 'user', 'content': usr }
+                        ],
+                        'temperature': 0.7,
+                        'max_tokens': 60
+                    }
+                    resp = requests.post(url, headers=headers, json=body, timeout=20)
+                    if resp.status_code >= 400:
+                        break
+                    data = resp.json()
+                    txt = (data.get('choices') or [{}])[0].get('message', {}).get('content') or ''
+                    text = f"{persona}({iv}): {txt.strip()}"
+                    msg = { 'ts': int(time.time()*1000), 'interval': iv, 'persona': persona, 'text': text }
+                    if _npc_add(msg):
+                        out.append(msg)
+            except Exception:
+                out = []
+        # fallback: template generator
+        out = []
+        tries = 0
+        while len(out) < n and tries < n*5:
+            tries += 1
+            p = random.choice(personas)
+            act = 'BUY' if (zone=='BLUE') else ('SELL' if zone=='ORANGE' else 'HOLD')
+            s = None if slope is None else (round(float(slope)*10000, 2))
+            f = (flip if isinstance(flip, int) else '-')
+            text = random.choice(frames).format(p=p, iv=iv, zone=(zone or '-'), s=(s if s is not None else '-'), f=f, act=act, guard=guard, can_buy=can_buy, can_sell=can_sell, coin=coin, buy=buy)
+            msg = { 'ts': int(time.time()*1000), 'interval': iv, 'persona': p, 'text': text }
+            if _npc_add(msg):
+                out.append(msg)
+        return jsonify({'ok': True, 'count': len(out), 'items': out})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
