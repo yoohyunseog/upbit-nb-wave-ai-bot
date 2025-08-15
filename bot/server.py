@@ -177,6 +177,17 @@ def _mark_nb_coin(interval: str, market: str, side: str, ts_ms: int | None = Non
     except Exception:
         pass
 
+def _prefill_nb_coins(interval: str, market: str, how_many: int = 50) -> None:
+    try:
+        now_ms = int(time.time()*1000)
+        now_b = _bucket_ts_interval(now_ms, interval)
+        sec = _interval_to_sec(interval)
+        for i in range(max(1, how_many)):
+            b = now_b - i*sec
+            _ensure_nb_coin(str(interval), str(market), int(b))
+    except Exception:
+        pass
+
 # Bot controller for start/stop from UI
 bot_ctrl = {
     'running': False,
@@ -1336,6 +1347,11 @@ def updater():
     state["ema_slow"] = cfg.ema_slow
     state["market"] = cfg.market
     state["candle"] = cfg.candle
+    # Prefill N/B COIN buckets for recent candles
+    try:
+        _prefill_nb_coins(str(cfg.candle), str(cfg.market), how_many=120)
+    except Exception:
+        pass
     # Initial seed with candles
     try:
         df = get_candles(cfg.market, cfg.candle, count=max(cfg.ema_slow + 60, 120))
@@ -2738,10 +2754,9 @@ def api_nb_coin():
         coins = []
         for b in buckets:
             c = _nb_coin_store.get(_coin_key(iv, market, b))
-            if c:
-                coins.append(c)
-            else:
-                coins.append({'bucket': int(b), 'interval': iv, 'market': market, 'side': 'NONE', 'orders': []})
+            if not c:
+                c = _ensure_nb_coin(iv, market, int(b))
+            coins.append(c)
         cur = _nb_coin_store.get(_coin_key(iv, market, now_b))
         return jsonify({'ok': True, 'current': cur, 'recent': coins})
     except Exception as e:
