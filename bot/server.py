@@ -240,8 +240,8 @@ def _apply_coin_accounting(interval: str, price: float, side: str):
                     # profit: add one more coin
                     _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) + 1
                 else:
-                    # loss: remove one coin (not below zero)
-                    _nb_coin_counter[iv] = max(0, int(_nb_coin_counter.get(iv, 0)) - 1)
+                    # loss: remove one coin (allow negatives per user rule)
+                    _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) - 1
                 # close the open cycle
                 _nb_open_entry.pop(iv, None)
         # reflect latest coin_count into current bucket coin if exists

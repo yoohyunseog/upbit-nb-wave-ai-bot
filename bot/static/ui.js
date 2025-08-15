@@ -1481,7 +1481,7 @@
             const bucket = Number(curC.bucket||0);
             const ts = bucket? new Date(bucket*1000).toLocaleTimeString() : '-';
             const side = String(curC.side||'NONE').toUpperCase();
-            const coinCount = Number(curC.coin_count||0);
+            const coinCount = Number(curC.coin_count ?? 0);
             const reasons = (Array.isArray(curC.reasons) && curC.reasons.length)? curC.reasons.slice(-3).map(r=>r.replace('blocked:','')).join(', ') : '-';
             let card = holder.querySelector(`.nb-coin-item[data-iv="${iv}"]`);
             const isFeatured = (iv === currentIv);
