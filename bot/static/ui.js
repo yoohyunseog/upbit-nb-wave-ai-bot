@@ -1451,26 +1451,91 @@
           }
         }catch(_){ }
       }
-      // Render all-bucket cards with BUY/SELL actions
+      // Render per-interval cards with Masonry updates (no full rebuild to avoid flicker)
       try{
         const holder = document.getElementById('nbCoinCards');
         if (holder){
-          holder.innerHTML = '';
-          const title = document.createElement('div'); title.className='text-muted'; title.style.fontSize='12px'; title.textContent='All candles'; holder.appendChild(title);
-          // newest first
-          [...(recent||[])].reverse().forEach(c=>{
-            const row = document.createElement('div');
-            row.className = 'card border-secondary rounded-3 p-2 mt-2';
-            const ts = c.bucket? new Date(c.bucket*1000).toLocaleTimeString() : '-';
-            const side = (c.side||'NONE').toUpperCase();
-            const reasons = (Array.isArray(c.reasons) && c.reasons.length)? c.reasons.slice(-3).map(r=>r.replace('blocked:','')).join(', ') : '-';
-            row.innerHTML = `<div class='d-flex justify-content-between align-items-center'><div><b>${ts}</b> <span class='badge ${side==='BUY'?'bg-success':(side==='SELL'?'bg-danger':'bg-secondary')}'>${side}</span></div><div><button class='btn btn-sm btn-success me-1'>BUY</button><button class='btn btn-sm btn-danger'>SELL</button></div></div><div class='text-muted mt-1' style='font-size:12px'>${reasons}</div>`;
-            const btns = row.querySelectorAll('button');
-            const bucket = c.bucket||0;
+          // ensure sizer exists
+          if (!holder.querySelector('.nb-coin-sizer')){
+            const s = document.createElement('div'); s.className='nb-coin-sizer'; s.style.width='33.333%'; holder.appendChild(s);
+          }
+          const currentIv = String(getInterval());
+          const intervals = ['minute1','minute3','minute5','minute10','minute15','minute30','minute60','day'];
+          // init Masonry once
+          if (!window.nbCoinMasonry && window.Masonry){
+            window.nbCoinMasonry = new Masonry(holder, {
+              itemSelector: '.nb-coin-item',
+              columnWidth: '.nb-coin-sizer',
+              percentPosition: true,
+              gutter: 8,
+              transitionDuration: '1.2s'
+            });
+          }
+          // fetch current coin for each interval
+          const tasks = intervals.map(iv => fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(iv)}&n=1`).catch(()=>null));
+          const results = await Promise.all(tasks);
+          const newElems = [];
+          results.forEach((res, idx)=>{
+            const iv = intervals[idx];
+            const curC = (res && res.ok) ? (res.current||{}) : {};
+            const bucket = Number(curC.bucket||0);
+            const ts = bucket? new Date(bucket*1000).toLocaleTimeString() : '-';
+            const side = String(curC.side||'NONE').toUpperCase();
+            const coinCount = Number(curC.coin_count||0);
+            const reasons = (Array.isArray(curC.reasons) && curC.reasons.length)? curC.reasons.slice(-3).map(r=>r.replace('blocked:','')).join(', ') : '-';
+            let card = holder.querySelector(`.nb-coin-item[data-iv="${iv}"]`);
+            const isFeatured = (iv === currentIv);
+            const html = `<div class='d-flex justify-content-between align-items-center'>
+                <div class='text-white'><b>${ts}</b> <span class='badge bg-dark text-white'>${iv}</span> <span class='badge ${side==='BUY'?'bg-success':(side==='SELL'?'bg-danger':'bg-secondary')}'>${side}</span> <span class='badge bg-white text-dark'>${coinCount} coin(s)</span></div>
+                <div>
+                  <button class='btn btn-success me-2 btn-coin'>BUY</button>
+                  <button class='btn btn-danger me-2 btn-coin'>SELL</button>
+                  <button class='btn btn-outline-light btn-coin btn-coin-copy'>Copy</button>
+                </div>
+              </div>
+              <div class='mt-1' style='font-size:12px; color:#ffffff'>${reasons}</div>`;
+            if (!card){
+              card = document.createElement('div');
+              card.className = 'card border-secondary rounded-3 p-2 mt-2 text-white nb-coin-item';
+              card.dataset.iv = iv;
+              holder.appendChild(card);
+              newElems.push(card);
+            }
+            // apply size styles (will animate via Masonry)
+            card.style.width = isFeatured ? '100%' : '33.333%';
+            card.style.minHeight = isFeatured ? '160px' : '80px';
+            card.innerHTML = html;
+            const btns = card.querySelectorAll('button');
+            const onCopy = async ()=>{
+              try{
+                const txt = `N/B COIN S.L | interval=${iv} | time=${ts} | side=${side} | reasons=${reasons}`;
+                if (navigator.clipboard && navigator.clipboard.writeText){
+                  await navigator.clipboard.writeText(txt);
+                } else {
+                  const ta = document.createElement('textarea'); ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                }
+              }catch(_){ }
+            };
             if (btns[0]) btns[0].onclick = async ()=>{ try{ await postJson('/api/trade/buy', { bucket }); }catch(_){ } finally { refreshNbCoinStrip(); } };
             if (btns[1]) btns[1].onclick = async ()=>{ try{ await postJson('/api/trade/sell', { bucket }); }catch(_){ } finally { refreshNbCoinStrip(); } };
-            holder.appendChild(row);
+            const copyBtn = card.querySelector('.btn-coin-copy');
+            if (copyBtn) copyBtn.onclick = onCopy;
           });
+          // move featured card to top (right after sizer)
+          try{
+            const featured = holder.querySelector(`.nb-coin-item[data-iv="${currentIv}"]`);
+            const sizer = holder.querySelector('.nb-coin-sizer');
+            if (featured && sizer && featured.previousElementSibling !== sizer){
+              holder.insertBefore(featured, sizer.nextSibling);
+            }
+          }catch(_){ }
+          try{
+            if (window.nbCoinMasonry){
+              if (newElems.length){ window.nbCoinMasonry.appended(newElems); }
+              window.nbCoinMasonry.reloadItems();
+              window.nbCoinMasonry.layout();
+            }
+          }catch(_){ }
         }
       }catch(_){ }
     }catch(_){ }
@@ -1746,7 +1811,7 @@
   });
   // kick off initial load
   refreshAssets().catch(()=>{});
-    if (assetsAutoToggle && assetsAutoToggle.checked){ assetsTimer = setInterval(refreshAssets, 30*1000); }
+  if (assetsAutoToggle && assetsAutoToggle.checked){ assetsTimer = setInterval(refreshAssets, 30*1000); }
   if (logClearBtn) logClearBtn.addEventListener('click', ()=>{ if (logBox) logBox.textContent=''; });
 })();
 

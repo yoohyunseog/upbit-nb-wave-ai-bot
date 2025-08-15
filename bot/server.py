@@ -110,6 +110,8 @@ signals = []  # each: {id, ts, zone, extreme, price, pct_major, slope_bp, horizo
 
 # N/B COIN tracking per candle bucket
 _nb_coin_store: dict[str, dict] = {}
+_nb_coin_counter: dict[str, int] = {}          # per-interval coin count (card-level)
+_nb_open_entry: dict[str, float] = {}           # per-interval open entry price for BUY→SELL cycle
 
 def _interval_to_sec(iv: str) -> int:
     try:
@@ -183,6 +185,7 @@ def _ensure_nb_coin(interval: str, market: str, bucket_sec: int) -> dict:
             'reasons': [],            # list of strings describing why no trade yet
             'checked_ts': None,       # last time we evaluated trade conditions
             'blocks': {},             # aggregated counters per reason
+            'coin_count': int(_nb_coin_counter.get(str(interval), 0)),
         }
         # trim to last ~2000 coins
         if len(_nb_coin_store) > 2500:
@@ -218,6 +221,37 @@ def _mark_nb_coin(interval: str, market: str, side: str, ts_ms: int | None = Non
         pass
     try:
         _save_nb_coins()
+    except Exception:
+        pass
+
+def _apply_coin_accounting(interval: str, price: float, side: str):
+    try:
+        iv = str(interval)
+        if side.upper() == 'BUY' and (price or 0) > 0:
+            if iv not in _nb_open_entry:
+                _nb_open_entry[iv] = float(price)
+                # On BUY success, save 1 coin
+                _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) + 1
+        elif side.upper() == 'SELL' and (price or 0) > 0:
+            if iv in _nb_open_entry:
+                entry = float(_nb_open_entry.get(iv) or 0.0)
+                profit = (float(price) - entry) > 0
+                if profit:
+                    # profit: add one more coin
+                    _nb_coin_counter[iv] = int(_nb_coin_counter.get(iv, 0)) + 1
+                else:
+                    # loss: remove one coin (not below zero)
+                    _nb_coin_counter[iv] = max(0, int(_nb_coin_counter.get(iv, 0)) - 1)
+                # close the open cycle
+                _nb_open_entry.pop(iv, None)
+        # reflect latest coin_count into current bucket coin if exists
+        try:
+            b = _bucket_ts_interval(int(time.time()*1000), iv)
+            key = _coin_key(iv, load_config().market, b)
+            if key in _nb_coin_store:
+                _nb_coin_store[key]['coin_count'] = int(_nb_coin_counter.get(iv, 0))
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -2753,6 +2787,10 @@ def api_trade_buy():
     except Exception:
         pass
     try:
+        _apply_coin_accounting(str(cfg.candle), float(order.get('price') or 0.0), 'BUY')
+    except Exception:
+        pass
+    try:
         _record_nb_attempt(str(cfg.candle), str(cfg.market), 'BUY', ok=True, error=None, ts_ms=(bucket_ts_ms or order.get('ts')), meta={'price': order.get('price'), 'size': order.get('size')})
     except Exception:
         pass
@@ -2870,6 +2908,10 @@ def api_trade_sell():
         pass
     try:
         _mark_nb_coin(str(cfg.candle), str(cfg.market), 'SELL', order.get('ts'), order)
+    except Exception:
+        pass
+    try:
+        _apply_coin_accounting(str(cfg.candle), float(order.get('price') or 0.0), 'SELL')
     except Exception:
         pass
     try:

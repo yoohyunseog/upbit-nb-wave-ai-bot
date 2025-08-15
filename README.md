@@ -3,7 +3,18 @@
 An Upbit auto-trading bot with a real-time Flask UI, NB-wave signals, optional ML modeling, backtesting, and live order markers.
 
 ### Version
-- 0.9.4 (2025-08-15)
+- 0.9.5 (2025-08-15)
+
+### What's new in 0.9.5
+- N/B COIN S.L (Save/Load-like) UI cards per timeframe
+  - Masonry layout (3 columns) with smooth animation (1.2s)
+  - Current chart timeframe card is featured (full-width, double height) and pinned to top
+  - Per-card actions: BUY / SELL (bound to current bucket), Copy (card text)
+  - Scroll disabled for the N/B COIN S.L panel to prevent accidental wheel moves
+- N/B COIN accounting per timeframe (coin_count)
+  - On BUY success: +1 coin
+  - On subsequent SELL: if profit → +1 coin, if loss → −1 coin (not below 0)
+  - Coin count shown on each timeframe card; attempts and block reasons are aggregated
 
 ### What's new in 0.9.4
 - N/B COIN per-candle tracking
