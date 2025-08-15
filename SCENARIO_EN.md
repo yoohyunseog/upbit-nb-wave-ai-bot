@@ -1,10 +1,14 @@
-## Chapter 2 — The Heart of a Moving Village
+## Chapter 2 — The Heart of a Moving Village (N/B Guild, Ruin-Refit Mobile Settlement)
 
 - Present Anchorage: on the seam of minute-candles, where a pale tide folds in
 - Current Zone: BLUE dominant; a distant ORANGE swell is forming
 - Village Energy (E): 53.7 — slowly recovering
 - Treasury: 1,250,000 KRW, Coins: 0 (first coin is the spark we seek)
 - Elder’s Broadcast: “BUY only in BLUE, SELL only in ORANGE. Today, we wait for pullback confirmation.”
+
+### Identity — N/B Guild and Ruin-Refit Origin
+- Guild: the village belongs to the N/B Guild, whose discipline is the NB-wave.
+- Origin: this is a mobile village rebuilt from a high-drain, ruined settlement; modular decks, cards, and a resilient treasury were retrofitted for travel.
 
 ### The Elder (Guild Branch Chief)
 - Compass, accountant, and expedition captain in one.
@@ -38,6 +42,12 @@
 - Fuel: Energy E
   - Drains with time and failed/blocked attempts.
   - Recovers on disciplined, profitable trades.
+
+### Mechanics of Motion and Energy (Concept)
+- Bar-by-bar translation: the village “jumps” from one temporary anchorage to the next as candles close; each jump costs Energy.
+- Guidance-as-helm: NB-wave guides heading (zone, extremes, pullback), Elder declares helmsman rules.
+- Energy sinks: time decay; repeated attempt blocks (cooldown, zone100 unmet, finance issues); discipline violations with realized loss.
+- Energy sources: profitable BUY→SELL cycles; trades that respect zone and pullback confirmation; brief REST after the first coin to prevent overheating.
 
 ### The Ledger — N/B COIN S.L
 - Each timeframe has a card that records: what we did, or why we did not.
