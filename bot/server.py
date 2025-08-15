@@ -137,6 +137,39 @@ def _bucket_ts_interval(ts_ms: int | None, iv: str) -> int:
 def _coin_key(interval: str, market: str, bucket_sec: int) -> str:
     return f"{market}|{interval}|{bucket_sec}"
 
+def _coin_store_path() -> str:
+    try:
+        base_dir = os.path.dirname(__file__)
+        data_dir = os.path.join(base_dir, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, 'nb_coins_store.json')
+    except Exception:
+        return 'nb_coins_store.json'
+
+def _save_nb_coins() -> bool:
+    try:
+        path = _coin_store_path()
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(_nb_coin_store, f, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+def _load_nb_coins() -> int:
+    try:
+        path = _coin_store_path()
+        if not os.path.exists(path):
+            return 0
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            _nb_coin_store.clear()
+            _nb_coin_store.update(data)
+            return len(_nb_coin_store)
+        return 0
+    except Exception:
+        return 0
+
 def _ensure_nb_coin(interval: str, market: str, bucket_sec: int) -> dict:
     key = _coin_key(interval, market, bucket_sec)
     if key not in _nb_coin_store:
@@ -158,6 +191,10 @@ def _ensure_nb_coin(interval: str, market: str, bucket_sec: int) -> dict:
                     del _nb_coin_store[k]
                 except Exception:
                     pass
+        try:
+            _save_nb_coins()
+        except Exception:
+            pass
     return _nb_coin_store[key]
 
 def _mark_nb_coin(interval: str, market: str, side: str, ts_ms: int | None = None, order_obj: dict | None = None):
@@ -177,6 +214,10 @@ def _mark_nb_coin(interval: str, market: str, side: str, ts_ms: int | None = Non
                 })
             except Exception:
                 pass
+    except Exception:
+        pass
+    try:
+        _save_nb_coins()
     except Exception:
         pass
 
@@ -202,6 +243,10 @@ def _mark_nb_coin_block(interval: str, market: str, reasons: list[str] | None = 
         if meta and isinstance(meta, dict):
             # store a tiny snapshot
             coin['meta'] = {k: meta[k] for k in list(meta.keys())[:12]}
+    except Exception:
+        pass
+    try:
+        _save_nb_coins()
     except Exception:
         pass
 
@@ -1376,6 +1421,10 @@ def api_ml_metrics():
 
 def updater():
     cfg = load_config()
+    try:
+        _load_nb_coins()
+    except Exception:
+        pass
     state["ema_fast"] = cfg.ema_fast
     state["ema_slow"] = cfg.ema_slow
     state["market"] = cfg.market

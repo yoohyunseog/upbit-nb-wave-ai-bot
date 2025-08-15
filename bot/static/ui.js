@@ -1442,7 +1442,14 @@
             diag.className = 'text-muted';
             diag.style.fontSize = '11px';
             diag.style.marginTop = '4px';
-            diag.textContent = `Why no trade: ${reasons.join(', ')}`;
+            const title = 'Why no trade';
+            // show most frequent first if blocks map is available
+            let blocks = [];
+            try{
+              const m = curCoin.blocks||{};
+              blocks = Object.keys(m).map(k=>({k, c: m[k]})).sort((a,b)=> b.c-a.c).slice(0,5).map(x=>`${x.k}×${x.c}`);
+            }catch(_){ }
+            diag.textContent = blocks.length ? `${title}: ${blocks.join(', ')}` : `${title}: ${reasons.join(', ')}`;
             strip.parentElement?.appendChild(diag);
           }
         }catch(_){ }
