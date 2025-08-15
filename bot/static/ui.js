@@ -1451,6 +1451,28 @@
           }
         }catch(_){ }
       }
+      // Render all-bucket cards with BUY/SELL actions
+      try{
+        const holder = document.getElementById('nbCoinCards');
+        if (holder){
+          holder.innerHTML = '';
+          const title = document.createElement('div'); title.className='text-muted'; title.style.fontSize='12px'; title.textContent='All candles'; holder.appendChild(title);
+          // newest first
+          [...(recent||[])].reverse().forEach(c=>{
+            const row = document.createElement('div');
+            row.className = 'card border-secondary rounded-3 p-2 mt-2';
+            const ts = c.bucket? new Date(c.bucket*1000).toLocaleTimeString() : '-';
+            const side = (c.side||'NONE').toUpperCase();
+            const reasons = (Array.isArray(c.reasons) && c.reasons.length)? c.reasons.slice(-3).map(r=>r.replace('blocked:','')).join(', ') : '-';
+            row.innerHTML = `<div class='d-flex justify-content-between align-items-center'><div><b>${ts}</b> <span class='badge ${side==='BUY'?'bg-success':(side==='SELL'?'bg-danger':'bg-secondary')}'>${side}</span></div><div><button class='btn btn-sm btn-success me-1'>BUY</button><button class='btn btn-sm btn-danger'>SELL</button></div></div><div class='text-muted mt-1' style='font-size:12px'>${reasons}</div>`;
+            const btns = row.querySelectorAll('button');
+            const bucket = c.bucket||0;
+            if (btns[0]) btns[0].onclick = async ()=>{ try{ await postJson('/api/trade/buy', { bucket }); }catch(_){ } finally { refreshNbCoinStrip(); } };
+            if (btns[1]) btns[1].onclick = async ()=>{ try{ await postJson('/api/trade/sell', { bucket }); }catch(_){ } finally { refreshNbCoinStrip(); } };
+            holder.appendChild(row);
+          });
+        }
+      }catch(_){ }
     }catch(_){ }
   }
   // initial and periodic refresh for N/B COIN

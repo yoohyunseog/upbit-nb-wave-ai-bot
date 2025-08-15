@@ -250,6 +250,36 @@ def _mark_nb_coin_block(interval: str, market: str, reasons: list[str] | None = 
     except Exception:
         pass
 
+def _record_nb_attempt(interval: str, market: str, side: str, ok: bool, error: str | None = None, ts_ms: int | None = None, meta: dict | None = None):
+    try:
+        b = _bucket_ts_interval(ts_ms or int(time.time()*1000), interval)
+        coin = _ensure_nb_coin(interval, market, b)
+        arr = coin.setdefault('attempts', [])
+        item = {
+            'ts': int(time.time()*1000),
+            'side': str(side).upper(),
+            'ok': bool(ok),
+            'error': (str(error) if error else None),
+        }
+        if isinstance(meta, dict):
+            item['meta'] = {k: meta[k] for k in list(meta.keys())[:12]}
+        arr.append(item)
+        # aggregate blocks
+        key = (f"attempt_ok_{str(side).upper()}" if ok else f"error:{str(error)}:{str(side).upper()}")
+        coin.setdefault('blocks', {})
+        coin['blocks'][key] = int(coin['blocks'].get(key, 0)) + 1
+        if not ok and error:
+            coin.setdefault('reasons', [])
+            coin['reasons'].append(f"error:{str(error)}:{str(side).upper()}")
+            if len(coin['reasons']) > 20:
+                coin['reasons'] = coin['reasons'][-20:]
+    except Exception:
+        pass
+    try:
+        _save_nb_coins()
+    except Exception:
+        pass
+
 def _prefill_nb_coins(interval: str, market: str, how_many: int = 50) -> None:
     try:
         now_ms = int(time.time()*1000)
@@ -2635,6 +2665,12 @@ def api_trade_buy():
     except Exception:
         pnl_ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
     paper = cfg.paper if ('paper' not in payload) else bool(payload.get('paper') in (True, 'true', '1', 1, 'True'))
+    # optional: record attempts under a specific bucket (sec epoch) for UI card association
+    try:
+        bucket_override = payload.get('bucket')
+        bucket_ts_ms = int(bucket_override)*1000 if bucket_override is not None else None
+    except Exception:
+        bucket_ts_ms = None
     upbit = None
     if not paper and cfg.access_key and cfg.secret_key:
         upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
@@ -2663,6 +2699,10 @@ def api_trade_buy():
     pb = float(ins.get('pct_blue') or ins.get('pct_blue_raw') or 0.0)
     po = float(ins.get('pct_orange') or ins.get('pct_orange_raw') or 0.0)
     if not (z == 'BLUE' and max(pb, po) >= th):
+        try:
+            _record_nb_attempt(str(cfg.candle), str(cfg.market), 'BUY', ok=False, error='blocked_by_zone_rule', ts_ms=(bucket_ts_ms or int(time.time()*1000)), meta={'zone': z, 'pct_blue': pb, 'pct_orange': po})
+        except Exception:
+            pass
         return jsonify({'ok': False, 'error': 'blocked_by_zone_rule', 'zone': z, 'pct_blue': pb, 'pct_orange': po})
     # Estimate intended spend/size for logging
     attempt_krw = 0
@@ -2688,6 +2728,10 @@ def api_trade_buy():
         attempt_size = 0.0
     o = trader.place('BUY', price)
     if o is None or (not paper and not (isinstance(o, dict) and o.get('live_ok'))):
+        try:
+            _record_nb_attempt(str(cfg.candle), str(cfg.market), 'BUY', ok=False, error='buy_failed', ts_ms=(bucket_ts_ms or int(time.time()*1000)), meta={'price': price})
+        except Exception:
+            pass
         return jsonify({'ok': False, 'error': 'buy_failed'})
     # ins already computed above
     order = {
@@ -2706,6 +2750,10 @@ def api_trade_buy():
         pass
     try:
         _mark_nb_coin(str(cfg.candle), str(cfg.market), 'BUY', order.get('ts'), order)
+    except Exception:
+        pass
+    try:
+        _record_nb_attempt(str(cfg.candle), str(cfg.market), 'BUY', ok=True, error=None, ts_ms=(bucket_ts_ms or order.get('ts')), meta={'price': order.get('price'), 'size': order.get('size')})
     except Exception:
         pass
     return jsonify({'ok': True, 'order': order})
@@ -2727,6 +2775,12 @@ def api_trade_sell():
     except Exception:
         pnl_ratio = float(getattr(cfg, 'pnl_ratio', 0.0))
     paper = cfg.paper if ('paper' not in payload) else bool(payload.get('paper') in (True, 'true', '1', 1, 'True'))
+    # optional: record attempts under a specific bucket (sec epoch) for UI card association
+    try:
+        bucket_override = payload.get('bucket')
+        bucket_ts_ms = int(bucket_override)*1000 if bucket_override is not None else None
+    except Exception:
+        bucket_ts_ms = None
     upbit = None
     if not paper and cfg.access_key and cfg.secret_key:
         upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
@@ -2755,6 +2809,10 @@ def api_trade_sell():
     pb = float(ins.get('pct_blue') or ins.get('pct_blue_raw') or 0.0)
     po = float(ins.get('pct_orange') or ins.get('pct_orange_raw') or 0.0)
     if not (z == 'ORANGE' and max(pb, po) >= th):
+        try:
+            _record_nb_attempt(str(cfg.candle), str(cfg.market), 'SELL', ok=False, error='blocked_by_zone_rule', ts_ms=(bucket_ts_ms or int(time.time()*1000)), meta={'zone': z, 'pct_blue': pb, 'pct_orange': po})
+        except Exception:
+            pass
         return jsonify({'ok': False, 'error': 'blocked_by_zone_rule', 'zone': z, 'pct_blue': pb, 'pct_orange': po})
     if (not paper) and size_override and price>0 and (size_override*price)>=5000:
         try:
@@ -2783,6 +2841,10 @@ def api_trade_sell():
             attempt_size = 0.0
         o = trader.place('SELL', price)
     if o is None or (not paper and not (isinstance(o, dict) and o.get('live_ok'))):
+        try:
+            _record_nb_attempt(str(cfg.candle), str(cfg.market), 'SELL', ok=False, error='sell_failed_or_min_notional', ts_ms=(bucket_ts_ms or int(time.time()*1000)), meta={'price': price, 'size': float(size_override or 0.0)})
+        except Exception:
+            pass
         return jsonify({'ok': False, 'error': 'sell_failed_or_min_notional'})
     try:
         window = int(load_nb_params().get('window', 50))
@@ -2808,6 +2870,10 @@ def api_trade_sell():
         pass
     try:
         _mark_nb_coin(str(cfg.candle), str(cfg.market), 'SELL', order.get('ts'), order)
+    except Exception:
+        pass
+    try:
+        _record_nb_attempt(str(cfg.candle), str(cfg.market), 'SELL', ok=True, error=None, ts_ms=(bucket_ts_ms or order.get('ts')), meta={'price': order.get('price'), 'size': order.get('size')})
     except Exception:
         pass
     return jsonify({'ok': True, 'order': order})
