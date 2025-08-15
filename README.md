@@ -77,4 +77,7 @@ More details are documented in `bot/README.md`.
 - Test in paper mode first. Trading involves risk.
 - Never commit `.env` or private keys.
 
+### License
+MIT — see `LICENSE` file.
+
 
