@@ -41,3 +41,27 @@ I signed the document and muttered to myself:
 “The ORANGE zone… even a brief stay is difficult. What remains under the Guild’s name now are distrust and vigilance.”
 
 
+### Addendum — Guild Actions and System Update
+In response to the ORANGE Scenario, the N/B Guild enacted immediate operational and learning updates to protect members and align strategy with the narrative evidence:
+
+- Narrative Ingestion and Learning
+  - A narrative pipeline was established to ingest field reports like this scenario and adjust zone reputation scores.
+  - ORANGE zone reputation was set to negative, reflecting server locks, operational instability, and hostile dynamics.
+
+- Zone Reputation and Guidance
+  - The Guild maintains a reputation index for each zone (range −1 to +1). The ORANGE score turned negative, signaling caution and distrust.
+  - The Village Elder and resident Trainers consult this reputation in their decision making. In practice, negative ORANGE reputation penalizes buy-leaning strategies inside ORANGE segments.
+
+- Council and Trainers
+  - The Village Council aggregates per-interval trainer suggestions to form a consensus intent (BUY/SELL/HOLD) while honoring feasibility (treasury, inventory) and reputation.
+  - Trainer heads (trend/mean-reversion/breakout/pullback) now downweight actions that conflict with negative zone reputation.
+
+- Broadcast and Records
+  - The narrative is recorded in the Guild’s archive and broadcast as short NPC updates to keep all residents informed.
+  - The system preserves a timestamped record of narrative ingestion and the resulting reputation shift for auditability.
+
+- Policy Outcome
+  - The classification stands: ORANGE is a restricted-access advisory zone and a risk zone.
+  - Operational guidance: minimize exposure inside ORANGE, avoid impulsive entries, and require stronger confirmation (or abstain) when the Elder’s reputation guidance is negative.
+
+
