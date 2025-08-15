@@ -8,11 +8,12 @@
 - Navigate by NB‑wave: current zone (ORANGE/BLUE), extremes, pullback, flip ETA
 - Operate on Energy E (0–100): time decay + losses/violations drain; profits/discipline/rest recharge
 
-### Guild‑only Zone Doctrine (N/B)
+### Guild‑only Zone Guidelines (N/B)
 - Zones are privileged N/B Guild intelligence delivered only to member villages.
-- In BLUE zone, only BUY is authorized; in ORANGE zone, only SELL is authorized.
-- The doctrine is enforced by the Zone Shield and audited in card logs (reasons show violations).
-- Non‑guild settlements do not receive zone files or doctrine broadcasts.
+- Guideline: in BLUE, act only on BUY; in ORANGE, act only on SELL.
+- Trainers may deviate, but deviations drain Energy, accumulate penalties, and can immobilize the village; under stress, deviation can precipitate severe drawdowns.
+- The Zone Shield issues warnings and applies penalties; cards record reasons. Persistent deviation tightens guards automatically.
+- Non‑guild settlements do not receive zone files or guideline broadcasts.
 
 ### BTC Tracker
 - The village constantly seeks Bitcoin markets.
