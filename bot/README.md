@@ -118,5 +118,5 @@ The UI pushes `pnl_profit_ratio` and `pnl_loss_ratio` based on the top PnL bar a
 - This software is provided “as is,” without warranty of any kind. Trading involves risk.
 
 ### License
-TBD by repository owner (add a LICENSE file).
+MIT — see `../LICENSE`.
 
