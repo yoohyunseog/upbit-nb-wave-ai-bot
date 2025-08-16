@@ -117,6 +117,15 @@
   const btnPreflight = document.getElementById('btnPreflight');
   const tradeReadyBox = document.getElementById('tradeReadyBox');
   let orderKeys = new Set();
+  function pushOrderLogLine(line){
+    try{
+      if (!orderLog) return;
+      const div = document.createElement('div');
+      div.textContent = line;
+      orderLog.prepend(div);
+      while (orderLog.childElementCount>200){ orderLog.removeChild(orderLog.lastElementChild); }
+    }catch(_){ }
+  }
   const mlMetricsBox = document.getElementById('mlMetricsBox');
   const emaFilterEl = document.getElementById('emaFilter');
   const nbFromEmaEl = document.getElementById('nbFromEma');
@@ -359,7 +368,7 @@
     };
   }
 
-  const postJson = (path, data) => fetch(`${base}${path}`, {
+  let postJson = (path, data) => fetch(`${base}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data || {})
@@ -1053,7 +1062,21 @@
   seed(getInterval());
   // periodic prediction path
   setInterval(()=>{ drawPredictedPath(); }, 3000);
-  if (tfEl) tfEl.addEventListener('change', ()=>{ seed(getInterval()); pushConfig(); });
+  if (tfEl) tfEl.addEventListener('change', ()=>{
+    // Clear ML/NB markers and segment state when timeframe changes so signals only show on the selected timeframe
+    try{
+      baseMarkers = [];
+      nbMarkers = [];
+      mlSignalKeys = new Set();
+      mlSegPrevZone = null;
+      mlSegPlaced = false;
+      candle.setMarkers([]);
+      predMarkerSeries.setData([]);
+      predSeries.setData([]);
+    }catch(_){ }
+    seed(getInterval());
+    pushConfig();
+  });
   if (nbWindowEl) nbWindowEl.addEventListener('change', ()=>{ updateNB(); updateForecast(); saveOpts(); });
   if (nbToggleEl) nbToggleEl.addEventListener('change', ()=>{ updateNB(); updateForecast(); saveOpts(); });
   if (nbBuyThEl) nbBuyThEl.addEventListener('change', saveOpts);
@@ -1127,6 +1150,9 @@
         if (j.order){
           pushOrderMarker(j.order, itv);
           try{
+            pushOrderLogLine(`[${new Date().toLocaleString()}] ${String(j.order.side||'').toUpperCase()} filled @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+          }catch(_){ }
+          try{
             const side = String(j.order.side||'').toUpperCase();
             const op = Number(j.order.price||0);
             if (side === 'BUY' && op>0){ liveLastBuyPrice = op; }
@@ -1142,6 +1168,9 @@
         updateNB();
         // (removed) incremental retrain on bar. ML Auto uses random trainer on timer.
       }catch(_){ }
+    };
+    es.onerror = ()=>{
+      try{ pushOrderLogLine(`[${new Date().toLocaleString()}] STREAM ERROR: connection lost`); }catch(_){ }
     };
   }catch(_){ }
   // ML Auto: automatic random training on interval
@@ -1356,6 +1385,24 @@
       setTimeout(()=>URL.revokeObjectURL(url), 1000);
     }catch(_){ }
   });
+  // Global fetch error hook for order APIs → order log
+  let _postJson = postJson;
+  const ORDER_PATHS = new Set(['/api/trade/buy','/api/trade/sell','/api/orders/clear']);
+  postJson = async function(path, data){
+    try{
+      const res = await _postJson(path, data);
+      if (ORDER_PATHS.has(path) && res && res.ok===false){
+        const reason = res.error ? String(res.error) : 'unknown_error';
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ORDER API ERROR ${path}: ${reason}`);
+      }
+      return res;
+    }catch(e){
+      if (ORDER_PATHS.has(path)){
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ORDER API EXCEPTION ${path}: ${String(e)}`);
+      }
+      throw e;
+    }
+  };
 
   // Trade readiness panel (buyable/sellable)
   async function refreshTradeReady(){
@@ -1474,6 +1521,13 @@
           // fetch current coin for each interval
           const tasks = intervals.map(iv => fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(iv)}&n=1`).catch(()=>null));
           const results = await Promise.all(tasks);
+          // prefetch model metrics and trainer suggestions per interval (avoid await in non-async callbacks)
+          const metricTasks = intervals.map(iv => fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch(()=>null));
+          const suggestTasks = intervals.map(iv => fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch(()=>null));
+          const [metricsArr, suggestsArr] = await Promise.all([
+            Promise.all(metricTasks),
+            Promise.all(suggestTasks)
+          ]);
           const newElems = [];
           results.forEach((res, idx)=>{
             const iv = intervals[idx];
@@ -1485,14 +1539,22 @@
             const reasons = (Array.isArray(curC.reasons) && curC.reasons.length)? curC.reasons.slice(-3).map(r=>r.replace('blocked:','')).join(', ') : '-';
             let card = holder.querySelector(`.nb-coin-item[data-iv="${iv}"]`);
             const isFeatured = (iv === currentIv);
+            // use prefetched metrics/suggestion
+            const m = metricsArr[idx];
+            const ver = (m && m.ok) ? `v${m.train_count||0}` : '-';
+            const sug = suggestsArr[idx];
+            const chosen = (sug && sug.ok) ? String(sug.chosen||'-') : '-';
+            const intent = (sug && sug.ok) ? String(sug.intent||'HOLD') : '-';
+            const feas = (sug && sug.ok && sug.feasible) ? sug.feasible : { can_buy: false, can_sell: false };
+            const feasTxt = `${feas.can_buy?'BUY✓':'BUY×'} ${feas.can_sell?'SELL✓':'SELL×'}`;
             const html = `<div class='d-flex justify-content-between align-items-center'>
-                <div class='text-white'><b>${ts}</b> <span class='badge bg-dark text-white'>${iv}</span> <span class='badge ${side==='BUY'?'bg-success':(side==='SELL'?'bg-danger':'bg-secondary')}'>${side}</span> <span class='badge bg-white text-dark'>${coinCount} coin(s)</span></div>
+                <div class='text-white'><b>${ts}</b> <span class='badge bg-dark text-white'>${iv}</span> <span class='badge ${side==='BUY'?'bg-success':(side==='SELL'?'bg-danger':'bg-secondary')}'>${side}</span> <span class='badge bg-white text-dark'>${coinCount} coin(s)</span> <span class='badge bg-secondary'>${ver}</span> <span class='badge bg-info text-dark'>${chosen}</span> <span class='badge ${intent==='BUY'?'bg-success':(intent==='SELL'?'bg-danger':'bg-secondary')}'>${intent}</span> <span class='badge bg-dark'>${feasTxt}</span></div>
                 <div>
-                  <button class='btn btn-success me-2 btn-coin'>BUY</button>
-                  <button class='btn btn-danger me-2 btn-coin'>SELL</button>
                   <button class='btn btn-outline-light btn-coin btn-coin-copy'>Copy</button>
+                  <button class='btn btn-outline-warning btn-coin btn-coin-gen10' data-iv='${iv}'>10 GEN</button>
                 </div>
               </div>
+              <div class='mt-1 nb-bubble'>${buildTrainerMessage(iv, side, coinCount, reasons, { chosen:intent==='HOLD'?chosen:chosen, intent:intent, feasTxt:feasTxt })}</div>
               <div class='mt-1' style='font-size:12px; color:#ffffff'>${reasons}</div>`;
             if (!card){
               card = document.createElement('div');
@@ -1505,10 +1567,19 @@
             card.style.width = isFeatured ? '100%' : '33.333%';
             card.style.minHeight = isFeatured ? '160px' : '80px';
             card.innerHTML = html;
-            const btns = card.querySelectorAll('button');
             const onCopy = async ()=>{
               try{
-                const txt = `N/B COIN S.L | interval=${iv} | time=${ts} | side=${side} | reasons=${reasons}`;
+                const bubbleEl = card.querySelector('.nb-bubble');
+                const bubble = bubbleEl ? String(bubbleEl.textContent||'').trim() : '';
+                const npcBox = document.getElementById('nbNpcBox');
+                const npc = npcBox ? String(npcBox.textContent||'').trim() : '';
+                const header = `N/B COIN S.L | interval=${iv} | time=${ts} | side=${side}`;
+                const body = [
+                  `Trainer: ${bubble||'-'}`,
+                  `Reasons: ${reasons||'-'}`,
+                  `NPC:\n${npc||'-'}`
+                ].join('\n');
+                const txt = `${header}\n${body}`;
                 if (navigator.clipboard && navigator.clipboard.writeText){
                   await navigator.clipboard.writeText(txt);
                 } else {
@@ -1516,10 +1587,22 @@
                 }
               }catch(_){ }
             };
-            if (btns[0]) btns[0].onclick = async ()=>{ try{ await postJson('/api/trade/buy', { bucket }); }catch(_){ } finally { refreshNbCoinStrip(); } };
-            if (btns[1]) btns[1].onclick = async ()=>{ try{ await postJson('/api/trade/sell', { bucket }); }catch(_){ } finally { refreshNbCoinStrip(); } };
             const copyBtn = card.querySelector('.btn-coin-copy');
             if (copyBtn) copyBtn.onclick = onCopy;
+            const genBtn = card.querySelector('.btn-coin-gen10');
+            if (genBtn){
+              genBtn.addEventListener('click', async ()=>{
+                try{
+                  const iv = genBtn.getAttribute('data-iv');
+                  const j = await fetchJsonStrict('/api/npc/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ n: 10, interval: iv }) });
+                  if (j && j.ok){
+                    const lines = (j.items||[]).map(x=>`• ${x.text}`);
+                    const nbNpcBox = document.getElementById('nbNpcBox');
+                    if (nbNpcBox) nbNpcBox.textContent = lines.length? lines.join('\n') : 'No new messages';
+                  }
+                }catch(_){ }
+              });
+            }
           });
           // move featured card to top (right after sizer)
           try{
@@ -1561,7 +1644,81 @@
     }catch(_){ }
   }
   refreshNbCoinSummary().catch(()=>{});
+
+  // Village State panel (under N/B COIN S.L)
+  async function refreshVillageState(){
+    try{
+      const box = document.getElementById('villageState');
+      if (!box) return;
+      const iv = getInterval();
+      // Fetch extended village state including energy
+      const [metrics, suggest, coins, vstate, council] = await Promise.all([
+        fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch(()=>null),
+        fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch(()=>null),
+        fetchJsonStrict(`/api/nb/coins/summary`).catch(()=>null),
+        fetchJsonStrict(`/api/village/state?interval=${encodeURIComponent(iv)}`).catch(()=>null),
+        fetchJsonStrict(`/api/council/state`).catch(()=>null),
+      ]);
+      const ver = (metrics && metrics.ok) ? `v${metrics.train_count||0}` : '-';
+      const chosen = (suggest && suggest.ok) ? (suggest.chosen||'-') : '-';
+      const intent = (suggest && suggest.ok) ? (suggest.intent||'HOLD') : '-';
+      const feas = (suggest && suggest.ok && suggest.feasible) ? suggest.feasible : { can_buy:false, can_sell:false };
+      const own = (coins && coins.ok) ? Number(coins.total_owned||0) : 0;
+      const krw = (coins && coins.ok) ? Number(coins.krw||0) : 0;
+      const pricePer = (coins && coins.ok) ? Number(coins.price_per_coin||0) : 0;
+      const buyable = (coins && coins.ok) ? Number(coins.buyable_by_krw||0) : 0;
+      const feasTxt = `${feas.can_buy?'BUY✓':'BUY×'} ${feas.can_sell?'SELL✓':'SELL×'}`;
+      const E = (vstate && vstate.ok) ? Number(vstate.energy||0) : 0;
+      const reason = (vstate && vstate.ok) ? (vstate.last_reason||'-') : '-';
+      const cn = (council && council.ok && council.state) ? council.state.consensus : null;
+      const cv = (cn && cn.votes) ? Object.entries(cn.votes).map(([k,v])=>`${k}:${v}`).join(' ') : '-';
+      box.innerHTML = `
+        <div class='d-flex justify-content-between align-items-center'>
+          <div>Village | interval=${iv} | model ${ver} | strategy=${chosen} | intent=${intent} | ${feasTxt}</div>
+          <div class='badge ${E>=70?'bg-success':(E>=30?'bg-warning text-dark':'bg-danger')}' title='last: ${reason}'>E ${E.toFixed(1)}</div>
+        </div>
+        <div class='mt-1'>Treasury: coins=${own} | KRW=${Math.round(krw).toLocaleString()} | price/coin=${Math.round(pricePer).toLocaleString()} | buyable=${buyable}</div>
+        <div class='mt-1'>Council: consensus=${(cn && cn.intent)||'-'} | votes=${cv}</div>
+      `;
+    }catch(_){ }
+  }
+  refreshVillageState().catch(()=>{});
+  setInterval(()=>{ refreshVillageState(); }, 10000);
   setInterval(()=>{ refreshNbCoinSummary(); }, 10000);
+
+  // Trainer message (EN) builder
+  function buildTrainerMessage(iv, side, coinCount, reasons, extra){
+    try{
+      const now = new Date().toLocaleTimeString();
+      const r = (reasons && reasons !== '-') ? `Reasons: ${reasons}.` : '';
+      const action = (side==='BUY') ? 'I am prepared to buy on strength' : (side==='SELL' ? 'I am ready to sell on weakness' : 'I am watching for confirmation');
+      const inv = `Inventory: ${coinCount} coin(s).`;
+      const strat = (extra && extra.chosen) ? ` Strategy: ${extra.chosen}.` : '';
+      const inten = (extra && extra.intent) ? ` Intent: ${extra.intent}.` : '';
+      const feas = (extra && extra.feasTxt) ? ` Feasibility: ${extra.feasTxt}.` : '';
+      return `[${iv} | ${now}] ${action}.${strat}${inten}${feas} ${inv} ${r}`;
+    }catch(_){ return ''; }
+  }
+
+  // NPC message generation button
+  try{
+    const btnNpcGen = document.getElementById('btnNpcGen');
+    const nbNpcBox = document.getElementById('nbNpcBox');
+    if (btnNpcGen){
+      btnNpcGen.addEventListener('click', async ()=>{
+        try{
+          const iv = getInterval();
+          const j = await fetchJsonStrict('/api/npc/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ n: 10, interval: iv }) });
+          if (j && j.ok){
+            const lines = (j.items||[]).map(x=>`• ${x.text}`);
+            if (nbNpcBox) nbNpcBox.textContent = lines.length? lines.join('\n') : 'No new messages';
+          } else {
+            if (nbNpcBox) nbNpcBox.textContent = `Error: ${j?.error||'unknown'}`;
+          }
+        }catch(e){ if (nbNpcBox) nbNpcBox.textContent = String(e); }
+      });
+    }
+  }catch(_){ }
 
   // Zone Win% mini gauge updater (from winMajor)
   function refreshMiniWinGaugeFromWinMajor(){
@@ -1593,8 +1750,15 @@
       // Arm auto order with 5-sec cancel window
       armAutoPending(async ()=>{
         const j = await postJson('/api/trade/buy', {});
-        if (j && j.ok && j.order){ pushOrderMarker(j.order); uiLog('Manual BUY', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper })); }
-        else { uiLog('Manual BUY failed', JSON.stringify(j)); }
+        if (j && j.ok && j.order){
+          pushOrderMarker(j.order);
+          uiLog('Manual BUY', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper }));
+          pushOrderLogLine(`[${new Date().toLocaleString()}] BUY placed @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+        } else {
+          const reason = (j && j.error) ? String(j.error) : 'unknown_error';
+          uiLog('Manual BUY failed', JSON.stringify(j));
+          pushOrderLogLine(`[${new Date().toLocaleString()}] BUY ERROR: ${reason}`);
+        }
         try{ refreshTradeReady(); }catch(_){ }
       });
     }catch(e){ uiLog('Manual BUY error', String(e)); }
@@ -1603,8 +1767,15 @@
     try{
       armAutoPending(async ()=>{
         const j = await postJson('/api/trade/sell', {});
-        if (j && j.ok && j.order){ pushOrderMarker(j.order); uiLog('Manual SELL', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper })); }
-        else { uiLog('Manual SELL failed', JSON.stringify(j)); }
+        if (j && j.ok && j.order){
+          pushOrderMarker(j.order);
+          uiLog('Manual SELL', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper }));
+          pushOrderLogLine(`[${new Date().toLocaleString()}] SELL placed @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+        } else {
+          const reason = (j && j.error) ? String(j.error) : 'unknown_error';
+          uiLog('Manual SELL failed', JSON.stringify(j));
+          pushOrderLogLine(`[${new Date().toLocaleString()}] SELL ERROR: ${reason}`);
+        }
         try{ refreshTradeReady(); }catch(_){ }
       });
     }catch(e){ uiLog('Manual SELL error', String(e)); }
@@ -1712,8 +1883,8 @@
   });
   if (mlTrainBtn) mlTrainBtn.addEventListener('click', async ()=>{
     try{
-      uiLog('ML Train start', 'LightGBM/GBDT (sklearn) baseline');
-      const payload = { window: parseInt(nbWindowEl?.value||'50',10), ema_fast: parseInt(emaFastEl?.value||'10',10), ema_slow: parseInt(emaSlowEl?.value||'30',10), horizon: 5, tau: 0.002, count: 1800, interval: getInterval() };
+      uiLog('ML Train start', 'nb_best_trade (BUY→SELL one-cycle) curriculum');
+      const payload = { window: parseInt(nbWindowEl?.value||'50',10), ema_fast: parseInt(emaFastEl?.value||'10',10), ema_slow: parseInt(emaSlowEl?.value||'30',10), horizon: 5, tau: 0.002, count: 1800, interval: getInterval(), label_mode: 'nb_best_trade' };
       const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (j && j.ok){ uiLog('ML Train done', `labels: BUY=${j.classes['1']}, HOLD=${j.classes['0']}, SELL=${j.classes['-1']}`); if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`; }
       else { uiLog('ML Train failed', JSON.stringify(j)); }
@@ -1733,7 +1904,7 @@
   if (mlRandomBtn) mlRandomBtn.addEventListener('click', async ()=>{
     try{
       const n = Math.max(1, parseInt(mlRandNEl?.value||'10',10));
-      uiLog('ML Random Train start', `trials=${n}`);
+      uiLog('ML Random Train start', `trials=${n} (nb_best_trade emphasis)`);
       for (let i=0;i<n;i++){
         const mins = [1,3,5,10,15,30,60][Math.floor(Math.random()*7)];
         const interval = mins===60 ? 'minute60' : `minute${mins}`;
@@ -1749,7 +1920,7 @@
           // short wait so chart/indicators update
           await sleep(400);
         }catch(_){ }
-        const payload = { window, ema_fast, ema_slow, horizon: 5, tau: 0.002, count: 1200, interval };
+        const payload = { window, ema_fast, ema_slow, horizon: 5, tau: 0.002, count: 1200, interval, label_mode: 'nb_best_trade' };
         uiLog('ML Random Train', JSON.stringify(payload));
         const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         if (!(j && j.ok)) { uiLog('Train failed, skipping attempt', JSON.stringify(j)); continue; }
