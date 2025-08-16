@@ -1553,6 +1553,9 @@
             const intent = (sug && sug.ok) ? String(sug.intent||'HOLD') : '-';
             const feas = (sug && sug.ok && sug.feasible) ? sug.feasible : { can_buy: false, can_sell: false };
             const feasTxt = `${feas.can_buy?'BUY✓':'BUY×'} ${feas.can_sell?'SELL✓':'SELL×'}`;
+            // Get guild members status for this interval
+            const guildStatus = getGuildMembersStatusForInterval(iv);
+            
             const html = `<div class='d-flex justify-content-between align-items-center'>
                 <div class='text-white'><b>${ts}</b> <span class='badge bg-dark text-white'>${iv}</span> <span class='badge ${side==='BUY'?'bg-success':(side==='SELL'?'bg-danger':'bg-secondary')}'>${side}</span> <span class='badge bg-white text-dark'>${coinCount} coin(s)</span> <span class='badge bg-secondary'>${ver}</span> <span class='badge bg-info text-dark'>${chosen}</span> <span class='badge ${intent==='BUY'?'bg-success':(intent==='SELL'?'bg-danger':'bg-secondary')}'>${intent}</span> <span class='badge bg-dark'>${feasTxt}</span></div>
                 <div>
@@ -1561,7 +1564,17 @@
                 </div>
               </div>
               <div class='mt-1 nb-bubble'>${buildTrainerMessage(iv, side, coinCount, reasons, { chosen:intent==='HOLD'?chosen:chosen, intent:intent, feasTxt:feasTxt })}</div>
-              <div class='mt-1' style='font-size:12px; color:#ffffff'>${reasons}</div>`;
+              <div class='mt-1' style='font-size:12px; color:#ffffff'>${reasons}</div>
+              <div class='mt-1' style='font-size:11px; color:#ffffff; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;'>
+                <div style='display: flex; justify-content: space-between; align-items: center;'>
+                  <span>Guild Status:</span>
+                  <span style='color: ${guildStatus.nbStaminaColor};'>N/B Stamina: ${guildStatus.nbStamina}%</span>
+                </div>
+                <div style='display: flex; justify-content: space-between; align-items: center; margin-top: 2px;'>
+                  <span style='font-size: 10px;'>${guildStatus.activeMembers} active</span>
+                  <span style='font-size: 10px; color: ${guildStatus.treasuryAccess ? '#0ecb81' : '#f6465d'};'>Treasury: ${guildStatus.treasuryAccess ? 'Unlocked' : 'Locked'}</span>
+                </div>
+              </div>`;
             if (!card){
               card = document.createElement('div');
               card.className = 'card border-secondary rounded-3 p-2 mt-2 text-white nb-coin-item';
@@ -1710,6 +1723,17 @@
   try{
     const btnNpcGen = document.getElementById('btnNpcGen');
     const nbNpcBox = document.getElementById('nbNpcBox');
+    const nbNpcInput = null;
+    const nbNpcPost = null;
+    const nbNpcZone = null;
+    const nbNpcNeg = null;
+    const villageSky = document.getElementById('villageSky');
+    const villageSkyLabel = document.getElementById('villageSkyLabel');
+    const villageMap = document.getElementById('villageMap');
+    const villageMapMeta = document.getElementById('villageMapMeta');
+    const btnAutoDistributeBtc = document.getElementById('btnAutoDistributeBtc');
+    const btnClearGrants = document.getElementById('btnClearGrants');
+    const trainerGrantsBox = document.getElementById('trainerGrantsBox');
     if (btnNpcGen){
       btnNpcGen.addEventListener('click', async ()=>{
         try{
@@ -1724,6 +1748,82 @@
         }catch(e){ if (nbNpcBox) nbNpcBox.textContent = String(e); }
       });
     }
+    // Tavern Chat removed: no user input posting
+
+    // Trainer Grants: simulate random BTC distribution among trainers
+    function appendGrantLine(text){
+      try{
+        if (!trainerGrantsBox) return;
+        const prev = String(trainerGrantsBox.textContent||'').trim();
+        trainerGrantsBox.textContent = prev && prev !== '-' ? `${text}\n${prev}` : text;
+      }catch(_){ }
+    }
+    async function autoDistributeBtc(){
+      try{
+        // Use current preflight price and order_krw to size grants
+        const pf = await fetchJsonStrict('/api/trade/preflight');
+        const price = Number(pf && pf.ok !== false ? (pf.price||0) : 0);
+        const o = readOpts();
+        const orderKrw = Number(o && o.order_krw ? o.order_krw : 5000);
+        if (!orderKrw || isNaN(orderKrw)){ appendGrantLine(`[${new Date().toLocaleTimeString()}] Invalid order_krw: ${orderKrw}`); return; }
+        appendGrantLine(`[${new Date().toLocaleTimeString()}] Debug: orderKrw=${orderKrw}, price=${price}`);
+        if (!price || price<=0){
+          // Fallback: try to get price from chart data
+          try{
+            const data = candle.data();
+            if (data && data.length > 0){
+              const lastCandle = data[data.length - 1];
+              const fallbackPrice = Number(lastCandle.close || 0);
+              if (fallbackPrice > 0){
+                appendGrantLine(`[${new Date().toLocaleTimeString()}] Using chart price: ${Math.round(fallbackPrice).toLocaleString()}`);
+                return await autoDistributeBtcWithPrice(fallbackPrice, orderKrw);
+              }
+            }
+          }catch(_){ }
+          appendGrantLine(`[${new Date().toLocaleTimeString()}] Cannot fetch price`);
+          return;
+        }
+        return await autoDistributeBtcWithPrice(price, orderKrw);
+      }catch(e){ appendGrantLine(`[${new Date().toLocaleTimeString()}] Grant error: ${String(e)}`); }
+    }
+    async function autoDistributeBtcWithPrice(price, orderKrw){
+      try{
+        if (!price || price <= 0) {
+          appendGrantLine(`[${new Date().toLocaleTimeString()}] Error: Invalid price: ${price}`);
+          return;
+        }
+        if (!orderKrw || isNaN(orderKrw)) {
+          appendGrantLine(`[${new Date().toLocaleTimeString()}] Error: Invalid orderKrw: ${orderKrw}`);
+          return;
+        }
+        const personas = ['Scout','Guardian','Analyst','Elder'];
+        // Example target distribution (from user’s sample): BTC 55%, others spread; we only simulate BTC grants here
+        // Split BTC portion randomly among trainers
+        const totalKrw = Math.max(5000, Math.round(orderKrw * 4)); // allocate 4x order size pool
+        const weights = personas.map(()=> Math.random());
+        const wsum = weights.reduce((a,b)=>a+b,0) || 1;
+        const grants = personas.map((p,i)=> ({ 
+          p, 
+          krw: Math.max(1000, Math.round(totalKrw * (weights[i]/wsum))) 
+        }));
+        // Convert to BTC size
+        const items = grants.map(g=> ({
+          persona: g.p,
+          krw: g.krw,
+          size: (g.krw / price)
+        })).filter(item => !isNaN(item.krw) && !isNaN(item.size) && item.krw > 0 && item.size > 0);
+        items.forEach(it=>{
+          const line = `• ${new Date().toLocaleTimeString()} Grant BTC → ${it.persona}: ${Math.round(it.krw).toLocaleString()} KRW (≈ ${it.size.toFixed(8)} BTC)`;
+          appendGrantLine(line);
+        });
+        if (items.length === 0){
+          appendGrantLine(`[${new Date().toLocaleTimeString()}] No valid grants generated (check order_krw: ${orderKrw}, price: ${price})`);
+        }
+        try{ pushOrderLogLine(`[${new Date().toLocaleString()}] GRANTS distributed to trainers (BTC pool ≈ ${Math.round(totalKrw).toLocaleString()} KRW)`); }catch(_){ }
+      }catch(e){ appendGrantLine(`[${new Date().toLocaleTimeString()}] Grant error: ${String(e)}`); }
+    }
+    if (btnAutoDistributeBtc) btnAutoDistributeBtc.addEventListener('click', autoDistributeBtc);
+    if (btnClearGrants) btnClearGrants.addEventListener('click', ()=>{ if (trainerGrantsBox) trainerGrantsBox.textContent='-'; });
   }catch(_){ }
 
   // Zone Win% mini gauge updater (from winMajor)
@@ -2009,6 +2109,305 @@
   refreshAssets().catch(()=>{});
   if (assetsAutoToggle && assetsAutoToggle.checked){ assetsTimer = setInterval(refreshAssets, 30*1000); }
   if (logClearBtn) logClearBtn.addEventListener('click', ()=>{ if (logBox) logBox.textContent=''; });
+
+  // ===== Village HP & N/B Stamina System =====
+  
+  // Guild Members Data Structure
+  let guildMembers = {
+    scout: { name: 'Scout', hp: 85, maxHp: 100, stamina: 70, maxStamina: 100, location: 'Gate', role: 'Explorer' },
+    guardian: { name: 'Guardian', hp: 95, maxHp: 100, stamina: 80, maxStamina: 100, location: 'Market', role: 'Protector' },
+    analyst: { name: 'Analyst', hp: 60, maxHp: 100, stamina: 90, maxStamina: 100, location: 'Tower', role: 'Strategist' },
+    elder: { name: 'Elder', hp: 45, maxHp: 100, stamina: 50, maxStamina: 100, location: 'Inn', role: 'Advisor' }
+  };
+
+  // N/B Stamina System
+  let nbStamina = {
+    current: 75,
+    max: 100,
+    recoveryRate: 5, // per hour
+    lastRecovery: Date.now(),
+    treasuryAccess: false
+  };
+
+  // Mock Test Results for Stamina Recovery
+  let mockTestResults = {
+    totalTests: 0,
+    profitableTests: 0,
+    totalProfit: 0
+  };
+
+  // Update Guild Members Status Display
+  function updateGuildMembersStatus() {
+    try {
+      const guildMembersStatus = document.getElementById('guildMembersStatus');
+      if (!guildMembersStatus) return;
+
+      let html = '';
+      Object.values(guildMembers).forEach(member => {
+        const hpPercent = Math.round((member.hp / member.maxHp) * 100);
+        const staminaPercent = Math.round((member.stamina / member.maxStamina) * 100);
+        
+        const hpColor = hpPercent > 70 ? '#0ecb81' : hpPercent > 40 ? '#ffb703' : '#f6465d';
+        const staminaColor = staminaPercent > 70 ? '#4285f4' : staminaPercent > 40 ? '#ffb703' : '#f6465d';
+        
+        html += `
+          <div class="d-flex justify-content-between align-items-center mb-1" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
+            <div>
+              <span style="font-weight: 600;">${member.name}</span>
+              <span style="color: #ffffff; font-size: 11px; margin-left: 8px;">(${member.role})</span>
+              <span style="color: #ffffff; font-size: 11px; margin-left: 8px;">[${member.location}]</span>
+            </div>
+            <div class="d-flex align-items-center" style="gap: 8px;">
+              <div style="text-align: right;">
+                <div style="font-size: 11px; color: #ffffff;">HP: ${member.hp}/${member.maxHp}</div>
+                <div style="width: 60px; height: 4px; background: #1a1a1a; border-radius: 2px; overflow: hidden;">
+                  <div style="width: ${hpPercent}%; height: 100%; background: ${hpColor};"></div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 11px; color: #ffffff;">Stamina: ${member.stamina}/${member.maxStamina}</div>
+                <div style="width: 60px; height: 4px; background: #1a1a1a; border-radius: 2px; overflow: hidden;">
+                  <div style="width: ${staminaPercent}%; height: 100%; background: ${staminaColor};"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      guildMembersStatus.innerHTML = html;
+    } catch (e) {
+      console.error('Error updating guild members status:', e);
+    }
+  }
+
+  // Update N/B Stamina System Display
+  function updateStaminaSystem() {
+    try {
+      const staminaSystem = document.getElementById('staminaSystem');
+      const staminaMeta = document.getElementById('staminaMeta');
+      if (!staminaSystem || !staminaMeta) return;
+
+      const staminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+      const staminaColor = staminaPercent > 70 ? '#4285f4' : staminaPercent > 40 ? '#ffb703' : '#f6465d';
+      
+      const treasuryStatus = nbStamina.treasuryAccess ? 'Unlocked' : 'Locked';
+      const treasuryColor = nbStamina.treasuryAccess ? '#0ecb81' : '#f6465d';
+      
+      staminaSystem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <span style="font-weight: 600;">N/B Stamina:</span>
+            <span style="color: ${staminaColor}; margin-left: 8px;">${nbStamina.current}/${nbStamina.max}</span>
+          </div>
+          <div style="width: 120px; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden;">
+            <div style="width: ${staminaPercent}%; height: 100%; background: ${staminaColor};"></div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span style="font-weight: 600;">Treasury Access:</span>
+            <span style="color: ${treasuryColor}; margin-left: 8px;">${treasuryStatus}</span>
+          </div>
+          <div>
+            <span style="font-size: 11px; color: #ffffff;">Recovery: +${nbStamina.recoveryRate}/hr</span>
+          </div>
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: #ffffff;">
+          Mock Tests: ${mockTestResults.profitableTests}/${mockTestResults.totalTests} profitable
+          ${mockTestResults.totalProfit > 0 ? `(+${mockTestResults.totalProfit.toFixed(2)}% avg)` : ''}
+        </div>
+      `;
+      
+      staminaMeta.textContent = `(${new Date().toLocaleTimeString()})`;
+    } catch (e) {
+      console.error('Error updating stamina system:', e);
+    }
+  }
+
+  // Rest All Guild Members
+  function restAllGuildMembers() {
+    try {
+      Object.values(guildMembers).forEach(member => {
+        // Rest increases stamina by 20, but decreases HP by 5
+        member.stamina = Math.min(member.maxStamina, member.stamina + 20);
+        member.hp = Math.max(0, member.hp - 5);
+      });
+      
+      updateGuildMembersStatus();
+      pushOrderLogLine(`[${new Date().toLocaleString()}] All guild members rested. Stamina +20, HP -5`);
+    } catch (e) {
+      console.error('Error resting guild members:', e);
+    }
+  }
+
+  // Heal All Guild Members
+  function healAllGuildMembers() {
+    try {
+      Object.values(guildMembers).forEach(member => {
+        // Heal increases HP by 15, but decreases stamina by 10
+        member.hp = Math.min(member.maxHp, member.hp + 15);
+        member.stamina = Math.max(0, member.stamina - 10);
+      });
+      
+      updateGuildMembersStatus();
+      pushOrderLogLine(`[${new Date().toLocaleString()}] All guild members healed. HP +15, Stamina -10`);
+    } catch (e) {
+      console.error('Error healing guild members:', e);
+    }
+  }
+
+  // Process Mock Test Results for Stamina Recovery
+  function processMockTestResult(profitPercent) {
+    try {
+      mockTestResults.totalTests++;
+      mockTestResults.totalProfit += profitPercent;
+      
+      if (profitPercent > 0) {
+        mockTestResults.profitableTests++;
+        // Profitable mock tests recover stamina
+        const staminaRecovery = Math.min(10, Math.round(profitPercent * 2)); // Max 10 stamina per test
+        nbStamina.current = Math.min(nbStamina.max, nbStamina.current + staminaRecovery);
+        
+        // Check if treasury access should be unlocked
+        if (nbStamina.current >= 80 && !nbStamina.treasuryAccess) {
+          nbStamina.treasuryAccess = true;
+          pushOrderLogLine(`[${new Date().toLocaleString()}] Treasury access UNLOCKED! N/B Stamina reached 80+`);
+        }
+        
+        pushOrderLogLine(`[${new Date().toLocaleString()}] Mock test profitable (+${profitPercent.toFixed(2)}%). Stamina +${staminaRecovery}`);
+      } else {
+        // Unprofitable mock tests consume stamina
+        const staminaCost = Math.min(5, Math.round(Math.abs(profitPercent)));
+        nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+        
+        // Check if treasury access should be locked
+        if (nbStamina.current < 50 && nbStamina.treasuryAccess) {
+          nbStamina.treasuryAccess = false;
+          pushOrderLogLine(`[${new Date().toLocaleString()}] Treasury access LOCKED! N/B Stamina dropped below 50`);
+        }
+        
+        pushOrderLogLine(`[${new Date().toLocaleString()}] Mock test unprofitable (${profitPercent.toFixed(2)}%). Stamina -${staminaCost}`);
+      }
+      
+      updateStaminaSystem();
+    } catch (e) {
+      console.error('Error processing mock test result:', e);
+    }
+  }
+
+  // Auto Stamina Recovery (hourly)
+  function autoStaminaRecovery() {
+    try {
+      const now = Date.now();
+      const hoursPassed = (now - nbStamina.lastRecovery) / (1000 * 60 * 60);
+      
+      if (hoursPassed >= 1) {
+        const recoveryAmount = Math.floor(hoursPassed * nbStamina.recoveryRate);
+        nbStamina.current = Math.min(nbStamina.max, nbStamina.current + recoveryAmount);
+        nbStamina.lastRecovery = now;
+        
+        if (recoveryAmount > 0) {
+          updateStaminaSystem();
+        }
+      }
+    } catch (e) {
+      console.error('Error in auto stamina recovery:', e);
+    }
+  }
+
+  // Event Listeners for New Buttons
+  const btnRestAll = document.getElementById('btnRestAll');
+  const btnHealAll = document.getElementById('btnHealAll');
+  
+  if (btnRestAll) {
+    btnRestAll.addEventListener('click', restAllGuildMembers);
+  }
+  
+  if (btnHealAll) {
+    btnHealAll.addEventListener('click', healAllGuildMembers);
+  }
+
+  // Initialize and start auto updates
+  updateGuildMembersStatus();
+  updateStaminaSystem();
+  
+  // Auto recovery timer (check every 5 minutes)
+  setInterval(autoStaminaRecovery, 5 * 60 * 1000);
+  
+  // Update displays every 30 seconds
+  setInterval(() => {
+    updateGuildMembersStatus();
+    updateStaminaSystem();
+  }, 30 * 1000);
+
+  // Get Guild Members Status for specific interval
+  function getGuildMembersStatusForInterval(interval) {
+    try {
+      // Calculate active members (those with stamina > 30)
+      const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30).length;
+      
+      // Calculate N/B Stamina percentage
+      const nbStaminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+      
+      // Determine N/B Stamina color
+      let nbStaminaColor = '#f6465d'; // red
+      if (nbStaminaPercent > 70) {
+        nbStaminaColor = '#4285f4'; // blue
+      } else if (nbStaminaPercent > 40) {
+        nbStaminaColor = '#ffb703'; // yellow
+      }
+      
+      // Different intervals have different guild member distributions
+      const intervalModifiers = {
+        'minute1': { staminaBonus: 5, activeBonus: 1 },
+        'minute3': { staminaBonus: 3, activeBonus: 1 },
+        'minute5': { staminaBonus: 2, activeBonus: 0 },
+        'minute10': { staminaBonus: 0, activeBonus: 0 },
+        'minute15': { staminaBonus: -2, activeBonus: -1 },
+        'minute30': { staminaBonus: -3, activeBonus: -1 },
+        'minute60': { staminaBonus: -5, activeBonus: -2 },
+        'day': { staminaBonus: -10, activeBonus: -3 }
+      };
+      
+      const modifier = intervalModifiers[interval] || { staminaBonus: 0, activeBonus: 0 };
+      const adjustedStamina = Math.max(0, Math.min(100, nbStaminaPercent + modifier.staminaBonus));
+      const adjustedActive = Math.max(0, Math.min(4, activeMembers + modifier.activeBonus));
+      
+      return {
+        nbStamina: adjustedStamina,
+        nbStaminaColor: adjustedStamina > 70 ? '#4285f4' : adjustedStamina > 40 ? '#ffb703' : '#f6465d',
+        activeMembers: adjustedActive,
+        treasuryAccess: adjustedStamina >= 80
+      };
+    } catch (e) {
+      console.error('Error getting guild status for interval:', e);
+      return {
+        nbStamina: 0,
+        nbStaminaColor: '#f6465d',
+        activeMembers: 0,
+        treasuryAccess: false
+      };
+    }
+  }
+
+  // Simulate mock test results for demonstration
+  // In real implementation, this would be triggered by actual mock trading
+  function simulateMockTest() {
+    const profitPercent = (Math.random() - 0.4) * 20; // -8% to +12% range
+    processMockTestResult(profitPercent);
+  }
+
+  // Add mock test simulation to auto distribute BTC button
+  const originalAutoDistributeBtc = window.autoDistributeBtc;
+  if (originalAutoDistributeBtc) {
+    window.autoDistributeBtc = async function() {
+      await originalAutoDistributeBtc();
+      // Simulate mock test result after distribution
+      setTimeout(simulateMockTest, 1000);
+    };
+  }
+
 })();
 
 
