@@ -2122,9 +2122,9 @@
 
   // N/B Stamina System
   let nbStamina = {
-    current: 75,
+    current: 0, // Start from 0
     max: 100,
-    recoveryRate: 5, // per hour
+    recoveryRate: 0, // No automatic recovery
     lastRecovery: Date.now(),
     treasuryAccess: false
   };
@@ -2210,7 +2210,7 @@
             <span style="color: ${treasuryColor}; margin-left: 8px;">${treasuryStatus}</span>
           </div>
           <div>
-            <span style="font-size: 11px; color: #ffffff;">Recovery: +${nbStamina.recoveryRate}/hr</span>
+            <span style="font-size: 11px; color: #ffffff;">Recovery: Profitable Mock Tests Only</span>
           </div>
         </div>
         <div style="margin-top: 8px; font-size: 11px; color: #ffffff;">
@@ -2265,29 +2265,22 @@
       
       if (profitPercent > 0) {
         mockTestResults.profitableTests++;
-        // Profitable mock tests recover stamina
-        const staminaRecovery = Math.min(10, Math.round(profitPercent * 2)); // Max 10 stamina per test
+        // Only profitable mock tests recover stamina
+        const staminaRecovery = Math.min(15, Math.round(profitPercent * 3)); // Max 15 stamina per test, higher multiplier
         nbStamina.current = Math.min(nbStamina.max, nbStamina.current + staminaRecovery);
         
         // Check if treasury access should be unlocked
         if (nbStamina.current >= 80 && !nbStamina.treasuryAccess) {
           nbStamina.treasuryAccess = true;
-          pushOrderLogLine(`[${new Date().toLocaleString()}] Treasury access UNLOCKED! N/B Stamina reached 80+`);
+          pushOrderLogLine(`[${new Date().toLocaleString()}] 🎉 Treasury access UNLOCKED! N/B Stamina reached 80+ (${nbStamina.current})`);
         }
         
-        pushOrderLogLine(`[${new Date().toLocaleString()}] Mock test profitable (+${profitPercent.toFixed(2)}%). Stamina +${staminaRecovery}`);
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ✅ Mock test profitable (+${profitPercent.toFixed(2)}%). Stamina +${staminaRecovery} (Total: ${nbStamina.current})`);
       } else {
-        // Unprofitable mock tests consume stamina
-        const staminaCost = Math.min(5, Math.round(Math.abs(profitPercent)));
-        nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+        // Unprofitable mock tests do NOT consume stamina (stamina stays the same)
+        // Only profitable tests can recover stamina
         
-        // Check if treasury access should be locked
-        if (nbStamina.current < 50 && nbStamina.treasuryAccess) {
-          nbStamina.treasuryAccess = false;
-          pushOrderLogLine(`[${new Date().toLocaleString()}] Treasury access LOCKED! N/B Stamina dropped below 50`);
-        }
-        
-        pushOrderLogLine(`[${new Date().toLocaleString()}] Mock test unprofitable (${profitPercent.toFixed(2)}%). Stamina -${staminaCost}`);
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ Mock test unprofitable (${profitPercent.toFixed(2)}%). No stamina recovery.`);
       }
       
       updateStaminaSystem();
@@ -2296,21 +2289,11 @@
     }
   }
 
-  // Auto Stamina Recovery (hourly)
+  // Auto Stamina Recovery (disabled - only through profitable mock tests)
   function autoStaminaRecovery() {
     try {
-      const now = Date.now();
-      const hoursPassed = (now - nbStamina.lastRecovery) / (1000 * 60 * 60);
-      
-      if (hoursPassed >= 1) {
-        const recoveryAmount = Math.floor(hoursPassed * nbStamina.recoveryRate);
-        nbStamina.current = Math.min(nbStamina.max, nbStamina.current + recoveryAmount);
-        nbStamina.lastRecovery = now;
-        
-        if (recoveryAmount > 0) {
-          updateStaminaSystem();
-        }
-      }
+      // No automatic recovery - stamina only recovers through profitable mock tests
+      // This function is kept for potential future use but does nothing
     } catch (e) {
       console.error('Error in auto stamina recovery:', e);
     }
@@ -2394,7 +2377,8 @@
   // Simulate mock test results for demonstration
   // In real implementation, this would be triggered by actual mock trading
   function simulateMockTest() {
-    const profitPercent = (Math.random() - 0.4) * 20; // -8% to +12% range
+    // Increase chance of profitable tests to demonstrate stamina recovery
+    const profitPercent = (Math.random() - 0.3) * 25; // -7.5% to +17.5% range, slightly more profitable
     processMockTestResult(profitPercent);
   }
 
