@@ -724,7 +724,7 @@
 
   async function drawPredictedPath(){
     try{
-      const j = await fetchJsonStrict('/api/ml/predict');
+      const j = await fetchJsonStrict(`/api/ml/predict?interval=${encodeURIComponent(getInterval())}`);
       if (!j || !j.ok) {
         // Always show narrative even if prediction not available
         predSeries.setData([]);
@@ -750,6 +750,12 @@
       const curIv = getInterval();
       const sameIv = (String(interval) === String(curIv));
       const horizon = Math.max(1, Number(j.horizon||5));
+      if (!sameIv){
+        // Do not render ML artifacts if prediction is for a different timeframe
+        predSeries.setData([]);
+        predMarkerSeries.setData([]);
+        return;
+      }
       const bpPerBar = (ins.zone==='BLUE' ? steep.blue_up_slope : steep.orange_down_slope);
       let v = closeNow;
       if (bpPerBar==null){
