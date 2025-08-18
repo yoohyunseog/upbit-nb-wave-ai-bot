@@ -2198,14 +2198,12 @@
             console.log(`🔄 N/B Zone Change Detected in updateNB: ${oldZone} → ${nbZone}`);
             setTimeout(() => {
               // Always use window.zoneNow (N/B Zone) for consistency
-              updateCurrentZoneDisplay(nbZone);
               updateZoneConsistencyDisplay();
               updateGuildMembersZone(nbZone);
             }, 100);
           } else {
             // Force synchronization even if zone didn't change (for initial load)
             setTimeout(() => {
-              updateCurrentZoneDisplay(nbZone);
               updateZoneConsistencyDisplay();
               updateGuildMembersZone(nbZone);
             }, 100);
@@ -12093,16 +12091,7 @@
 
     try {
 
-      // Read directly from the N/B Zone Status HTML element
-      const nbZoneNowElement = document.getElementById('nbZoneNow');
-      if (nbZoneNowElement) {
-        const nbZoneText = nbZoneNowElement.textContent.trim().toUpperCase();
-        if (nbZoneText === 'BLUE' || nbZoneText === 'ORANGE') {
-          return nbZoneText;
-        }
-      }
-      
-      // Fallback to window.zoneNow if HTML element is not available
+      // Always use window.zoneNow for consistency - avoid circular reference
       const nbZone = window.zoneNow || 'BLUE';
       return nbZone;
     } catch (e) {
@@ -12644,51 +12633,32 @@
     console.log('🔄 Real-time Zone Synchronization System Started');
   }
 
-  function updateCurrentZoneDisplay(newZone) {
-    try {
-      // Update current zone display elements only if content changed
-      const currentZoneElements = [
-        document.getElementById('winZoneNow'),
-        document.getElementById('miniWinZoneCurrent')
-      ];
-      
-      currentZoneElements.forEach(el => {
-        if (el && el.textContent !== newZone) {
-          el.textContent = newZone;
-          el.className = `badge ${newZone === 'BLUE' ? 'bg-primary' : 'bg-warning'} text-white zone-display-badge`;
-        }
-      });
-      
-      // Update any other zone-related displays only if changed
-      const zoneBadgeElements = document.querySelectorAll('.zone-badge');
-      zoneBadgeElements.forEach(el => {
-        if (el && (el.textContent.includes('현재 구역') || el.textContent.includes('Current Zone')) && el.textContent !== newZone) {
-          el.textContent = newZone;
-          el.className = `zone-badge ${newZone === 'BLUE' ? 'zone-blue' : 'zone-orange'}`;
-        }
-      });
-      
-    } catch (e) {
-      console.error('Error updating current zone display:', e);
-    }
-  }
+
 
   function updateZoneConsistencyDisplay() {
     try {
-      const currentZone = window.zoneNow || 'BLUE';
-      const nbZone = window.zoneNow || 'BLUE';
+      // Read directly from nbZoneNow element
+      const nbZoneNowElement = document.getElementById('nbZoneNow');
+      let nbZone = 'BLUE'; // Default fallback
+      
+      if (nbZoneNowElement) {
+        const nbZoneText = nbZoneNowElement.textContent.trim().toUpperCase();
+        if (nbZoneText === 'BLUE' || nbZoneText === 'ORANGE') {
+          nbZone = nbZoneText;
+        }
+      }
+      
       const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
       
       // Update zone consistency info - Clean one-line design
       const zoneInfoEl = document.getElementById('zoneConsistencyInfo');
       if (zoneInfoEl) {
-        const zoneEmoji = currentZone === 'ORANGE' ? '🟠' : '🔵';
+        const zoneEmoji = nbZone === 'ORANGE' ? '🟠' : '🔵';
         const mlEmoji = mlZone === 'ORANGE' ? '🟠' : '🔵';
         
         zoneInfoEl.innerHTML = `
           <div style="font-size: 11px; color: #333; font-weight: 500; line-height: 1.2; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #0ecb81;">
             🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
-            현재: ${zoneEmoji}${currentZone} | 
             N/B: ${zoneEmoji}${nbZone} | 
             ML: ${mlEmoji}${mlZone}
           </div>
@@ -12719,12 +12689,20 @@
   // Display zone consistency information
   function displayZoneConsistency() {
     try {
-      const currentZone = window.zoneNow || 'BLUE';
-      const nbZone = window.zoneNow || 'BLUE';
+      // Read directly from nbZoneNow element
+      const nbZoneNowElement = document.getElementById('nbZoneNow');
+      let nbZone = 'BLUE'; // Default fallback
+      
+      if (nbZoneNowElement) {
+        const nbZoneText = nbZoneNowElement.textContent.trim().toUpperCase();
+        if (nbZoneText === 'BLUE' || nbZoneText === 'ORANGE') {
+          nbZone = nbZoneText;
+        }
+      }
+      
       const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
       
       console.log('🔍 Real-time Zone Consistency Check:');
-      console.log(`  Current Zone (Synchronized): ${currentZone}`);
       console.log(`  N/B Zone Status: ${nbZone}`);
       console.log(`  ML Model Zone: ${mlZone}`);
       console.log(`  Status: ✅ Real-time Synchronized with N/B Zone`);
@@ -12732,13 +12710,12 @@
       // Update UI to show zone consistency - Clean one-line design
       const zoneInfoEl = document.getElementById('zoneConsistencyInfo');
       if (zoneInfoEl) {
-        const zoneEmoji = currentZone === 'ORANGE' ? '🟠' : '🔵';
+        const zoneEmoji = nbZone === 'ORANGE' ? '🟠' : '🔵';
         const mlEmoji = mlZone === 'ORANGE' ? '🟠' : '🔵';
         
         zoneInfoEl.innerHTML = `
           <div style="font-size: 11px; color: #333; font-weight: 500; line-height: 1.2; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #0ecb81;">
             🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
-            현재: ${zoneEmoji}${currentZone} | 
             N/B: ${zoneEmoji}${nbZone} | 
             ML: ${mlEmoji}${mlZone}
           </div>
@@ -12754,23 +12731,11 @@
   
   function syncCurrentZoneWithNBStatus() {
     try {
-      // Read directly from the N/B Zone Status HTML element
-      const nbZoneNowElement = document.getElementById('nbZoneNow');
-      let nbZone = 'BLUE'; // Default fallback
-      
-      if (nbZoneNowElement) {
-        const nbZoneText = nbZoneNowElement.textContent.trim().toUpperCase();
-        if (nbZoneText === 'BLUE' || nbZoneText === 'ORANGE') {
-          nbZone = nbZoneText;
-        }
-      } else {
-        // Fallback to window.zoneNow if HTML element is not available
-        nbZone = window.zoneNow || 'BLUE';
-      }
+      // Always use window.zoneNow for consistency - avoid circular reference
+      const nbZone = window.zoneNow || 'BLUE';
       
       // Only update if zone has actually changed
       if (nbZone !== lastSyncedZone) {
-        updateCurrentZoneDisplay(nbZone);
         updateZoneConsistencyDisplay();
         updateGuildMembersZone(nbZone);
         
@@ -12792,7 +12757,6 @@
     
     // Force initial zone synchronization
     const currentZone = window.zoneNow || 'BLUE';
-    updateCurrentZoneDisplay(currentZone);
     updateZoneConsistencyDisplay();
     updateGuildMembersZone(currentZone);
     
