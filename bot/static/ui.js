@@ -1,14 +1,25 @@
 // Lightweight Charts UI (pan only) + order markers using bot server APIs
+
 (function(){
+
   const container = document.getElementById('tvChart');
+
   if (!container) return;
+
   const tfEl = document.getElementById('timeframe');
+
   const getInterval = () => (tfEl ? tfEl.value : 'minute10');
 
 
 
+
+
+
+
   // Use same-origin base to avoid mixed-content/host issues
+
   const base = '';
+
 
   // Function to modify trainer storage (N/B Guild NPC control)
   async function modifyTrainerStorage(trainer, amount) {
@@ -50,211 +61,414 @@
   // Make function globally accessible
   window.modifyTrainerStorage = modifyTrainerStorage;
 
+
   // Function to get chart zone data for N/B Zone Status
+
   function getChartZoneData() {
+
     try {
+
       console.log('=== getChartZoneData: 시작 ===');
+
       
+
       const data = candle.data();
+
       console.log('  - candle.data() 길이:', data?.length || 0);
+
       
+
       if (!data || data.length === 0) {
+
         console.log('  - candle.data() 없음');
+
         return { zones: [], baseValue: 0, hasData: false };
+
       }
+
+
 
       // Get N/B wave data from chart
+
       const nbWaveData = window.nbWaveSeries?.data || [];
+
       const baseValue = window.nbWaveSeries?.options()?.baseValue?.price || 0;
+
       
+
       console.log('  - nbWaveSeries 존재:', !!window.nbWaveSeries);
+
       console.log('  - nbWaveData 길이:', nbWaveData.length);
+
       console.log('  - baseValue:', baseValue);
 
+
+
       // If N/B data exists, use it
+
       if (nbWaveData && nbWaveData.length > 0) {
+
         console.log('  - nbWaveData 사용');
+
         const zones = nbWaveData.map((waveData, index) => {
+
           const zone = waveData.value >= baseValue ? 'ORANGE' : 'BLUE';
+
           return {
+
             time: waveData.time,
+
             zone: zone,
+
             value: waveData.value,
+
             index: index
+
           };
+
         });
+
+
 
         console.log('  - nbWave zones 생성됨:', zones.length);
+
         return {
+
           zones: zones,
+
           baseValue: baseValue,
+
           hasData: true,
+
           source: 'nbWave'
+
         };
+
       }
+
+
 
       // Try to use window.lastOutWave if nbWaveSeries data is not available
+
       const lastOutWave = window.lastOutWave || [];
+
       console.log('  - lastOutWave 존재:', !!window.lastOutWave);
+
       console.log('  - lastOutWave 길이:', lastOutWave.length);
+
       
+
       if (lastOutWave && lastOutWave.length > 0) {
+
         console.log('  - lastOutWave 사용');
+
         const zones = lastOutWave.map((waveData, index) => {
+
           const zone = waveData.value >= baseValue ? 'ORANGE' : 'BLUE';
+
           return {
+
             time: waveData.time,
+
             zone: zone,
+
             value: waveData.value,
+
             index: index
+
           };
+
         });
+
+
 
         console.log('  - lastOutWave zones 생성됨:', zones.length);
+
         return {
+
           zones: zones,
+
           baseValue: baseValue,
+
           hasData: true,
+
           source: 'lastOutWave'
+
         };
+
       }
+
+
 
       // If no N/B data, try to get zone data from chart indicators
+
       const zoneIndicatorData = window.zoneIndicatorSeries?.data || [];
+
       console.log('  - zoneIndicatorSeries 존재:', !!window.zoneIndicatorSeries);
+
       console.log('  - zoneIndicatorData 길이:', zoneIndicatorData.length);
+
       
+
       if (zoneIndicatorData && zoneIndicatorData.length > 0) {
+
         console.log('  - zoneIndicatorData 사용');
+
         const zones = zoneIndicatorData.map((indicator, index) => {
+
           // Determine zone based on indicator color or value
+
           let zone = 'BLUE'; // default
+
           if (indicator.color) {
+
             // Check if color indicates ORANGE zone
+
             if (indicator.color.includes('255,165,0') || indicator.color.includes('ff8c00')) {
+
               zone = 'ORANGE';
+
             }
+
           }
+
           
+
           return {
+
             time: indicator.time,
+
             zone: zone,
+
             value: indicator.value || indicator.close || 0,
+
             index: index
+
           };
+
         });
 
+
+
         console.log('  - zoneIndicator zones 생성됨:', zones.length);
+
         return {
+
           zones: zones,
+
           baseValue: baseValue,
+
           hasData: true,
+
           source: 'zoneIndicator'
+
         };
+
       }
 
+
+
       // If no zone data available, return empty
+
       console.log('  - 데이터 없음');
+
       return { zones: [], baseValue: 0, hasData: false };
+
     } catch (e) {
+
       console.error('Error getting chart zone data:', e);
+
       return { zones: [], baseValue: 0, hasData: false };
+
     }
+
   }
+
   const startBtn = document.getElementById('botStart');
+
   const stopBtn = document.getElementById('botStop');
+
   const shotBtn = document.getElementById('btnShot');
+
   const btBtn = document.getElementById('btnBacktest');
+
   const clearBtn = document.getElementById('btnClearOrders');
+
   const ordersToggle = null;
+
   const optBtn = document.getElementById('btnOptimize');
+
   const trainBtn = document.getElementById('btnTrain');
+
   const mlTrainBtn = document.getElementById('btnMlTrain');
+
   const mlPredictBtn = document.getElementById('btnMlPredict');
+
   const miZone = document.getElementById('miZone');
+
   const miText = document.getElementById('miText');
 
+
+
   function updateModelInsight(j){
+
     try{
+
       const ins = j && j.insight ? j.insight : {};
+
       try{ window.lastInsight = ins; }catch(_){ }
+
       
       // Store ML prediction for getCurrentZone() function
       try{ window.mlPrediction = j; }catch(_){ }
       
+
       // ML 모델의 실제 구역 정보 사용 (for display only)
+
       const mlZone = String(ins.zone||'-').toUpperCase();
+
       
+
       // Show model's zone-aware intent summary
+
       try{
+
         const zact = j && j.zone_actions ? j.zone_actions : {};
+
         const badge = document.getElementById('miZone');
+
         if (badge){
+
           const hint = (zact.buy_in_blue ? 'BUY@BLUE' : (zact.sell_in_orange ? 'SELL@ORANGE' : '-'));
+
           badge.textContent = hint || String(ins.zone||'-');
+
           badge.className = 'badge bg-white text-dark';
+
         }
+
       }catch(_){ }
+
               // Display N/B zone instead of ML model zone
+
         const nbZone = window.zoneNow || 'BLUE';
+
         if (miZone){ 
+
           miZone.textContent = String(nbZone||'-'); 
+
           miZone.className = 'badge bg-white text-dark';
+
           // Add tooltip with zone duration info (only if duration >= 1 minute)
+
           const durationText = nbZoneDuration >= 60 ? ` (${nbZoneDuration}초)` : '';
+
           miZone.title = `N/B Zone: ${nbZone}${durationText} | ML Zone: ${String(ins.zone||'-')}`;
+
         }
+
       // reflect current zone majority on Win% card header and background
+
       try{
+
         const winZoneNow = document.getElementById('winZoneNow');
+
         const winCard = document.getElementById('winCard');
+
         
+
         // Use N/B zone for UI elements instead of ML model
+
         const nbZone = window.zoneNow || 'BLUE';
+
         if (winZoneNow){ 
+
           winZoneNow.textContent = String(nbZone||'-'); 
+
           winZoneNow.className = 'badge bg-white text-dark';
+
           // Add tooltip with zone duration info (only if duration >= 1 minute)
+
           const durationText = nbZoneDuration >= 60 ? ` (${nbZoneDuration}초)` : '';
+
           winZoneNow.title = `N/B Zone: ${nbZone}${durationText} | ML Zone: ${String(ins.zone||'-')}`;
+
         }
+
         if (winCard){
+
           winCard.classList.remove('win-card-blue','win-card-orange');
+
           if (nbZone === 'ORANGE'){ winCard.classList.add('win-card-orange'); }
+
           else if (nbZone === 'BLUE'){ winCard.classList.add('win-card-blue'); }
+
         }
+
       }catch(_){ }
+
       if (miText){
+
         const blueAdj = (ins.pct_blue||0);
+
         const orangeAdj = (ins.pct_orange||0);
+
         const blueRaw = (ins.pct_blue_raw!=null? ins.pct_blue_raw : blueAdj);
+
         const orangeRaw = (ins.pct_orange_raw!=null? ins.pct_orange_raw : orangeAdj);
+
         let slopeLine = '';
+
         try{
+
           const st = j && j.steep ? j.steep : null;
+
           if (st && (st.blue_up_slope!=null || st.orange_down_slope!=null)){
+
             const up = st.blue_up_slope!=null ? Number(st.blue_up_slope*10000).toFixed(2) : '-';
+
             const dn = st.orange_down_slope!=null ? Number(st.orange_down_slope*10000).toFixed(2) : '-';
+
             slopeLine = ` | upSlope@BLUE=${up}bp/bar | downSlope@ORANGE=${dn}bp/bar`;
+
           }
+
         }catch(_){ }
+
         const nbZone = window.zoneNow || 'BLUE';
+
         const durationText = nbZoneDuration >= 60 ? ` (${nbZoneDuration}초)` : '';
+
         miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | ML_zone=${String(ins.zone||'-')} | N/B_zone=${String(nbZone||'-')}${durationText} | conf=${(ins.zone_conf||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)} | w=${(ins.w||0).toFixed(3)}${slopeLine}<br/>`+
+
           `dist_high=${(ins.dist_high||0).toFixed(3)} | dist_low=${(ins.dist_low||0).toFixed(3)} | gap=${(ins.extreme_gap||0).toFixed(3)} | ema_diff=${(ins.ema_diff||0).toFixed(1)}<br/>`+
+
           `zone_min_r=${(ins.zone_min_r!=null? ins.zone_min_r: ins.r||0).toFixed(3)} | zone_max_r=${(ins.zone_max_r!=null? ins.zone_max_r: ins.r||0).toFixed(3)} | zone_extreme_r=${(ins.zone_extreme_r!=null? ins.zone_extreme_r: ins.r||0).toFixed(3)}<br/>`+
+
           `blue_min_cur=${(ins.blue_min_cur!=null? ins.blue_min_cur: ins.zone_min_r||0).toFixed(3)} | blue_min_last=${(ins.blue_min_last!=null? ins.blue_min_last: ins.zone_min_r||0).toFixed(3)} | orange_max_cur=${(ins.orange_max_cur!=null? ins.orange_max_cur: ins.zone_max_r||0).toFixed(3)} | orange_max_last=${(ins.orange_max_last!=null? ins.orange_max_last: ins.zone_max_r||0).toFixed(3)}`;
+
       }
+
     }catch(_){ }
+
   }
+
   const mlMetricsBtn = document.getElementById('btnMlMetrics');
+
   const mlRandomBtn = document.getElementById('btnMlRandom');
+
   const mlRandNEl = document.getElementById('mlRandN');
+
   const mlAutoToggle = document.getElementById('mlAuto');
+
   let mlAutoTimer = null;
+
   const loadBalBtn = document.getElementById('btnLoadBalance');
+
   // Top assets UI
+
   const assetsBox = null; // legacy removed
+
   
   // Information Trust System
   let trustConfig = {
@@ -273,235 +487,463 @@
   const trustStatusText = document.getElementById('trustStatusText');
   const trustBalanceText = document.getElementById('trustBalanceText');
   
+
   // Global variables for N/B marker connection lines
+
   let nbMarkerLineSeries = null;
+
   const assetsMeta = document.getElementById('assetsMeta');
+
   const assetsRefresh = document.getElementById('assetsRefresh');
+
   const assetsAutoToggle = document.getElementById('assetsAuto');
+
   // new assets design elements
+
   const assetTotalEl = document.getElementById('assetTotal');
+
   const assetBuyableEl = document.getElementById('assetBuyable');
+
   const assetSellableEl = document.getElementById('assetSellable');
+
   const assetsBars = document.getElementById('assetsBars');
+
   let assetsTimer = null;
+
   const assetsSummary = null;
+
   const enforceZoneSideEl = document.getElementById('enforceZoneSide');
+
   const mlCountEl = document.getElementById('mlCount');
+
   const trainCountEl = document.getElementById('trainCount');
+
   const trainSegEl = document.getElementById('trainSeg');
+
   const autoBtToggle = document.getElementById('autoBtToggle');
+
   const autoBtSecEl = document.getElementById('autoBtSec');
+
   let autoBtTimer = null;
+
   const logBox = document.getElementById('logBox');
+
   const logAuto = document.getElementById('logAutoscroll');
+
   const logClearBtn = document.getElementById('btnClearLog');
+
   const LOG_MAX_LINES = 50;
+
   // Orders bottom log elements
+
   const orderLog = document.getElementById('orderLog');
+
   const orderClearBtn = document.getElementById('btnOrderClear');
+
   const orderExportBtn = document.getElementById('btnOrderExport');
+
   const btnBuy = document.getElementById('btnBuy');
+
   const btnSell = document.getElementById('btnSell');
+
   const tradeReadyMeta = document.getElementById('tradeReadyMeta');
+
   const miniWinZone = document.getElementById('miniWinZone');
+
   const miniWinBaseBar = document.getElementById('miniWinBaseBar');
+
   const miniWinOverlayBar = document.getElementById('miniWinOverlayBar');
+
   const autoPending = document.getElementById('autoPending');
+
   const autoPendingBar = document.getElementById('autoPendingBar');
+
   const btnCancelPending = document.getElementById('btnCancelPending');
+
   const autoTradeToggle = document.getElementById('autoTradeToggle');
+
   // Additional toggles
+
   let mlOnlyToggle = null;
+
   let autoPendingTimer = null;
+
   const btnPreflight = document.getElementById('btnPreflight');
+
   const tradeReadyBox = document.getElementById('tradeReadyBox');
+
   let orderKeys = new Set();
+
   function pushOrderLogLine(line){
+
     try{
+
       if (!orderLog) return;
+
       const div = document.createElement('div');
+
       div.textContent = line;
+
       orderLog.prepend(div);
+
       while (orderLog.childElementCount>200){ orderLog.removeChild(orderLog.lastElementChild); }
+
     }catch(_){ }
+
   }
+
   const mlMetricsBox = document.getElementById('mlMetricsBox');
+
   const emaFilterEl = document.getElementById('emaFilter');
+
   const nbFromEmaEl = document.getElementById('nbFromEma');
+
   const nbEmaPeriodEl = document.getElementById('nbEmaPeriod');
+
   const nbDebounceEl = document.getElementById('nbDebounce');
+
   const nbBuyThEl = document.getElementById('nbBuyTh');
+
   const nbSellThEl = document.getElementById('nbSellTh');
+
   const showSMAEl = document.getElementById('showSMA');
+
   const sma50El = document.getElementById('sma50');
+
   const sma100El = document.getElementById('sma100');
+
   const sma200El = document.getElementById('sma200');
+
   const showEMA9El = document.getElementById('showEMA9');
+
   const showIchimokuEl = document.getElementById('showIchimoku');
+
   const ichiTenkanEl = document.getElementById('ichiTenkan');
+
   const ichiKijunEl = document.getElementById('ichiKijun');
+
   function uiLog(msg, data){
+
     try{
+
       const ts = new Date().toISOString();
+
       const detail = data? (typeof data==='string'? data: JSON.stringify(data)) : '';
+
       const line = `[${ts}] ${msg}${detail? ' ' + detail: ''}`;
+
       if (logBox){
+
         // append without forcing scroll
+
         const prevTop = logBox.scrollTop;
+
         logBox.textContent += (line + "\n");
+
         // trim to last LOG_MAX_LINES
+
         try{
+
           const parts = logBox.textContent.split('\n');
+
           if (parts.length > LOG_MAX_LINES+1){
+
             logBox.textContent = parts.slice(-LOG_MAX_LINES-1).join('\n');
+
           }
+
         }catch(_){ }
+
         // No auto-scroll: always keep previous position
+
         try{ logBox.scrollTop = prevTop; }catch(_){ }
+
       }
+
       console.log(line);
+
     }catch(_){ }
+
   }
+
   async function optimizeNb(){
+
     try{
+
       const payload = {
+
         window: parseInt(nbWindowEl?.value||'50',10),
+
         buy: [0.6, 0.85, 0.02],
+
         sell: [0.15, 0.45, 0.02],
+
         debounce: parseInt(nbDebounceEl?.value||'6',10),
+
         fee_bps: 10.0,
+
         count: 800,
+
         interval: getInterval(),
+
       };
+
       const r = await fetch('/api/nb/optimize', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
       const j = await r.json();
+
       if (j && j.ok && j.best){
+
         if (nbBuyThEl) nbBuyThEl.value = String(j.best.buy);
+
         if (nbSellThEl) nbSellThEl.value = String(j.best.sell);
+
         updateNB();
+
       }
+
     }catch(_){ }
+
   }
+
   const paperEl = document.getElementById('paperMode');
+
   const orderEl = document.getElementById('orderKrw');
+
   const emaFastEl = document.getElementById('emaFast');
+
   const emaSlowEl = document.getElementById('emaSlow');
+
   // Forecast controls
+
   const fcWindowEl = document.getElementById('fcWindow');
+
   const fcHorizonEl = document.getElementById('fcHorizon');
+
   const fcToggleEl = document.getElementById('fcToggle');
 
+
+
   const sTicker = document.getElementById('s_ticker');
+
   const sPrice = document.getElementById('s_price');
+
   const sSignal = document.getElementById('s_signal');
+
   const sEma = document.getElementById('s_ema');
+
   const sBot = document.getElementById('s_bot');
+
   const sInterval = document.getElementById('s_interval');
+
   const sEntry = document.getElementById('nb_entry');
+
   const sPnl = document.getElementById('nb_pnl');
+
   // Top PnL slider elements
+
   const pnlLeft = document.getElementById('pnlLeftBar');
+
   const pnlRight = document.getElementById('pnlRightBar');
+
   const pnlLeftLabel = document.getElementById('pnlLeftLabel');
+
   const pnlRightLabel = document.getElementById('pnlRightLabel');
+
   const autoGaugeBar = document.getElementById('autoGaugeBar');
+
   const autoGaugeText = document.getElementById('autoGaugeText');
+
   let lastAggPct = 0;
+
   // Track last live BUY to compute realized PnL on SELL
+
   let liveLastBuyPrice = 0;
+
   function updateTopPnlSlider(pnl, winRate){
+
     if (!pnlLeft || !pnlRight) return;
+
     // Normalize 0~100; draw from center: LeftBar extends left, RightBar extends right
+
     const isProfit = pnl >= 0;
+
     const wr = Math.max(0, Math.min(100, isFinite(winRate)? winRate : (isProfit? 60:40)));
+
     const profPct = isProfit ? wr : 0;
+
     const lossPct = isProfit ? (100-wr) : wr;
+
     pnlLeft.style.width = `${profPct/2}%`; // half track to the left
+
     pnlRight.style.width = `${lossPct/2}%`; // half track to the right
+
     if (pnlLeftLabel) pnlLeftLabel.textContent = `Profit ${profPct.toFixed(1)}%`;
+
     if (pnlRightLabel) pnlRightLabel.textContent = `Loss ${lossPct.toFixed(1)}%`;
+
     // glow animation cue
+
     try{
+
       (isProfit? pnlLeft : pnlRight).classList.remove(isProfit? 'glow-green':'glow-red');
+
       void (isProfit? pnlLeft : pnlRight).offsetWidth; // reflow to restart animation
+
       (isProfit? pnlLeft : pnlRight).classList.add(isProfit? 'glow-green':'glow-red');
+
     }catch(_){ }
+
   }
 
+
+
   // Aggregate last up to 25 win buttons
+
   function updateTopPnlFromList(){
+
     if (!winListEl || !pnlLeft || !pnlRight) return;
+
     const items = Array.from(winListEl.children).slice(0,25);
+
     const total = items.length;
+
     const positives = items.filter(el=> el.classList.contains('positive')).length;
+
     const profitPct = total ? (positives/total*100) : 0;
+
     const lossPct = 100 - profitPct;
+
     pnlLeft.style.width = `${profitPct/2}%`;
+
     pnlRight.style.width = `${lossPct/2}%`;
+
     if (pnlLeftLabel) pnlLeftLabel.textContent = `Profit ${profitPct.toFixed(1)}%`;
+
     if (pnlRightLabel) pnlRightLabel.textContent = `Loss ${lossPct.toFixed(1)}%`;
+
     // compute majority zone from dataset.zone
+
     try{
+
       let blue=0, orange=0;
+
       for (const el of items){
+
         const zone = el.dataset && el.dataset.zone;
+
         if (zone === 'BLUE') blue++;
+
         else if (zone === 'ORANGE') orange++;
+
       }
+
       const maj = (orange>=blue && orange>0)? 'ORANGE' : (blue>orange? 'BLUE' : '-');
+
       const winMajor = document.getElementById('winMajor');
+
       if (winMajor){ winMajor.textContent = maj; winMajor.className = 'badge bg-white text-dark'; }
+
       
+
       // Debug logging
+
       console.log(`Zone calculation: BLUE=${blue}, ORANGE=${orange}, MAJORITY=${maj}`);
+
     }catch(_){ }
+
     // also update local fill bar on periodic refresh (1%..100%)
+
     try{
+
       const bar = document.getElementById('winFillBar');
+
       if (bar){
+
         const n = Math.min(25, (winListEl?.childElementCount||0));
+
         const pct = Math.max(1, Math.round((n/25)*100));
+
         bar.style.width = `${pct}%`;
+
       }
+
     }catch(_){ }
+
     // Push profit/loss ratios to server for order sizing
+
     try {
+
       postJson('/api/bot/config', { pnl_profit_ratio: profitPct, pnl_loss_ratio: lossPct }).catch(()=>{});
+
     } catch(_) { }
+
     // glow on direction
+
     try{
+
       if (profitPct >= lastAggPct){ pnlLeft.classList.remove('glow-green'); void pnlLeft.offsetWidth; pnlLeft.classList.add('glow-green'); }
+
       else { pnlRight.classList.remove('glow-red'); void pnlRight.offsetWidth; pnlRight.classList.add('glow-red'); }
+
       lastAggPct = profitPct;
+
     }catch(_){ }
+
   }
+
   // ---- Rolling win list (left panel) ----
+
   const winListEl = document.getElementById('winList');
+
   const winClearBtn = document.getElementById('winClear');
+
   let winKeys = new Set();
+
   const makeWinKey = (pnl, winRate)=> `${Math.round(pnl)}|${Number(winRate).toFixed(1)}`;
+
   function pushWinItem({ ts, pnl, winRate, zone, interval }){
+
     if (!winListEl) return;
+
     const key = makeWinKey(pnl, winRate);
+
     // If duplicate exists, refresh its content and move to top
+
     const dup = Array.from(winListEl.children).find(el=> el.dataset && el.dataset.key === key);
+
     if (dup){
+
       const timeStr = new Date(ts).toLocaleTimeString();
+
       const zDup = (dup.dataset && dup.dataset.zone) || (zone) || '-';
+
       const intervalDup = (dup.dataset && dup.dataset.interval) || (interval) || getInterval();
+
       const meta = dup.querySelector('.meta'); if (meta) meta.innerHTML = `${timeStr}<br>${String(zDup).toUpperCase()} (${intervalDup})`;
+
       const val = dup.querySelector('.val'); if (val) try{ val.remove(); }catch(_){ }
+
       winListEl.prepend(dup);
+
       updateTopPnlFromList();
+
       return;
+
     }
+
     const item = document.createElement('button');
+
     item.type = 'button';
+
     item.className = 'win-chip btn btn-sm';
+
     const timeStr = new Date(ts).toLocaleTimeString();
+
     // Get N/B Zone information with priority: item.zone > window.zoneNow > ML prediction
     const nbZone = zone || window.zoneNow || (window.lastInsight && window.lastInsight.zone) || 'BLUE';
     const currentInterval = interval || getInterval();
+
     const zoneUpper = String(nbZone).toUpperCase();
     
     // Create zone badge with color coding
@@ -511,1697 +953,3387 @@
     item.title = `${timeStr} | N/B Zone: ${zoneUpper} | ${currentInterval}`;
     item.innerHTML = `<div class='meta'>${timeStr}<br>${zoneBadge} (${currentInterval})</div>`;
     item.dataset.key = key;
+
     item.dataset.zone = zoneUpper;
+
     item.dataset.interval = currentInterval;
+
     
+
     // Debug logging
+
     console.log(`Adding win item: zone=${zoneUpper}, interval=${currentInterval}, time=${timeStr}`);
+
     winListEl.prepend(item);
+
     // keep last 25
+
     while (winListEl.childElementCount>25){ const last = winListEl.lastElementChild; if (last && last.dataset && last.dataset.key) winKeys.delete(last.dataset.key); winListEl.removeChild(last); }
+
     winKeys.add(key);
+
     // refresh top aggregate slider
+
     updateTopPnlFromList();
+
     // update local fill bar (1%..100% while filling up to 25)
+
     try{
+
       const bar = document.getElementById('winFillBar');
+
       if (bar){
+
         const n = Math.min(25, winListEl.childElementCount||0);
+
         const pct = Math.max(1, Math.round((n/25)*100));
+
         bar.style.width = `${pct}%`;
+
       }
+
     }catch(_){ }
+
   }
+
   if (winClearBtn) winClearBtn.addEventListener('click', ()=>{ if (winListEl) winListEl.innerHTML=''; winKeys.clear(); updateTopPnlFromList(); });
 
+
+
   // periodic top slider refresh to ensure UI remains in sync
+
   let topPnlTimer = setInterval(()=>{ try{ updateTopPnlFromList(); }catch(_){} }, 2000);
 
+
+
   // ---- Local storage for options ----
+
   const LS_KEY = 'eightbit_ui_opts_v1';
+
   function readOpts(){
+
     try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(_){ return {}; }
+
   }
+
   function writeOpts(partial){
+
     const cur = readOpts();
+
     const next = { ...cur, ...partial };
+
     try{ localStorage.setItem(LS_KEY, JSON.stringify(next)); }catch(_){ }
+
   }
+
   const saveOpts = ()=>{ try{ const o = snapshotOpts(); if (o.opt_auto_save === undefined || o.opt_auto_save){ writeOpts(o); } }catch(_){ } };
+
   function snapshotOpts(){
+
     return {
+
       timeframe: tfEl ? tfEl.value : undefined,
+
       paper: paperEl ? paperEl.value : undefined,
+
       order_krw: orderEl ? orderEl.value : undefined,
+
       ema_fast: emaFastEl ? emaFastEl.value : undefined,
+
       ema_slow: emaSlowEl ? emaSlowEl.value : undefined,
+
       nb_window: nbWindowEl ? nbWindowEl.value : undefined,
+
       nb_show: nbToggleEl ? !!nbToggleEl.checked : undefined,
+
       nb_buy_th: nbBuyThEl ? nbBuyThEl.value : undefined,
+
       nb_sell_th: nbSellThEl ? nbSellThEl.value : undefined,
+
       nb_debounce: nbDebounceEl ? nbDebounceEl.value : undefined,
+
       ema_filter: emaFilterEl ? !!emaFilterEl.checked : undefined,
+
       nb_from_ema: nbFromEmaEl ? !!nbFromEmaEl.checked : undefined,
+
       nb_ema_period: nbEmaPeriodEl ? nbEmaPeriodEl.value : undefined,
+
       fc_window: (typeof fcWindowEl !== 'undefined' && fcWindowEl) ? fcWindowEl.value : undefined,
+
       fc_horizon: (typeof fcHorizonEl !== 'undefined' && fcHorizonEl) ? fcHorizonEl.value : undefined,
+
       fc_show: (typeof fcToggleEl !== 'undefined' && fcToggleEl) ? !!fcToggleEl.checked : undefined,
+
       show_orders: undefined,
+
       auto_bt: (typeof autoBtToggle !== 'undefined' && autoBtToggle) ? !!autoBtToggle.checked : undefined,
+
       auto_bt_sec: (typeof autoBtSecEl !== 'undefined' && autoBtSecEl) ? autoBtSecEl.value : undefined,
+
       show_sma: showSMAEl ? !!showSMAEl.checked : undefined,
+
       sma50: sma50El ? sma50El.value : undefined,
+
       sma100: sma100El ? sma100El.value : undefined,
+
       sma200: sma200El ? sma200El.value : undefined,
+
       show_ema9: showEMA9El ? !!showEMA9El.checked : undefined,
+
       show_ichimoku: showIchimokuEl ? !!showIchimokuEl.checked : undefined,
+
       ichi_tenkan: ichiTenkanEl ? ichiTenkanEl.value : undefined,
+
       ichi_kijun: ichiKijunEl ? ichiKijunEl.value : undefined,
+
       train_count: (typeof trainCountEl !== 'undefined' && trainCountEl) ? trainCountEl.value : undefined,
+
       train_seg: (typeof trainSegEl !== 'undefined' && trainSegEl) ? trainSegEl.value : undefined,
+
       enforce_zone_side: enforceZoneSideEl ? !!enforceZoneSideEl.checked : undefined,
+
     };
+
   }
+
+
 
   let postJson = (path, data) => fetch(`${base}${path}`, {
+
     method: 'POST',
+
     headers: { 'Content-Type': 'application/json' },
+
     body: JSON.stringify(data || {})
+
   }).then(r=>r.json()).catch((e)=>{ console.error('POST fail', path, e); return { ok:false, error:String(e) }; });
 
+
+
   // Rate Limit 관리를 위한 변수들
+
   let apiRequestCount = 0;
+
   let lastApiRequestTime = 0;
+
   const API_RATE_LIMIT = 8; // 초당 최대 8회 (order 그룹 기준)
+
   const API_RATE_WINDOW = 1000; // 1초
 
+
+
   // Rate Limit 체크 및 대기 함수
+
   async function checkRateLimit() {
+
     const now = Date.now();
+
     
+
     // 1초가 지났으면 카운트 리셋
+
     if (now - lastApiRequestTime > API_RATE_WINDOW) {
+
       apiRequestCount = 0;
+
       lastApiRequestTime = now;
+
     }
+
     
+
     // Rate Limit 초과 시 대기
+
     if (apiRequestCount >= API_RATE_LIMIT) {
+
       const waitTime = API_RATE_WINDOW - (now - lastApiRequestTime);
+
       if (waitTime > 0) {
+
         uiLog('Rate Limit 대기', `${waitTime}ms 대기 중...`);
+
         await sleep(waitTime);
+
         apiRequestCount = 0;
+
         lastApiRequestTime = Date.now();
+
       }
+
     }
+
     
+
     apiRequestCount++;
+
   }
 
+
+
   // 개선된 fetchJsonStrict 함수 (Rate Limit + 재시도 로직)
+
   async function fetchJsonStrict(path, init, maxRetries = 3) {
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+
       try {
+
         // Rate Limit 체크
+
         await checkRateLimit();
+
         
+
     const r = await fetch(path, init);
+
         
+
         // Rate Limit 에러 (429) 처리
+
         if (r.status === 429) {
+
           const retryAfter = r.headers.get('Retry-After') || 1;
+
           uiLog('Rate Limit 초과', `${retryAfter}초 후 재시도 (${attempt}/${maxRetries})`);
+
           await sleep(retryAfter * 1000);
+
           continue;
+
         }
+
         
+
         // 서버 에러 (500) 처리
+
         if (r.status >= 500) {
+
           uiLog('서버 에러', `${r.status} - ${attempt}/${maxRetries} 재시도 중...`);
+
           if (attempt < maxRetries) {
+
             await sleep(1000 * attempt); // 지수 백오프
+
             continue;
+
           }
+
         }
+
         
+
     const ct = (r.headers.get('content-type')||'').toLowerCase();
+
     const text = await r.text();
+
         
+
     if (!ct.includes('application/json')){
+
       throw new Error('API response is not JSON. Open the Flask UI at: http://127.0.0.1:5057/ui');
+
     }
+
         
+
         try{ 
+
           return JSON.parse(text); 
+
         } catch(_){ 
+
           throw new Error('Failed to parse JSON: ' + text.slice(0,120)); 
+
         }
+
         
+
       } catch (error) {
+
         if (attempt === maxRetries) {
+
           uiLog('API 요청 실패', `${path}: ${error.message}`);
+
           throw error;
+
         }
+
         
+
         uiLog('API 재시도', `${path}: ${attempt}/${maxRetries} - ${error.message}`);
+
         await sleep(1000 * attempt); // 지수 백오프
+
       }
+
     }
+
   }
+
+
 
   const sleep = (ms)=> new Promise(res=>setTimeout(res, ms));
 
+
+
   async function waitForNbSignals(maxMs=5000){
+
     const start = Date.now();
+
     while (Date.now()-start < maxMs){
+
       try{
+
         updateNB();
+
         const data = candle.data();
+
         const hasSignals = (Array.isArray(nbMarkers) && nbMarkers.length > 0) || (Array.isArray(window.lastNbSignals) && window.lastNbSignals.length>0);
+
         if (data && data.length >= 50 && hasSignals){ return true; }
+
       }catch(_){ }
+
       await sleep(200);
+
     }
+
     return false;
+
   }
+
+
 
   async function backtestAfterReady(maxMs=6000){
+
     try{ await waitForNbSignals(maxMs); runBacktest(); }catch(_){ }
+
   }
+
+
 
   function collectConfig(){
+
     return {
+
       paper: (paperEl && paperEl.value === 'true'),
+
       order_krw: orderEl ? parseInt(orderEl.value||'5000',10) : 5000,
+
       ema_fast: emaFastEl ? parseInt(emaFastEl.value||'10',10) : 10,
+
       ema_slow: emaSlowEl ? parseInt(emaSlowEl.value||'30',10) : 30,
+
       candle: getInterval(),
+
       nb_window: nbWindowEl ? parseInt(nbWindowEl.value||'50',10) : undefined,
+
       enforce_zone_side: enforceZoneSideEl ? !!enforceZoneSideEl.checked : undefined,
+
     };
+
   }
 
+
+
   async function pushConfig(){
+
     const cfg = collectConfig();
+
     await postJson('/api/bot/config', cfg);
+
     if (sEma) sEma.textContent = `${cfg.ema_fast}/${cfg.ema_slow}`;
+
     if (sInterval) sInterval.textContent = cfg.candle;
+
     writeOpts(snapshotOpts());
+
   }
+
   const chart = LightweightCharts.createChart(container, {
+
     layout: { background: { type: 'solid', color: '#0b1220' }, textColor: '#e6eefc' },
+
     grid: { vertLines: { color: 'rgba(255,255,255,0.05)' }, horzLines: { color: 'rgba(255,255,255,0.05)' } },
+
     rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
+
     timeScale: { borderColor: 'rgba(255,255,255,0.08)' },
+
     crosshair: { mode: LightweightCharts.CrosshairMode.Magnet },
+
     handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+
     handleScale: { mouseWheel: false, pinch: false, axisPressedMouseMove: false },
+
     autoSize: true,
+
   });
+
+
 
   // Oscillator chart removed
 
+
+
   const candle = chart.addCandlestickSeries({ upColor:'#0ecb81', downColor:'#f6465d', wickUpColor:'#0ecb81', wickDownColor:'#f6465d', borderVisible:false });
+
   const emaF = chart.addLineSeries({ color:'rgba(14,203,129,0.9)', lineWidth:2 });
+
   const emaS = chart.addLineSeries({ color:'rgba(246,70,93,0.9)', lineWidth:2 });
+
   const sma50Series = chart.addLineSeries({ color:'#9aa0a6', lineWidth:1, priceLineVisible:false });
+
   const sma100Series = chart.addLineSeries({ color:'#c7cbd1', lineWidth:1, priceLineVisible:false });
+
   const sma200Series = chart.addLineSeries({ color:'#e0e3e7', lineWidth:1, priceLineVisible:false });
+
   const ema9Series = chart.addLineSeries({ color:'#ffd166', lineWidth:1, priceLineVisible:false });
+
   const ema12Series = chart.addLineSeries({ color:'#fca311', lineWidth:1, priceLineVisible:false });
+
   const ema26Series = chart.addLineSeries({ color:'#fb8500', lineWidth:1, priceLineVisible:false });
+
   const ichiTenkanSeries = chart.addLineSeries({ color:'#00d1ff', lineWidth:1, priceLineVisible:false });
+
   const ichiKijunSeries = chart.addLineSeries({ color:'#ff006e', lineWidth:1, priceLineVisible:false });
+
   
+
   // Oscillator series removed
+
   
+
   // Zone indicator series for chart display
+
   const zoneIndicatorSeries = chart.addCandlestickSeries({ 
+
     upColor:'rgba(255,165,0,0.8)', 
+
     downColor:'rgba(0,123,255,0.8)', 
+
     wickUpColor:'rgba(255,165,0,0.8)', 
+
     wickDownColor:'rgba(0,123,255,0.8)', 
+
     borderVisible:false 
+
   });
+
   
+
   // Make zoneIndicatorSeries globally accessible
+
   window.zoneIndicatorSeries = zoneIndicatorSeries;
+
   
+
   // Zone background series disabled to remove BLUE/ORANGE bars
+
   const zoneBackgroundSeries = chart.addAreaSeries({
+
     topColor: 'rgba(0,0,0,0)',
+
     bottomColor: 'rgba(0,0,0,0)',
+
     lineColor: 'rgba(0,0,0,0)',
+
     lineWidth: 0,
+
     priceLineVisible: false
+
   });
+
   
+
   // Zone text series for displaying zone info
+
   const zoneTextSeries = chart.addLineSeries({
+
     color: 'rgba(255,255,255,0.8)',
+
     lineWidth: 0,
+
     priceLineVisible: false,
+
     lastValueVisible: true
+
   });
+
   
+
   // N/B line series for displaying the actual N/B line with text
+
   const nbLineSeries = chart.addLineSeries({
+
     color: 'rgba(255, 255, 255, 0.9)',
+
     lineWidth: 2,
+
     priceLineVisible: false,
+
     lastValueVisible: true
+
   });
+
+
 
   // Oscillator functions removed
 
+
+
   // ---- NB helpers (using user's BIT_* functions) ----
+
   function initializeArraysBIT(length){
+
     return {
+
       BIT_START_A50: new Array(length).fill(0),
+
       BIT_START_A100: new Array(length).fill(0),
+
       BIT_START_B50: new Array(length).fill(0),
+
       BIT_START_B100: new Array(length).fill(0),
+
       BIT_START_NBA100: new Array(length).fill(0),
+
     };
+
   }
+
   function calculateBit(nb, bit=5.5, reverse=false){
+
     if (!nb || nb.length < 2) return bit/100;
+
     const BIT_NB = bit;
+
     const max = Math.max(...nb);
+
     const min = Math.min(...nb);
+
     const COUNT = 50;
+
     const rangeN = min < 0 ? Math.abs(min) : 0;
+
     const rangeP = max > 0 ? max : 0;
+
     const incN = rangeN / (COUNT * nb.length - 1 || 1);
+
     const incP = rangeP / (COUNT * nb.length - 1 || 1);
+
     const arrays = initializeArraysBIT(COUNT * nb.length);
+
     let count = 0; let NB50 = 0;
+
     for (const value of nb){
+
       for (let i=0;i<COUNT;i++){
+
         const A50 = value < 0 ? (min + incN * (count+1)) : (min + incP * (count+1));
+
         const A100 = (count+1) * BIT_NB / (COUNT * nb.length);
+
         const B50 = value < 0 ? (A50 - incN * 2) : (A50 - incP * 2);
+
         const B100 = value < 0 ? (A50 + incN) : (A50 + incP);
+
         const NBA100 = A100 / (nb.length - 1);
+
         arrays.BIT_START_A50[count] = A50;
+
         arrays.BIT_START_A100[count] = A100;
+
         arrays.BIT_START_B50[count] = B50;
+
         arrays.BIT_START_B100[count] = B100;
+
         arrays.BIT_START_NBA100[count] = NBA100;
+
         count++;
+
       }
+
     }
+
     if (reverse) arrays.BIT_START_NBA100.reverse();
+
     for (const value of nb){
+
       for (let a=0;a<arrays.BIT_START_NBA100.length;a++){
+
         if (arrays.BIT_START_B50[a] <= value && arrays.BIT_START_B100[a] >= value){
+
           NB50 += arrays.BIT_START_NBA100[Math.min(a, arrays.BIT_START_NBA100.length-1)];
+
           break;
+
         }
+
       }
+
     }
+
     if (nb.length === 2) return bit - NB50;
+
     return NB50;
+
   }
+
   let SUPER_BIT = 0;
+
   function updateSuperBit(v){ SUPER_BIT = v; }
+
   function BIT_MAX_NB(nb, bit=5.5){
+
     let r = calculateBit(nb, bit, false);
+
     if (!isFinite(r) || isNaN(r) || r > 100 || r < -100) return SUPER_BIT; else { updateSuperBit(r); return r; }
+
   }
+
   function BIT_MIN_NB(nb, bit=5.5){
+
     let r = calculateBit(nb, bit, true);
+
     if (!isFinite(r) || isNaN(r) || r > 100 || r < -100) return SUPER_BIT; else { updateSuperBit(r); return r; }
+
   }
+
+
 
   // NB UI controls
+
   const nbWindowEl = document.getElementById('nbWindow');
+
   const nbToggleEl = document.getElementById('nbToggle');
+
   const sNbMax = document.getElementById('s_nbMax');
+
   const sNbMin = document.getElementById('s_nbMin');
+
   const sNbState = document.getElementById('s_nbState');
+
   const nbMaxSeries = chart.addAreaSeries({
+
     topColor: 'rgba(255,183,3,0.55)',
+
     bottomColor: 'rgba(255,183,3,0.20)',
+
     lineColor: '#ffb703', lineWidth: 3,
+
     lastValueVisible: true, priceLineVisible: true, priceLineColor: '#ffb703'
+
   });
+
   const nbMinSeries = chart.addAreaSeries({
+
     topColor: 'rgba(0,209,255,0.55)',
+
     bottomColor: 'rgba(0,209,255,0.20)',
+
     lineColor: '#00d1ff', lineWidth: 3,
+
     lastValueVisible: true, priceLineVisible: true, priceLineColor: '#00d1ff'
+
   });
+
   // Baseline wave series (visual emphasis)
+
   const nbWaveSeries = chart.addBaselineSeries({
+
     baseValue: { type: 'price', price: 0 },
+
     topFillColor1: 'rgba(255,183,3,0.70)',    // 더 진한 주황색 영역
+
     topFillColor2: 'rgba(255,183,3,0.40)',
+
     topLineColor: '#ff8c00',                  // 더 진한 주황색 선
+
     bottomFillColor1: 'rgba(0,209,255,0.70)', // 더 진한 파란색 영역
+
     bottomFillColor2: 'rgba(0,209,255,0.40)',
+
     bottomLineColor: '#0066cc',               // 더 진한 파란색 선
+
     lineWidth: 6,                             // 더 두꺼운 선
+
   });
+
   
+
   // Initialize the line series for connecting N/B markers
+
   setTimeout(() => {
+
     nbMarkerLineSeries = chart.addLineSeries({
+
       color: '#ffffff',
+
       lineWidth: 2,
+
       priceLineVisible: false,
+
       lastValueVisible: false
+
     });
+
   }, 100);
+
   
+
   // Make nbWaveSeries globally accessible for visual zone checking
+
   window.nbWaveSeries = nbWaveSeries;
+
   function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
   let nbMaxPriceLine = null; let nbMinPriceLine = null;
+
   
+
   function updateNB(){
+
     try{
+
       const n = parseInt((nbWindowEl && nbWindowEl.value) || '100', 10);
+
       const data = candle.data(); 
+
       if (!data || data.length < Math.max(5,n)) { 
+
         nbMaxSeries.setData([]); 
+
         nbMinSeries.setData([]); 
+
         nbWaveSeries.setData([]);
+
         nbMaxSeries.setMarkers([]);
+
         nbMinSeries.setMarkers([]);
+
         nbWaveSeries.setMarkers([]);
+
         // 연결선도 제거
+
         if (nbMarkerLineSeries) nbMarkerLineSeries.setData([]);
+
         if (window.nbMarkerLineSeries2) window.nbMarkerLineSeries2.setData([]);
+
         return; 
+
       }
+
       if (nbToggleEl && !nbToggleEl.checked){ 
+
         nbMaxSeries.setData([]); 
+
         nbMinSeries.setData([]); 
+
         nbWaveSeries.setData([]);
+
         nbMaxSeries.setMarkers([]);
+
         nbMinSeries.setMarkers([]);
+
         nbWaveSeries.setMarkers([]);
+
         // 연결선도 제거
+
         if (nbMarkerLineSeries) nbMarkerLineSeries.setData([]);
+
         if (window.nbMarkerLineSeries2) window.nbMarkerLineSeries2.setData([]);
+
         if (sNbMax) sNbMax.textContent='-'; 
+
         if (sNbMin) sNbMin.textContent='-'; 
+
         return; 
+
       }
+
       const outMax=[]; const outMin=[]; const outWave=[];
+
       for (let i=n-1;i<data.length;i++){
+
         const win = data.slice(i-n+1, i+1);
+
         let highs, lows, closes;
+
         if (nbFromEmaEl && nbFromEmaEl.checked){
+
           const period = parseInt(nbEmaPeriodEl?.value||'10',10);
+
           const emaVals = ema(data.slice(0,i+1).map(d=>d.close), period);
+
           const emaWin = emaVals.slice(-win.length);
+
           highs = emaWin; lows = emaWin; closes = emaWin.map(v=>({value:v}));
+
           // for hi/lo span, use small buffer around EMA within window
+
           const hiVal = Math.max(...emaWin); const loVal = Math.min(...emaWin);
+
           // override below using computed hi/lo
+
           const hiArr = Array(win.length).fill(hiVal); const loArr = Array(win.length).fill(loVal);
+
           highs = hiArr; lows = loArr;
+
         } else {
+
           highs = win.map(d=>d.high); lows = win.map(d=>d.low); closes = win.map(d=>d.close);
+
         }
+
         const hi = Math.max(...highs); const lo = Math.min(...lows); const span = Math.max(hi-lo, 1e-9);
+
         const closeArr = (nbFromEmaEl && nbFromEmaEl.checked) ? highs.map((_,idx)=> (win[idx]?.close ?? highs[idx])) : closes;
+
         const changes = [];
+
         for (let k=1;k<closeArr.length;k++){ const prev=Number(closeArr[k-1]); const cur=Number(closeArr[k]); changes.push(((cur-prev) / (prev||1)) * 100); }
+
         if (changes.length < 2) continue;
+
         const scoreMax = clamp(BIT_MAX_NB(changes), 0, 100);
+
         const scoreMin = clamp(BIT_MIN_NB(changes), 0, 100);
+
         const priceMax = lo + span * (scoreMax/100);
+
         const priceMin = lo + span * (scoreMin/100);
+
         const t = data[i].time;
+
         const ratio = (scoreMax + scoreMin) > 0 ? (scoreMax / (scoreMax + scoreMin)) : 0.5;
+
         const waveVal = lo + span * ratio;
+
         outMax.push({ time:t, value: priceMax });
+
         outMin.push({ time:t, value: priceMin });
+
         outWave.push({ time:t, value: waveVal });
+
       }
+
       nbMaxSeries.setData([]); // hide standalone bands when wave is enabled
+
       nbMinSeries.setData([]);
+
       // Simulated wave using baseline around dynamic middle
+
       const lastWin = data.slice(Math.max(0, data.length - n), data.length);
+
       if (lastWin.length){
+
         const mid = (Math.max(...lastWin.map(d=>d.high)) + Math.min(...lastWin.map(d=>d.low))) / 2;
+
         nbWaveSeries && nbWaveSeries.applyOptions({ baseValue: { type: 'price', price: mid } });
+
         nbWaveSeries && nbWaveSeries.setData(outWave);
+
         
+
         // Store outWave globally for visual zone checking
+
         window.lastOutWave = outWave;
+
         const mxL = (outMax[outMax.length-1]?.value ?? 0);
+
         const mnL = (outMin[outMin.length-1]?.value ?? 0);
+
         const hiL = Math.max(mxL, mnL);
+
         const loL = Math.min(mxL, mnL);
+
         const denomL = (hiL - loL) || 1;
+
         let rLast = ((outWave[outWave.length-1]?.value ?? loL) - loL) / denomL;
+
         rLast = clamp(rLast, 0, 1);
+
         uiLog('NB update', `window=${n}, r(last)=${(rLast||0).toFixed(3)}`);
+
         // Backfill signals with hysteresis: only BUY in BLUE zone, only SELL in ORANGE zone
+
         nbMarkers = [];
+
         window.lastNbSignals = [];
+
         const rArr = outWave.map((w, i)=>{
+
           const mx = outMax[Math.min(i, outMax.length-1)].value;
+
           const mn = outMin[Math.min(i, outMin.length-1)].value;
+
           const hi = Math.max(mx, mn);
+
           const lo = Math.min(mx, mn);
+
           const denom = (hi - lo);
+
           const rRaw = denom !== 0 ? (w.value - lo) / denom : 0.5;
+
           return clamp(rRaw, 0, 1);
+
         });
+
         const HIGH = 0.55, LOW = 0.45; // hysteresis to avoid chattering
+
         let zone = null; // 'BLUE'|'ORANGE'
+
         let lastReady = 0; // readiness percentage
+
         for (let i=0;i<outWave.length;i++){
+
           const r = rArr[i] ?? 0.5;
+
           const tm = outWave[i].time;
+
           // EMA filter: require EMA fast>slow for BUY, < for SELL
+
           let emaOkBuy = true, emaOkSell = true;
+
           if (emaFilterEl && emaFilterEl.checked){
+
             const data = candle.data();
+
             if (data && data.length>i){
+
               const closes = data.slice(0, i+1).map(d=>d.close);
+
               const ef = Number(emaFastEl?.value||10); const es = Number(emaSlowEl?.value||30);
+
               const emaFastArr = ema(closes, ef); const emaSlowArr = ema(closes, es);
+
               const efv = emaFastArr[emaFastArr.length-1]; const esv = emaSlowArr[emaSlowArr.length-1];
+
               emaOkBuy = (efv >= esv); emaOkSell = (efv <= esv);
+
             }
+
           }
+
           // decide zone using hysteresis
+
           if (zone === null){ zone = (r >= 0.5) ? 'ORANGE' : 'BLUE'; }
+
           if (zone === 'BLUE' && r >= HIGH && emaOkSell){
+
             zone = 'ORANGE';
+
             pushNBSignal(tm, 'SELL');
+
             try{ window.lastNbSignals.push({ time: tm, side: 'SELL' }); }catch(_){ }
+
             uiLog('SELL signal', `zone switch: BLUE→ORANGE, r=${r.toFixed(3)} (switched to top-dominant zone)`);
+
           } else if (zone === 'ORANGE' && r <= LOW && emaOkBuy){
+
             zone = 'BLUE';
+
             pushNBSignal(tm, 'BUY');
+
             try{ window.lastNbSignals.push({ time: tm, side: 'BUY' }); }catch(_){ }
+
             uiLog('BUY signal', `zone switch: ORANGE→BLUE, r=${r.toFixed(3)} (switched to bottom-dominant zone)`);
+
           }
+
           // readiness (simple): distance to threshold within current zone
+
           if (zone==='BLUE'){
+
             const d = Math.max(0, Math.min(1, (HIGH - r) / Math.max(1e-6, HIGH-LOW)));
+
             lastReady = Math.round((1-d)*100);
+
           }else{
+
             const d = Math.max(0, Math.min(1, (r - LOW) / Math.max(1e-6, HIGH-LOW)));
+
             lastReady = Math.round((d)*100);
+
           }
+
         }
+
         // Create zone arrays from N/B calculation
+
         const orangeZones = [];
+
         const blueZones = [];
+
         const data = candle.data(); // Get candle data
+
         
+
         for (let i = 0; i < outWave.length; i++) {
+
           const r = rArr[i] ?? 0.5;
+
           const tm = outWave[i].time;
+
           
+
           // EMA filter: require EMA fast>slow for BUY, < for SELL
+
           let emaOkBuy = true, emaOkSell = true;
+
           if (emaFilterEl && emaFilterEl.checked) {
+
             if (data && data.length > i) {
+
               const closes = data.slice(0, i + 1).map(d => d.close);
+
               const ef = Number(emaFastEl?.value || 10); const es = Number(emaSlowEl?.value || 30);
+
               const emaFastArr = ema(closes, ef); const emaSlowArr = ema(closes, es);
+
               const efv = emaFastArr[emaFastArr.length - 1]; const esv = emaSlowArr[emaSlowArr.length - 1];
+
               emaOkBuy = (efv >= esv); emaOkSell = (efv <= esv);
+
             }
+
           }
+
           
+
           // decide zone using hysteresis for each point independently
+
           let currentZone = (r >= 0.5) ? 'ORANGE' : 'BLUE';
+
           if (currentZone === 'BLUE' && r >= HIGH && emaOkSell) {
+
             currentZone = 'ORANGE';
+
           } else if (currentZone === 'ORANGE' && r <= LOW && emaOkBuy) {
+
             currentZone = 'BLUE';
+
           }
+
           
+
           // Debug logging for zone determination
+
           if (i < 5) { // Log first 5 zones for debugging
+
             console.log(`Zone ${i}: r=${r.toFixed(3)}, zone=${currentZone}, emaOkBuy=${emaOkBuy}, emaOkSell=${emaOkSell}`);
+
           }
+
           
+
           // Create zone data with full candle information
+
           const candleData = data.find(c => c.time === tm);
+
           if (candleData) {
+
             const zoneData = {
+
               time: tm,
+
               open: candleData.open,
+
               high: candleData.high,
+
               low: candleData.low,
+
               close: candleData.close,
+
               zone: currentZone
+
             };
+
             
+
             if (currentZone === 'ORANGE') {
+
               orangeZones.push(zoneData);
+
             } else {
+
               blueZones.push(zoneData);
+
             }
+
           }
+
         }
+
         
+
         // Store zone arrays globally for access by other functions
+
         window.orangeZoneArray = orangeZones;
+
         window.blueZoneArray = blueZones;
+
         
+
         // Create color array with actual color values from nbWaveSeries
+
         const nbWaveColorArray = outWave.map((wave, i) => {
+
           const r = rArr[i] ?? 0.5;
+
           const isOrange = r >= 0.5;
+
           
+
                             return {
+
                     time: wave.time,
+
                     value: wave.value,
+
                     color: isOrange ? 'rgba(255,183,3,0.70)' : 'rgba(0,209,255,0.70)', // 더 진한 색상 값
+
                     zone: isOrange ? 'ORANGE' : 'BLUE'
+
                   };
+
         });
+
         
+
         // Store color array globally
+
         window.nbWaveColorArray = nbWaveColorArray;
+
         
+
         // Force update of chart wave data for immediate access
+
         if (nbWaveSeries && nbWaveSeries.data) {
+
           // Ensure the wave data is immediately available
+
           setTimeout(() => {
+
             console.log('=== updateNB: 웨이브 데이터 강제 업데이트 ===');
+
             console.log('  - outWave 길이:', outWave.length);
+
             console.log('  - nbWaveColorArray 길이:', nbWaveColorArray.length);
+
             console.log('  - nbWaveSeries.data 길이:', nbWaveSeries.data().length);
+
             
+
             // 샘플 데이터 확인
+
             if (outWave.length > 0) {
+
               console.log('  - 첫 번째 웨이브:', outWave[0]);
+
               console.log('  - 첫 번째 색상 데이터:', nbWaveColorArray[0]);
+
             }
+
           }, 100);
+
         }
+
         
+
         // Log zone statistics
+
         console.log(`updateNB Zone Arrays Created - ORANGE: ${orangeZones.length} zones, BLUE: ${blueZones.length} zones`);
+
         console.log(`updateNB Color Array Created - ${nbWaveColorArray.length} color entries`);
+
         console.log('Debug - orangeZones array type:', Array.isArray(orangeZones));
+
         console.log('Debug - blueZones array type:', Array.isArray(blueZones));
+
         console.log('Debug - nbWaveColorArray type:', Array.isArray(nbWaveColorArray));
+
         console.log('Debug - orangeZones sample:', orangeZones.slice(0, 2));
+
         console.log('Debug - blueZones sample:', blueZones.slice(0, 2));
+
         console.log('Debug - nbWaveColorArray sample:', nbWaveColorArray.slice(0, 2));
+
         
+
         // Get zone directly from chart's N/B line data
+
         const zoneFromChartLine = getZoneFromChartLine();
+
         
+
         // expose latest chart-derived zone for other UI (e.g., Win buttons)
+
         try{ window.zoneNow = zoneFromChartLine; }catch(_){ }
+
         
+
         // Log the zone determination for debugging
+
         console.log(`updateNB: Chart line zone determined as ${zoneFromChartLine}`);
+
         
+
         // Update title with current zone
+
         updateTitleWithZone();
+
         
+
         // reflect readiness gauge
+
         try{
+
           if (autoGaugeBar){ autoGaugeBar.style.width = `${Math.max(0, Math.min(100, lastReady))}%`; }
+
           if (autoGaugeText){ autoGaugeText.textContent = `${Math.max(0, Math.min(100, lastReady))}%`; autoGaugeText.className = 'badge ' + (lastReady>=99? 'bg-success': 'bg-secondary'); }
+
         }catch(_){ }
+
         // update live PnL display
+
         if (sEntry) sEntry.textContent = liveEntry? liveEntry.toLocaleString(): '-';
+
         if (sPnl) sPnl.textContent = livePnl.toLocaleString();
+
         
+
         // Add N/B 라인 이름 마커 (처음, 중간, 끝) 및 연결선
+
         if (outWave.length > 0) {
+
           const firstWave = outWave[0];
+
           const lastWave = outWave[outWave.length - 1];
+
           
+
           // 구역이 바뀌는 지점 찾기 (먼저 계산)
+
           let zoneChangeIndex = -1;
+
           const baseValue = window.nbWaveSeries?.options()?.baseValue?.price || 0;
+
           
+
           for (let i = 1; i < outWave.length; i++) {
+
             const prevZone = outWave[i-1].value >= baseValue ? 'ORANGE' : 'BLUE';
+
             const currZone = outWave[i].value >= baseValue ? 'ORANGE' : 'BLUE';
+
             
+
             if (prevZone !== currZone) {
+
               zoneChangeIndex = i;
+
               break;
+
             }
+
           }
+
           
+
           // 구역이 바뀌는 지점이 없으면 끝까지, 있으면 그 지점까지만
+
           const endIndex = zoneChangeIndex > 0 ? zoneChangeIndex : outWave.length - 1;
+
           const zoneChangeWave = outWave[endIndex];
+
           
+
           // N/B 마커 표시 (처음, 구역변경지점, 마지막)
+
           const nbMarkers = [
+
             {
+
               time: firstWave.time,
+
               position: 'aboveBar',
+
               color: '#ffffff',
+
               shape: 'circle',
+
               text: 'N/B',
+
               size: 1
+
             }
+
           ];
+
           
+
           // 구역이 바뀌는 지점에 N/B 마커 추가
+
           if (zoneChangeIndex > 0) {
+
             nbMarkers.push({
+
               time: zoneChangeWave.time,
+
               position: 'aboveBar',
+
               color: '#ffff00', // 노란색으로 구역 변경 지점 표시
+
               shape: 'circle',
+
               text: 'N/B',
+
               size: 1
+
             });
+
           }
+
           
+
           // 마지막 지점에 N/B 마커 추가
+
           nbMarkers.push({
+
             time: lastWave.time,
+
             position: 'aboveBar',
+
             color: '#ffffff',
+
             shape: 'circle',
+
             text: 'N/B',
+
             size: 1
+
           });
+
           nbWaveSeries.setMarkers(nbMarkers);
+
           
+
           // 연결선 데이터 생성 (처음→구역변경지점)
+
           const connectionLines = [
+
             { time: firstWave.time, value: firstWave.value },
+
             { time: zoneChangeWave.time, value: zoneChangeWave.value }
+
           ];
+
           
+
           const isUp = zoneChangeWave.value > firstWave.value;
+
           
+
           // 연결선 색상 설정
+
           if (isUp) {
+
             // 상승선 (녹색)
+
             nbMarkerLineSeries.applyOptions({ color: '#00ff00' });
+
           } else {
+
             // 하락선 (빨간색)
+
             nbMarkerLineSeries.applyOptions({ color: '#ff0000' });
+
           }
+
           
+
           // 연결선 데이터 설정
+
           nbMarkerLineSeries.setData(connectionLines);
+
           
+
           // 기존 두 번째 라인 시리즈 제거
+
           if (window.nbMarkerLineSeries2) {
+
             window.nbMarkerLineSeries2.setData([]);
+
           }
+
           
+
           console.log('N/B 연결선 생성:', {
+
             '처음→구역변경지점': { 
+
               direction: isUp ? 'UP' : 'DOWN',
+
               color: isUp ? '녹색' : '빨간색',
+
               values: [firstWave.value, zoneChangeWave.value],
+
               zoneChangeIndex: zoneChangeIndex,
+
               endIndex: endIndex
+
             }
+
           });
+
           
+
           // 차트에 N/B 라인 레이블 추가
+
           try {
+
             const chartContainer = document.querySelector('.chart-container') || 
+
                                   document.querySelector('#chart') || 
+
                                   document.querySelector('.tv-chart-container');
+
             if (chartContainer) {
+
               // 기존 N/B 라벨 제거
+
               const existingLabel = chartContainer.querySelector('.nb-line-label');
+
               if (existingLabel) {
+
                 existingLabel.remove();
+
               }
+
               
+
               // 새로운 N/B 라벨 추가
+
               const nbLabel = document.createElement('div');
+
               nbLabel.className = 'nb-line-label';
+
               nbLabel.textContent = 'N/B 라인';
+
               nbLabel.style.cssText = `
+
                 position: absolute;
+
                 top: 10px;
+
                 right: 10px;
+
                 background: rgba(0,0,0,0.7);
+
                 color: white;
+
                 padding: 4px 8px;
+
                 border-radius: 4px;
+
                 font-size: 12px;
+
                 font-weight: bold;
+
                 z-index: 1000;
+
                 pointer-events: none;
+
               `;
+
               chartContainer.appendChild(nbLabel);
+
             }
+
           } catch (e) {
+
             console.log('N/B 라인 레이블 추가 오류:', e.message);
+
           }
+
         } else {
+
           nbWaveSeries.setMarkers([]);
+
           // 연결선도 제거
+
           if (nbMarkerLineSeries) nbMarkerLineSeries.setData([]);
+
           if (window.nbMarkerLineSeries2) window.nbMarkerLineSeries2.setData([]);
+
         }
+
         nbMaxSeries.setMarkers([]);
+
         nbMinSeries.setMarkers([]);
+
       }
+
       nbMaxOutline.setData(outMax);
+
       nbMinOutline.setData(outMin);
+
       if (outMax.length){ if (sNbMax) sNbMax.textContent = Number(outMax[outMax.length-1].value).toLocaleString(); }
+
       if (outMin.length){ if (sNbMin) sNbMin.textContent = Number(outMin[outMin.length-1].value).toLocaleString(); }
+
       if (sNbState && outMax.length && outMin.length){
+
         const mx = outMax[outMax.length-1].value;
+
         const mn = outMin[outMin.length-1].value;
+
         const hi = Math.max(mx, mn);
+
         const lo = Math.min(mx, mn);
+
         const crossed = mn > mx;
+
         sNbState.textContent = crossed
+
           ? `Zone crossover (Min>Max): Hi ${hi.toLocaleString()} / Lo ${lo.toLocaleString()}`
+
           : `Hi/Lo: ${hi.toLocaleString()} / ${lo.toLocaleString()}`;
+
         sNbState.className = crossed ? 'badge bg-info' : 'badge bg-secondary';
+
       }
+
       // labeled price lines disabled in wave-only mode
+
       
+
+
 
     }catch(e){ /* ignore */ }
+
   }
+
+
 
   // -------- Forecast (gray dashed) ---------
+
   const forecastSeries = chart.addLineSeries({ color:'rgba(200,200,200,0.95)', lineStyle: 2, lineWidth: 3 });
+
   // Predicted path series
+
   const predSeries = chart.addLineSeries({ color:'#ffffff', lineStyle: 0, lineWidth: 2 });
+
   const predMarkerSeries = chart.addLineSeries({ color:'rgba(0,0,0,0)', lineWidth: 0, priceLineVisible:false });
+
   function updateForecast(){
+
     try{
+
       if (!fcToggleEl || !fcToggleEl.checked){ forecastSeries.setData([]); return; }
+
       const w = parseInt((fcWindowEl && fcWindowEl.value) || '120', 10);
+
       const h = parseInt((fcHorizonEl && fcHorizonEl.value) || '30', 10);
+
       const data = candle.data(); if (!data || data.length < w+2){ forecastSeries.setData([]); return; }
+
       const win = data.slice(-w);
+
       const xs = win.map((_,i)=>i);
+
       const ys = win.map(p=>p.close ?? p.value ?? p.open ?? p.high ?? p.low);
+
       // Quadratic regression y = a2*x^2 + a1*x + a0 (captures curvature)
+
       const n = xs.length;
+
       let s1=0,s2=0,s3=0,s4=0, sy=0, sxy=0, sx2y=0;
+
       for (let i=0;i<n;i++){
+
         const x=xs[i]; const x2=x*x; const x3=x2*x; const x4=x2*x2; const y=ys[i];
+
         s1 += x; s2 += x2; s3 += x3; s4 += x4; sy += y; sxy += x*y; sx2y += x2*y;
+
       }
+
       // Solve normal equations
+
       // | n   s1   s2 | |a0|   | sy  |
+
       // | s1  s2   s3 |*|a1| = | sxy |
+
       // | s2  s3   s4 | |a2|   | sx2y|
+
       function det3(a,b,c,d,e,f,g,h,i){ return a*(e*i-f*h) - b*(d*i-f*g) + c*(d*h-e*g); }
+
       const D  = det3(n, s1, s2,  s1, s2, s3,  s2, s3, s4) || 1;
+
       const D0 = det3(sy, s1, s2,  sxy, s2, s3,  sx2y, s3, s4);
+
       const D1 = det3(n, sy, s2,  s1, sxy, s3,  s2, sx2y, s4);
+
       const D2 = det3(n, s1, sy,  s1, s2, sxy,  s2, s3, sx2y);
+
       const a0 = D0/D, a1 = D1/D, a2 = D2/D;
+
       const startT = win[0].time;
+
       const step = (win[win.length-1].time - startT) / (win.length-1 || 1);
+
       const proj = [];
+
       const lo = Math.min(...win.map(p=>p.low ?? p.value ?? p.close));
+
       const hi = Math.max(...win.map(p=>p.high ?? p.value ?? p.close));
+
       const span = Math.max(hi-lo, 1e-9);
+
       for (let i=0;i<w+h;i++){
+
         const t = startT + i*step;
+
         let v = a2*i*i + a1*i + a0;
+
         // clamp to reasonable band to avoid explosions
+
         const minV = lo - 0.25*span, maxV = hi + 0.25*span;
+
         if (v < minV) v = minV; if (v > maxV) v = maxV;
+
         proj.push({ time: Math.round(t), value: v });
+
       }
+
       forecastSeries.setData(proj);
+
     }catch(_){ forecastSeries.setData([]); }
+
   }
+
+
 
   async function drawPredictedPath(){
+
     try{
+
       const j = await fetchJsonStrict(`/api/ml/predict?interval=${encodeURIComponent(getInterval())}`).catch(() => null);
+
       if (!j || !j.ok) {
+
         // Always show narrative even if prediction not available
+
         predSeries.setData([]);
+
         try{
+
           const box = document.getElementById('nbNarrative');
+
           const badge = document.getElementById('nbNarrativeBadge');
+
           if (box){
+
             const zone = (typeof window!=='undefined' && window.zoneNow) ? String(window.zoneNow).toUpperCase() : '-';
+
             const line = `Current zone: ${zone}. Model prediction not available yet. Waiting for training/prediction...`;
+
             box.textContent = line;
+
             if (badge) { badge.textContent = zone; badge.className = 'badge bg-white text-dark'; }
+
           }
+
         }catch(_){ }
+
         return;
+
       }
+
       const steep = j.steep || {};
+
       const ins = j.insight || {};
+
       const data = candle.data(); if (!data || data.length < 5){ predSeries.setData([]); return; }
+
       const last = data[data.length-1];
+
       const times = data.map(d=>d.time);
+
       const closeNow = last.close ?? last.value;
+
       const interval = j.interval || getInterval();
+
       const curIv = getInterval();
+
       const sameIv = (String(interval) === String(curIv));
+
       const horizon = Math.max(1, Number(j.horizon||5));
+
       if (!sameIv){
+
         // Do not render ML artifacts if prediction is for a different timeframe
+
         predSeries.setData([]);
+
         predMarkerSeries.setData([]);
+
         return;
+
       }
+
       const bpPerBar = (ins.zone==='BLUE' ? steep.blue_up_slope : steep.orange_down_slope);
+
       let v = closeNow;
+
       if (bpPerBar==null){
+
         // No slope yet → keep path empty but still update narrative below
+
         predSeries.setData([]);
+
       } else {
+
         // bp/bar → fractional slope per bar
+
         const k = Number(bpPerBar)/10000.0;
+
         const dt = (times[times.length-1] - times[times.length-2]) || 60; // seconds
+
         const step = dt; // seconds per bar
+
         const proj = [{ time: last.time, value: closeNow }];
+
         for (let i=1;i<=horizon;i++){
+
           v = v * (1 + k); // geometric per bar
+
           proj.push({ time: last.time + i*step, value: v });
+
         }
+
         predSeries.setData(proj);
+
       }
+
       // All markers disabled to prevent transparent bars
+
       candle.setMarkers([]);
+
       // English narrative using current NB/zone and predicted path
+
       try{
+
         const box = document.getElementById('nbNarrative');
+
         const badge = document.getElementById('nbNarrativeBadge');
+
         if (box){
+
           const zone = (j.insight?.zone||'-').toUpperCase();
+
           const slope = (j.steep && (j.steep.blue_up_slope!=null ? j.steep.blue_up_slope : j.steep.orange_down_slope));
+
           const slopeBp = (slope!=null) ? (slope*10000).toFixed(2) : '-';
+
           const nb = j.pred_nb || null;
+
           const nbTxt = (nb && nb.side) ? `${nb.side} in ~${nb.bars} bars` : 'no flip expected soon';
+
           const line = `Current zone: ${zone}. Model projects a ${slope!=null ? (zone==='ORANGE'?'down':'up') : 'flat'} slope of ${slopeBp} bp/bar. Expected NB flip: ${nbTxt}.`;
+
           box.textContent = line;
+
           if (badge) { badge.textContent = zone; badge.className = 'badge bg-white text-dark'; }
+
         }
+
       }catch(_){ }
+
       // Place one ML signal per zone segment at its extreme if certain, and persist to server
+
       try{
+
         const zone = String(ins.zone||'-').toUpperCase();
+
         if (mlSegPrevZone !== zone){ mlSegPrevZone = zone; mlSegPlaced = false; }
+
         const barSec = (times[times.length-1] - times[times.length-2]) || 60; // seconds per bar
+
         const age = Number(ins.zone_extreme_age||0);
+
         const extremeTime = last.time - Math.max(0, age)*barSec;
+
         const extremePrice = (ins.zone_extreme_price!=null) ? Number(ins.zone_extreme_price) : closeNow;
+
         const pb = Number(ins.pct_blue||ins.pct_blue_raw||0);
+
         const po = Number(ins.pct_orange||ins.pct_orange_raw||0);
+
         const pctMajor = Math.max(pb, po);
+
         const slope = (j.steep && (j.steep.blue_up_slope!=null ? j.steep.blue_up_slope : j.steep.orange_down_slope));
+
         const slopeBp = (slope!=null) ? (slope*10000) : 0;
+
         const predOk = !!(j.pred_nb && j.pred_nb.ts);
+
         const confTh = 99.95, minBp = 1.0, minAge = 3;
+
         const gated = (pctMajor >= confTh) && (Math.abs(slopeBp) >= minBp) && predOk && (age >= minAge);
+
         const extreme = (zone==='ORANGE') ? 'TOP' : (zone==='BLUE' ? 'BOTTOM' : '-');
+
         const sideBuy = (zone==='BLUE');
+
         const key = `${interval}|${zone}|${extreme}|${Math.floor(extremeTime)}`;
+
         if (sameIv && zone!=='-' && extreme!=='-' && gated && !mlSegPlaced && !mlSignalKeys.has(key)){
+
           // All markers disabled to prevent transparent bars
+
           candle.setMarkers([]);
+
           mlSegPlaced = true;
+
           mlSignalKeys.add(key);
+
           const body = { ts: Math.floor(extremeTime*1000), zone, extreme, price: extremePrice, pct_major: pctMajor, slope_bp: slopeBp, horizon, pred_nb: j.pred_nb||null, interval, score0: Number(j.score0||0) };
+
           postJson('/api/signal/log', body).catch(()=>{});
+
         }
+
       }catch(_){ }
+
     }catch(_){ predSeries.setData([]); }
+
   }
+
+
 
   function ema(values, period){
+
     if (!values.length) return [];
+
     const k = 2/(period+1); const out=[]; let prev = values[0];
+
     for (let i=0;i<values.length;i++){ const v=(i? values[i]*k + prev*(1-k) : values[0]); out.push(v); prev=v; }
+
     return out;
+
   }
+
   const msToSec = (ms)=> Math.floor(ms/1000);
+
   function bucketTs(tsMs, interval){
+
     if (interval.startsWith('minute')){ const m = parseInt(interval.replace('minute',''),10)||1; return Math.floor(tsMs/(m*60*1000))*(m*60*1000); }
+
     if (interval==='minute60'){ return Math.floor(tsMs/(60*60*1000))*(60*60*1000); }
+
     if (interval==='day'){ const d=new Date(tsMs); d.setHours(0,0,0,0); return d.getTime(); }
+
     return tsMs;
+
   }
+
   async function retrainLatest(){
+
     try{
+
       // Use current UI options to retrain briefly with recent data
+
       const interval = getInterval();
+
       const window = parseInt((nbWindowEl && nbWindowEl.value) || '50', 10);
+
       const ema_fast = parseInt((emaFastEl && emaFastEl.value) || '10', 10);
+
       const ema_slow = parseInt((emaSlowEl && emaSlowEl.value) || '30', 10);
+
       const payload = { window, ema_fast, ema_slow, horizon: 5, tau: 0.002, count: Math.max(600, window*12), interval };
+
       const t = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
       const pred = await fetchJsonStrict('/api/ml/predict').catch(() => null);
+
       if (mlCountEl && t && t.ok) mlCountEl.textContent = `(train# ${t.train_count||0})`;
+
       if (pred && pred.ok){ uiLog('ML Auto predict', `action=${pred.action}, pred=${pred.pred}`); }
+
     }catch(_){ }
+
   }
+
+
 
   // All markers disabled to prevent transparent bars
+
   let baseMarkers = [];
+
   let nbMarkers = [];
+
   // ML segment state and logged keys to avoid duplicate markers per segment
+
   let mlSegPrevZone = null;
+
   let mlSegPlaced = false;
+
   let mlSignalKeys = new Set();
 
+
+
   // Helper: show order markers only if there is an ML signal near the order time on this timeframe
+
   function hasMlSignalNear(orderTimeSec, interval){
+
     try{
+
       const curIv = interval || getInterval();
+
       const data = candle.data();
+
       if (!data || data.length < 2) return false;
+
       const barSec = (data[data.length-1].time - data[data.length-2].time) || 60;
+
       const maxDelta = barSec * 2; // within ±2 bars
+
       // baseMarkers contains both ML signal markers (text starts with 'ML') and order markers
+
       for (const m of baseMarkers){
+
         try{
+
           if (!m || !m.text) continue;
+
           if (String(m.text).startsWith('ML')){
+
             if (Math.abs(Number(m.time) - Number(orderTimeSec)) <= maxDelta) return true;
+
           }
+
         }catch(_){ }
+
       }
+
       return false;
+
     }catch(_){ return false; }
+
   }
+
   // NB wave based lightweight signals on the UI
+
   let nbPosition = 'FLAT';
+
   let nbPeakRatio = 0; // highest ratio seen while LONG
+
   const NB_UP_TH = 0.7; // buy threshold
+
   const NB_DN_TH = 0.3; // sell floor
+
   function pushNBSignal(timeSec, side){
+
     // All markers disabled to prevent transparent bars
+
     return;
+
   }
+
   function pushOrderMarker(o, interval){
+
     if (!o||!o.ts) return;
+
     const sideStr = String(o.side||'').toUpperCase();
+
     const key = `${Number(o.ts)||0}|${sideStr}|${Math.round(Number(o.price||0))}|${o.paper?1:0}`;
+
     if (orderKeys.has(key)){
+
       return;
+
     }
+
     orderKeys.add(key);
+
     if (orderKeys.size>2000){
+
       // prune oldest by reconstructing from current log length
+
       try{ orderKeys = new Set(Array.from(orderKeys).slice(-1500)); }catch(_){ }
+
     }
+
     const curIv = getInterval();
+
     const orderIv = String(o.interval||'');
+
     // Show orders only when they belong to current chart interval
+
     if (orderIv && String(orderIv) !== String(curIv)) return;
+
     const sec = msToSec(bucketTs(Number(o.ts), curIv));
+
     // Skip if there is no ML signal near this order time
+
     if (!hasMlSignalNear(sec, curIv)) return;
+
     const isBuy = sideStr==='BUY';
+
     // All markers disabled to prevent transparent bars
+
     candle.setMarkers([]);
+
     // Append to bottom order log
+
     try{
+
       if (orderLog){
+
         const ts = new Date(Number(o.ts)).toLocaleString();
+
         let line = `[${ts}] ${isBuy? 'BUY':'SELL'} @${Number(o.price||0).toLocaleString()} ${o.size? '('+Number(o.size).toFixed(6)+')':''} ${o.paper? '[PAPER]':''}`;
+
         // Append model insight snapshot if present
+
         try{
+
           const ins = o.insight || (typeof window!=='undefined' && window.lastInsight ? window.lastInsight : {});
+
           if (ins && (typeof ins === 'object')){
+
             const r = isFinite(ins.r)? Number(ins.r).toFixed(3) : '-';
+
             const zone = String(ins.zone||'-');
+
             const cb = isFinite(ins.pct_blue)? Number(ins.pct_blue).toFixed(1) : (isFinite(ins.pct_blue_raw)? Number(ins.pct_blue_raw).toFixed(1) : '-');
+
             const co = isFinite(ins.pct_orange)? Number(ins.pct_orange).toFixed(1) : (isFinite(ins.pct_orange_raw)? Number(ins.pct_orange_raw).toFixed(1) : '-');
+
             const minr = isFinite(ins.zone_min_r)? Number(ins.zone_min_r).toFixed(3) : '-';
+
             const maxr = isFinite(ins.zone_max_r)? Number(ins.zone_max_r).toFixed(3) : '-';
+
             const exr = isFinite(ins.zone_extreme_r)? Number(ins.zone_extreme_r).toFixed(3) : '-';
+
             const age = isFinite(ins.zone_extreme_age)? Number(ins.zone_extreme_age) : '-';
+
             line += ` | r=${r} | zone=${zone} | BLUE=${cb}% | ORANGE=${co}% | min_r=${minr} | max_r=${maxr} | ex_r=${exr} | age=${age}`;
+
           }
+
         }catch(_){ }
+
         // NB trade signal context
+
         try{
+
           const nbSig = String(o.nb_signal||'').toUpperCase();
+
           const nbWin = Number(o.nb_window||0);
+
           const nbR = (o.nb_r!=null) ? Number(o.nb_r).toFixed(3) : undefined;
+
           if (nbSig){ line += ` | NB=${nbSig}${nbWin? ' w='+nbWin:''}${(nbR!==undefined)? ' r='+nbR:''}`; }
+
         }catch(_){ }
+
         const div = document.createElement('div');
+
         // Only log when an actual order happened: in paper mode always, in live only if o.live_ok
+
         try{
+
           const liveOk = (!o.paper) ? !!o.live_ok : true;
+
           if (liveOk){ div.textContent = line; orderLog.prepend(div); }
+
         }catch(_){ div.textContent = line; orderLog.prepend(div); }
+
         // keep last 200
+
         while (orderLog.childElementCount>200){ orderLog.removeChild(orderLog.lastElementChild); }
+
       }
+
     }catch(_){ }
+
   }
+
+
 
   function seed(interval){
+
     fetch(`${base}/api/ohlcv?interval=${interval}&count=300`).then(r=>r.json()).then(res=>{
+
       const rows=res.data||[];
+
       const cs = rows.map(r=>({ time: msToSec(r.time), open:r.open, high:r.high, low:r.low, close:r.close }));
+
       candle.setData(cs);
+
       
+
       // Store the latest candle data for zone determination
+
       lastCandleData = rows.length > 0 ? rows[rows.length - 1] : null;
+
       console.log('Chart data updated:', lastCandleData ? `Open: ${lastCandleData.open}, Close: ${lastCandleData.close}` : 'No data');
+
       
+
       // Update zone indicator on chart
+
       setTimeout(() => updateZoneIndicator(), 100);
+
       const closes = rows.map(r=>r.close); const times = rows.map(r=>msToSec(r.time));
+
       const ef = Number(emaFastEl?.value||10), es = Number(emaSlowEl?.value||30);
+
       emaF.setData(ema(closes,ef).map((y,i)=>({ time: times[i], value:y })));
+
       emaS.setData(ema(closes,es).map((y,i)=>({ time: times[i], value:y })));
+
       // SMA
+
       function sma(arr, n){ const out=[]; let sum=0; for(let i=0;i<arr.length;i++){ sum+=arr[i]; if(i>=n) sum-=arr[i-n]; out.push(i>=n-1? sum/n : arr[i]); } return out; }
+
       const sma50 = sma(closes, Number(sma50El?.value||50)).map((v,i)=>({ time: times[i], value:v }));
+
       const sma100 = sma(closes, Number(sma100El?.value||100)).map((v,i)=>({ time: times[i], value:v }));
+
       const sma200 = sma(closes, Number(sma200El?.value||200)).map((v,i)=>({ time: times[i], value:v }));
+
       if (showSMAEl && showSMAEl.checked){ sma50Series.setData(sma50); sma100Series.setData(sma100); sma200Series.setData(sma200); }
+
       else { sma50Series.setData([]); sma100Series.setData([]); sma200Series.setData([]); }
+
       // EMA 9/12/26
+
       const e9 = ema(closes,9).map((v,i)=>({ time: times[i], value:v }));
+
       const e12 = ema(closes,12).map((v,i)=>({ time: times[i], value:v }));
+
       const e26 = ema(closes,26).map((v,i)=>({ time: times[i], value:v }));
+
       if (showEMA9El && showEMA9El.checked){ ema9Series.setData(e9); ema12Series.setData(e12); ema26Series.setData(e26); }
+
       else { ema9Series.setData([]); ema12Series.setData([]); ema26Series.setData([]); }
+
       // Ichimoku Tenkan/Kijun (simple high-low average)
+
       function highLowAvg(rowsArr, period){ const out=[]; for(let i=0;i<rowsArr.length;i++){ const start=Math.max(0,i-period+1); let hi=-Infinity, lo=Infinity; for(let j=start;j<=i;j++){ hi=Math.max(hi, rowsArr[j].high); lo=Math.min(lo, rowsArr[j].low); } out.push((hi+lo)/2); } return out; }
+
       try {
+
         const tenkanN = Number(ichiTenkanEl?.value||9), kijunN = Number(ichiKijunEl?.value||26);
+
         const tenkan = highLowAvg(rows, tenkanN).map((v,i)=>({ time: times[i], value:v }));
+
         const kijun = highLowAvg(rows, kijunN).map((v,i)=>({ time: times[i], value:v }));
+
         if (showIchimokuEl && showIchimokuEl.checked){ ichiTenkanSeries.setData(tenkan); ichiKijunSeries.setData(kijun); }
+
         else { ichiTenkanSeries.setData([]); ichiKijunSeries.setData([]); }
+
       } catch(_){ ichiTenkanSeries.setData([]); ichiKijunSeries.setData([]); }
+
       updateNB();
+
       updateForecast();
+
     }).then(()=>{
+
       // load existing orders; show only when order interval matches current chart interval
+
       const curIv = getInterval();
+
       return fetch(`${base}/api/orders`).then(r=>r.json()).then(or=>{
+
         markers=[]; (or.data||[]).forEach(o=>{
+
           try{
+
             const ok = !o.interval || String(o.interval)===String(curIv);
+
             if (ok) pushOrderMarker(o, interval);
+
           }catch(_){ pushOrderMarker(o, interval); }
+
         });
+
       });
+
     }).catch(()=>{});
+
   }
+
+
 
   // Restore saved options
+
   (function restore(){
+
     const o = readOpts();
+
     if (tfEl && o.timeframe) tfEl.value = o.timeframe;
+
     if (paperEl && typeof o.paper !== 'undefined') paperEl.value = String(o.paper);
+
     if (orderEl && o.order_krw) orderEl.value = o.order_krw;
+
     if (emaFastEl && o.ema_fast) emaFastEl.value = o.ema_fast;
+
     if (emaSlowEl && o.ema_slow) emaSlowEl.value = o.ema_slow;
+
     if (nbWindowEl && o.nb_window) nbWindowEl.value = o.nb_window;
+
     if (nbToggleEl && typeof o.nb_show !== 'undefined') nbToggleEl.checked = !!o.nb_show;
+
     if (nbBuyThEl && o.nb_buy_th) nbBuyThEl.value = o.nb_buy_th;
+
     if (nbSellThEl && o.nb_sell_th) nbSellThEl.value = o.nb_sell_th;
+
     if (nbDebounceEl && o.nb_debounce) nbDebounceEl.value = o.nb_debounce;
+
     if (emaFilterEl && typeof o.ema_filter !== 'undefined') emaFilterEl.checked = !!o.ema_filter;
+
     if (nbFromEmaEl && typeof o.nb_from_ema !== 'undefined') nbFromEmaEl.checked = !!o.nb_from_ema;
+
     if (nbEmaPeriodEl && o.nb_ema_period) nbEmaPeriodEl.value = o.nb_ema_period;
+
     if (typeof fcWindowEl !== 'undefined' && fcWindowEl && o.fc_window) fcWindowEl.value = o.fc_window;
+
     if (typeof fcHorizonEl !== 'undefined' && fcHorizonEl && o.fc_horizon) fcHorizonEl.value = o.fc_horizon;
+
     if (typeof fcToggleEl !== 'undefined' && fcToggleEl && typeof o.fc_show !== 'undefined') fcToggleEl.checked = !!o.fc_show;
+
     // ordersToggle removed
+
     if (typeof autoBtToggle !== 'undefined' && autoBtToggle && typeof o.auto_bt !== 'undefined') autoBtToggle.checked = !!o.auto_bt;
+
     if (typeof autoBtSecEl !== 'undefined' && autoBtSecEl && o.auto_bt_sec) autoBtSecEl.value = o.auto_bt_sec;
+
     if (showSMAEl && typeof o.show_sma !== 'undefined') showSMAEl.checked = !!o.show_sma;
+
     if (sma50El && o.sma50) sma50El.value = o.sma50;
+
     if (sma100El && o.sma100) sma100El.value = o.sma100;
+
     if (sma200El && o.sma200) sma200El.value = o.sma200;
+
     if (showEMA9El && typeof o.show_ema9 !== 'undefined') showEMA9El.checked = !!o.show_ema9;
+
     if (showIchimokuEl && typeof o.show_ichimoku !== 'undefined') showIchimokuEl.checked = !!o.show_ichimoku;
+
     if (ichiTenkanEl && o.ichi_tenkan) ichiTenkanEl.value = o.ichi_tenkan;
+
     if (ichiKijunEl && o.ichi_kijun) ichiKijunEl.value = o.ichi_kijun;
+
     if (typeof trainCountEl !== 'undefined' && trainCountEl && o.train_count) trainCountEl.value = o.train_count;
+
     if (typeof trainSegEl !== 'undefined' && trainSegEl && o.train_seg) trainSegEl.value = o.train_seg;
+
     // extras
+
     try{
+
       const enforceZoneSideEl = document.getElementById('enforceZoneSide');
+
       if (enforceZoneSideEl && typeof o.enforce_zone_side !== 'undefined') enforceZoneSideEl.checked = !!o.enforce_zone_side;
+
       const optAutoSaveEl = document.getElementById('optAutoSave');
+
       if (optAutoSaveEl && typeof o.opt_auto_save !== 'undefined') optAutoSaveEl.checked = !!o.opt_auto_save;
+
     }catch(_){ }
+
     // push restored config to server and persist again
+
     pushConfig().catch(()=>{});
+
     // fetch persisted NB params from server and apply
+
     fetch('/api/nb/params').then(r=>r.json()).then(j=>{
+
       if (j && j.ok && j.params){
+
         if (nbBuyThEl && j.params.buy) nbBuyThEl.value = String(j.params.buy);
+
         if (nbSellThEl && j.params.sell) nbSellThEl.value = String(j.params.sell);
+
         if (nbWindowEl && j.params.window) nbWindowEl.value = String(j.params.window);
+
         updateNB();
+
       }
+
     }).catch(()=>{});
+
     // re-arm auto BT if enabled
+
     // Do not auto-start anything here
+
   })();
 
+
+
   seed(getInterval());
+
   
+
   // Initial title update after data load
+
   setTimeout(() => {
+
     updateTitleWithZone();
+
     refreshNbZoneStrip(); // Initial N/B Zone strip update (분봉 표시 포함)
+
   }, 1000);
+
   
+
   // periodic prediction path and chart data refresh
+
   setInterval(()=>{ 
+
     drawPredictedPath(); 
+
     seed(getInterval()); // Refresh chart data for zone determination
+
     // Only update zone indicator if needed (not every 3 seconds)
+
     setTimeout(() => {
+
       updateZoneIndicator(); // Update zone indicator after data refresh
+
       updateNBLineWithText(); // Update N/B line with text
+
       updateTitleWithZone(); // Update title with current zone
+
       refreshNbZoneStrip(); // Update N/B Zone strip
+
     }, 500);
+
   }, 3000);
+
   if (tfEl) tfEl.addEventListener('change', ()=>{
+
     // Clear ML/NB markers and segment state when timeframe changes so signals only show on the selected timeframe
+
     try{
+
       baseMarkers = [];
+
       nbMarkers = [];
+
       mlSignalKeys = new Set();
+
       mlSegPrevZone = null;
+
       mlSegPlaced = false;
+
         candle.setMarkers([]); // Keep markers cleared
+
       predMarkerSeries.setData([]);
+
       predSeries.setData([]);
+
     }catch(_){ }
+
     seed(getInterval());
+
     // Reset interval zone when timeframe changes
+
     currentIntervalZone = null;
+
     lastIntervalTime = null;
+
     nbZoneStartTime = null;
+
     nbZoneDuration = 0;
+
           // Update zone indicator after timeframe change
+
       setTimeout(() => {
+
         updateZoneIndicator();
+
         updateNBLineWithText();
+
         updateTitleWithZone();
+
         refreshNbZoneStrip(); // N/B Zone strip 업데이트 (분봉 표시 포함)
+
       }, 200);
+
     pushConfig();
+
   });
+
   if (nbWindowEl) nbWindowEl.addEventListener('change', ()=>{ updateNB(); updateForecast(); saveOpts(); });
+
   if (nbToggleEl) nbToggleEl.addEventListener('change', ()=>{ updateNB(); updateForecast(); saveOpts(); });
+
   if (nbBuyThEl) nbBuyThEl.addEventListener('change', saveOpts);
+
   if (nbSellThEl) nbSellThEl.addEventListener('change', saveOpts);
+
   if (nbDebounceEl) nbDebounceEl.addEventListener('change', saveOpts);
+
   if (emaFilterEl) emaFilterEl.addEventListener('change', ()=>{ saveOpts(); updateNB(); });
+
   if (nbFromEmaEl) nbFromEmaEl.addEventListener('change', ()=>{ saveOpts(); updateNB(); });
+
   if (nbEmaPeriodEl) nbEmaPeriodEl.addEventListener('change', ()=>{ saveOpts(); updateNB(); });
+
   if (typeof fcWindowEl !== 'undefined' && fcWindowEl) fcWindowEl.addEventListener('change', ()=>{ updateForecast(); saveOpts(); });
+
   if (typeof fcHorizonEl !== 'undefined' && fcHorizonEl) fcHorizonEl.addEventListener('change', ()=>{ updateForecast(); saveOpts(); });
+
   if (typeof fcToggleEl !== 'undefined' && fcToggleEl) fcToggleEl.addEventListener('change', ()=>{ updateForecast(); saveOpts(); });
+
   // ordersToggle removed
+
   if (autoBtSecEl) autoBtSecEl.addEventListener('change', saveOpts);
+
   try{
+
     const enforceZoneSideEl2 = document.getElementById('enforceZoneSide');
+
     const assetsAutoToggle2 = document.getElementById('assetsAuto');
+
     const optAutoSaveEl2 = document.getElementById('optAutoSave');
+
     if (enforceZoneSideEl2) enforceZoneSideEl2.addEventListener('change', ()=>{ saveOpts(); pushConfig(); });
+
     if (assetsAutoToggle2) assetsAutoToggle2.addEventListener('change', saveOpts);
+
     if (optAutoSaveEl2) optAutoSaveEl2.addEventListener('change', ()=>{ writeOpts({ opt_auto_save: !!optAutoSaveEl2.checked }); });
+
   }catch(_){ }
+
   if (showSMAEl) showSMAEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (sma50El) sma50El.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (sma100El) sma100El.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (sma200El) sma200El.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (showEMA9El) showEMA9El.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (showIchimokuEl) showIchimokuEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (ichiTenkanEl) ichiTenkanEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (ichiKijunEl) ichiKijunEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+
   if (trainCountEl) trainCountEl.addEventListener('change', saveOpts);
+
   if (trainSegEl) trainSegEl.addEventListener('change', saveOpts);
+
   window.addEventListener('beforeunload', saveOpts);
 
+
+
   // Bind config change handlers
+
   [paperEl, orderEl, emaFastEl, emaSlowEl].forEach(el=>{
+
     if (!el) return;
+
     el.addEventListener('change', ()=>{ pushConfig(); });
+
   });
+
+
 
   // Start/Stop bot
+
   if (startBtn) startBtn.addEventListener('click', async ()=>{
+
     await pushConfig();
+
     // Start bot only via explicit Auto Trade toggle; here we do nothing to avoid accidental starts
+
     uiLog('Hint', 'Use Auto Trade toggle to start the bot');
+
   });
+
   if (stopBtn) stopBtn.addEventListener('click', async ()=>{
+
     await postJson('/api/bot/stop', {});
+
     if (sBot) sBot.textContent = 'stopped';
+
   });
+
+
 
   try{
+
     const es = new EventSource(`/api/stream`);
+
     es.onmessage = (e)=>{
+
       try{
+
         const j = JSON.parse(e.data);
+
         // Update meta with zone information
+
         const meta = document.getElementById('meta'); 
+
         if (meta) {
+
           const currentZone = window.zoneNow || 'BLUE';
+
           const zoneEmoji = currentZone === 'ORANGE' ? '🟠' : '🔵';
+
           meta.textContent = `${j.market} ${j.candle} | ${j.signal} | EMA ${j.ema_fast}/${j.ema_slow} | ${zoneEmoji} ${currentZone}`;
+
         }
+
         if (sTicker) sTicker.textContent = j.market || '-';
+
         if (sPrice) sPrice.textContent = (j.price||0).toLocaleString();
+
         if (sSignal){ sSignal.textContent=j.signal; sSignal.className = (j.signal==='BUY'?'buy':'sell'); }
+
         const itv = getInterval(); const bMs = bucketTs(j.ts, itv); const bSec = msToSec(bMs);
+
         const data = candle.data(); const last = data[data.length-1];
+
         if (last && last.time === bSec){
+
           candle.update({ ...last, close:j.price, high:Math.max(last.high,j.price), low:Math.min(last.low,j.price) });
+
         } else {
+
           const prev = last ? last.close : j.price;
+
           candle.update({ time:bSec, open:prev, high:j.price, low:j.price, close:j.price });
+
         }
+
         const closes = candle.data().map(d=>d.close); const times = candle.data().map(d=>d.time);
+
         emaF.setData(ema(closes, j.ema_fast).map((y,i)=>({ time: times[i], value:y })));
+
         emaS.setData(ema(closes, j.ema_slow).map((y,i)=>({ time: times[i], value:y })));
+
         if (j.order){
+
           pushOrderMarker(j.order, itv);
+
           try{
+
             pushOrderLogLine(`[${new Date().toLocaleString()}] ${String(j.order.side||'').toUpperCase()} filled @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+
           }catch(_){ }
+
           try{
+
             const side = String(j.order.side||'').toUpperCase();
+
             const op = Number(j.order.price||0);
+
             if (side === 'BUY' && op>0){ liveLastBuyPrice = op; }
+
             else if (side === 'SELL' && op>0 && liveLastBuyPrice>0){
+
               const pnl = op - liveLastBuyPrice;
+
               const wr = pnl>0 ? 100 : 0;
+
               // Get current zone from ML insight
+
               const currentZone = (window.lastInsight && window.lastInsight.zone) || getCurrentZone();
+
               pushWinItem({ ts: Number(j.order.ts)||Date.now(), pnl, winRate: wr, interval: getInterval(), zone: currentZone });
+
               updateTopPnlSlider(pnl, wr);
+
               liveLastBuyPrice = 0;
+
             }
+
           }catch(_){ }
+
         }
+
         updateNB();
+
         // (removed) incremental retrain on bar. ML Auto uses random trainer on timer.
+
       }catch(_){ }
+
     };
+
     es.onerror = ()=>{
+
       try{ pushOrderLogLine(`[${new Date().toLocaleString()}] STREAM ERROR: connection lost`); }catch(_){ }
+
     };
+
   }catch(_){ }
+
   // ML Auto: automatic random training on interval (순차적 실행)
+
   let mlAutoRunning = false;
+
   let mlAutoIntervalIndex = 0; // 순차적 간격 인덱스 추가
+
   
+
   if (mlAutoToggle) mlAutoToggle.addEventListener('change', ()=>{
+
     try{ if (mlAutoTimer){ clearTimeout(mlAutoTimer); mlAutoTimer=null; } }catch(_){ }
+
     if (mlAutoToggle.checked){
+
       const run = async ()=>{
+
         if (mlAutoRunning) {
+
           uiLog('ML Auto 실행 중 - 이전 실행 완료 대기 중');
+
           return;
+
         }
+
         
+
         mlAutoRunning = true;
+
         const startTime = Date.now();
+
         
+
         // Sequential intervals for systematic learning (순차적 실행) - 함수 스코프 상단으로 이동
+
           const minsArr = [1,3,5,10,15,30,60];
+
         
+
         try{
+
           uiLog('ML Auto 학습 시작', `시작 시간: ${new Date().toLocaleTimeString()}`);
+
           
+
           const mins = minsArr[mlAutoIntervalIndex];
+
           const interval = mins===60 ? 'minute60' : `minute${mins}`;
+
           
+
           // 다음 실행을 위해 인덱스 증가 (순환)
+
           mlAutoIntervalIndex = (mlAutoIntervalIndex + 1) % minsArr.length;
+
           
+
           // Random N/B window for adaptive learning (3-100 range)
+
           const window = Math.floor(3 + Math.random()*98);
+
           const ema_fast = Math.floor(5 + Math.random()*20);
+
           const ema_slow = Math.max(ema_fast+5, Math.floor(20 + Math.random()*60));
+
           
+
           uiLog('ML Auto 파라미터 설정', `interval=${interval} (${mins}분봉), window=${window}, ema=${ema_fast}/${ema_slow}`);
+
           
+
           // 차트 간격 변경
+
           if (tfEl){ tfEl.value = interval; tfEl.dispatchEvent(new Event('change')); }
+
           if (emaFastEl){ emaFastEl.value = String(ema_fast); emaFastEl.dispatchEvent(new Event('change')); }
+
           if (emaSlowEl){ emaSlowEl.value = String(ema_slow); emaSlowEl.dispatchEvent(new Event('change')); }
+
           if (typeof nbWindowEl !== 'undefined' && nbWindowEl){ nbWindowEl.value = String(window); nbWindowEl.dispatchEvent(new Event('change')); }
+
           
+
           // 차트 간격 변경 후 설정된 sec만큼 대기 (차트 로딩 완료 대기)
+
           const chartWaitSec = parseInt(autoBtSecEl?.value||'5',10);
+
           uiLog('차트 간격 변경 후 대기 중...', `${interval} (${mins}분봉) 로딩 완료 대기 - ${chartWaitSec}초`);
+
           await sleep(chartWaitSec * 1000);
+
           
+
           // 차트 로딩 완료 확인
+
           uiLog('차트 로딩 완료 확인', `${interval} (${mins}분봉) 준비 완료`);
+
           
+
           await sleep(1000); // 추가 안정화 대기
-          
 
           
+
+
+
+          
+
           // ML 학습 실행
+
           uiLog('ML Auto 학습 실행 중...');
+
           const payload = { window, ema_fast, ema_slow, horizon: 5, tau: 0.002, count: 1200, interval };
+
           const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
           if (!(j && j.ok)) { 
+
             uiLog('ML Auto random train failed', JSON.stringify(j)); 
+
           } else {
+
             uiLog('ML Auto 학습 완료', `train# ${j.train_count||0}`);
+
           }
-          
-          // Rate Limit 방지를 위한 대기
-          await sleep(2000);
-          
-          // Ensure narrative renders even during training gaps
-          try{ await drawPredictedPath(); }catch(_){ }
-          if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
-          
-          // 백테스트 실행 (간격 조정)
-          uiLog('ML Auto 백테스트 실행 중...');
-          await backtestAfterReady(6000);
-          await sleep(1500); // 대기 시간 증가
-          await backtestAfterReady(3000);
-          
-          // Rate Limit 방지를 위한 대기
-          await sleep(2000);
-          
-          // 예측 실행
-          uiLog('ML Auto 예측 실행 중...');
-          const pred = await fetchJsonStrict('/api/ml/predict').catch(() => null);
-          if (pred && pred.ok){
-            uiLog('ML Auto random predict', `action=${pred.action}, pred=${pred.pred}`);
-            if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`;
-            updateModelInsight(pred);
-          }
-          
-          // Update narrative regardless
-          try{ await drawPredictedPath(); }catch(_){ }
-          
-          // Update N/B Zone Strip after ML Auto learning
-          try{ await refreshNbZoneStrip(); }catch(_){ }
-          
-          // 히스토리 업데이트를 ML Auto 학습 주기에 맞춰서 실행
-          try {
-            // 현재 학습된 모델의 성능을 히스토리에 추가
-            const currentZone = (window.lastInsight && window.lastInsight.zone) || getCurrentZone();
-            const currentInterval = getInterval();
-            
-            // 실제 백테스트 결과를 기반으로 한 성능 계산
-            let mlPerformance = 0;
-            let mlWinRate = 50; // 기본값
-            
-            // 백테스트 결과가 있다면 실제 성능 사용
-            if (pred && pred.ok && pred.backtest) {
-              mlPerformance = pred.backtest.pnl || 0;
-              mlWinRate = pred.backtest.win_rate || 50;
-            } else {
-              // 백테스트 결과가 없으면 현재 구역과 분봉을 기반으로 한 추정 성능
-              const zoneMultiplier = currentZone === 'BLUE' ? 1.2 : 0.8; // BLUE 구역에서 더 좋은 성능
-              const intervalMultiplier = currentInterval.includes('minute') ? 
-                Math.min(2.0, 1 + (parseInt(currentInterval.replace('minute', '')) / 60)) : 1.0;
-              
-              mlPerformance = (Math.random() * 150 - 75) * zoneMultiplier * intervalMultiplier;
-              mlWinRate = Math.max(0, Math.min(100, 50 + (mlPerformance / 3)));
-            }
-            
-            // 히스토리에 ML 학습 결과 추가
-            pushWinItem({ 
-              ts: Date.now(), 
-              pnl: Math.round(mlPerformance), 
-              winRate: Math.round(mlWinRate), 
-              interval: currentInterval, 
-              zone: currentZone 
-            });
-            
-            const nbZone = window.zoneNow || 'BLUE';
-            uiLog('ML Auto 히스토리 업데이트', `interval=${currentInterval}, ML_zone=${currentZone}, N/B_zone=${nbZone}, pnl=${mlPerformance.toFixed(1)}, winRate=${mlWinRate.toFixed(1)}%`);
-          } catch(_) { }
-          
-          const endTime = Date.now();
-          const duration = Math.round((endTime - startTime) / 1000);
-          uiLog('ML Auto 학습 주기 완료', `소요 시간: ${duration}초`);
-          
-          // Final update of N/B Zone Strip after complete ML Auto cycle
-          try{ await refreshNbZoneStrip(); }catch(_){ }
-          
 
           
-          // 모든 실행 주기 완료 확인
-          uiLog('모든 실행 주기 완료 확인', `${interval} (${mins}분봉) 완전 완료`);
+
+          // Rate Limit 방지를 위한 대기
+
+          await sleep(2000);
+
           
-        }catch(e){ 
-          uiLog('ML Auto 실행 중 오류', e.message || e);
-        } finally {
-          mlAutoRunning = false;
+
+          // Ensure narrative renders even during training gaps
+
+          try{ await drawPredictedPath(); }catch(_){ }
+
+          if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
+
           
-          // 다음 차트로 넘어가기 전 설정된 sec만큼 대기
-          const nextChartWaitSec = parseInt(autoBtSecEl?.value||'5',10);
-          const nextInterval = minsArr[mlAutoIntervalIndex];
-          uiLog('다음 차트 간격 준비 중...', `${nextChartWaitSec}초 대기 후 ${nextInterval}분봉으로 전환`);
-          await sleep(nextChartWaitSec * 1000);
+
+          // 백테스트 실행 (간격 조정)
+
+          uiLog('ML Auto 백테스트 실행 중...');
+
+          await backtestAfterReady(6000);
+
+          await sleep(1500); // 대기 시간 증가
+
+          await backtestAfterReady(3000);
+
           
-          // 다음 실행 스케줄링 (순차적 실행)
-      const sec = Math.max(5, parseInt(autoBtSecEl?.value||'15',10));
-          mlAutoTimer = setTimeout(() => {
-            if (mlAutoToggle && mlAutoToggle.checked) {
-      run();
+
+          // Rate Limit 방지를 위한 대기
+
+          await sleep(2000);
+
+          
+
+          // 예측 실행
+
+          uiLog('ML Auto 예측 실행 중...');
+
+          const pred = await fetchJsonStrict('/api/ml/predict').catch(() => null);
+
+          if (pred && pred.ok){
+
+            uiLog('ML Auto random predict', `action=${pred.action}, pred=${pred.pred}`);
+
+            if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`;
+
+            updateModelInsight(pred);
+
+          }
+
+          
+
+          // Update narrative regardless
+
+          try{ await drawPredictedPath(); }catch(_){ }
+
+          
+
+          // Update N/B Zone Strip after ML Auto learning
+
+          try{ await refreshNbZoneStrip(); }catch(_){ }
+
+          
+
+          // 히스토리 업데이트를 ML Auto 학습 주기에 맞춰서 실행
+
+          try {
+
+            // 현재 학습된 모델의 성능을 히스토리에 추가
+
+            const currentZone = (window.lastInsight && window.lastInsight.zone) || getCurrentZone();
+
+            const currentInterval = getInterval();
+
+            
+
+            // 실제 백테스트 결과를 기반으로 한 성능 계산
+
+            let mlPerformance = 0;
+
+            let mlWinRate = 50; // 기본값
+
+            
+
+            // 백테스트 결과가 있다면 실제 성능 사용
+
+            if (pred && pred.ok && pred.backtest) {
+
+              mlPerformance = pred.backtest.pnl || 0;
+
+              mlWinRate = pred.backtest.win_rate || 50;
+
+            } else {
+
+              // 백테스트 결과가 없으면 현재 구역과 분봉을 기반으로 한 추정 성능
+
+              const zoneMultiplier = currentZone === 'BLUE' ? 1.2 : 0.8; // BLUE 구역에서 더 좋은 성능
+
+              const intervalMultiplier = currentInterval.includes('minute') ? 
+
+                Math.min(2.0, 1 + (parseInt(currentInterval.replace('minute', '')) / 60)) : 1.0;
+
+              
+
+              mlPerformance = (Math.random() * 150 - 75) * zoneMultiplier * intervalMultiplier;
+
+              mlWinRate = Math.max(0, Math.min(100, 50 + (mlPerformance / 3)));
+
             }
-          }, sec * 1000);
-        }
-      };
-      
-      const sec = Math.max(30, parseInt(autoBtSecEl?.value||'60',10)); // 최소 30초로 증가
-      const chartWaitSec = parseInt(autoBtSecEl?.value||'5',10);
-      uiLog('ML Auto random ON', `interval=${sec}s (순차적 실행 - 차트 간격 전환 시 ${chartWaitSec}초 대기 포함)`);
+
+            
+
+            // 히스토리에 ML 학습 결과 추가
+
+            pushWinItem({ 
+
+              ts: Date.now(), 
+
+              pnl: Math.round(mlPerformance), 
+
+              winRate: Math.round(mlWinRate), 
+
+              interval: currentInterval, 
+
+              zone: currentZone 
+
+            });
+
+            
+
+            const nbZone = window.zoneNow || 'BLUE';
+
+            uiLog('ML Auto 히스토리 업데이트', `interval=${currentInterval}, ML_zone=${currentZone}, N/B_zone=${nbZone}, pnl=${mlPerformance.toFixed(1)}, winRate=${mlWinRate.toFixed(1)}%`);
+
+          } catch(_) { }
+
+          
+
+          const endTime = Date.now();
+
+          const duration = Math.round((endTime - startTime) / 1000);
+
+          uiLog('ML Auto 학습 주기 완료', `소요 시간: ${duration}초`);
+
+          
+
+          // Final update of N/B Zone Strip after complete ML Auto cycle
+
+          try{ await refreshNbZoneStrip(); }catch(_){ }
+
+          
+
+
+
+          
+
+          // 모든 실행 주기 완료 확인
+
+          uiLog('모든 실행 주기 완료 확인', `${interval} (${mins}분봉) 완전 완료`);
+
+          
+
+        }catch(e){ 
+
+          uiLog('ML Auto 실행 중 오류', e.message || e);
+
+        } finally {
+
+          mlAutoRunning = false;
+
+          
+
+          // 다음 차트로 넘어가기 전 설정된 sec만큼 대기
+
+          const nextChartWaitSec = parseInt(autoBtSecEl?.value||'5',10);
+
+          const nextInterval = minsArr[mlAutoIntervalIndex];
+
+          uiLog('다음 차트 간격 준비 중...', `${nextChartWaitSec}초 대기 후 ${nextInterval}분봉으로 전환`);
+
+          await sleep(nextChartWaitSec * 1000);
+
+          
+
+          // 다음 실행 스케줄링 (순차적 실행)
+
+      const sec = Math.max(5, parseInt(autoBtSecEl?.value||'15',10));
+
+          mlAutoTimer = setTimeout(() => {
+
+            if (mlAutoToggle && mlAutoToggle.checked) {
+
       run();
+
+            }
+
+          }, sec * 1000);
+
+        }
+
+      };
+
+      
+
+      const sec = Math.max(30, parseInt(autoBtSecEl?.value||'60',10)); // 최소 30초로 증가
+
+      const chartWaitSec = parseInt(autoBtSecEl?.value||'5',10);
+
+      uiLog('ML Auto random ON', `interval=${sec}s (순차적 실행 - 차트 간격 전환 시 ${chartWaitSec}초 대기 포함)`);
+
+      run();
+
     } else {
+
       uiLog('ML Auto random OFF');
+
       mlAutoRunning = false;
+
       mlAutoIntervalIndex = 0; // 인덱스 리셋
+
     }
+
   });
+
+
 
   // Initial status fetch
+
   fetch(`/api/bot/status`).then(r=>r.json()).then(st=>{
+
     try{
+
       if (sBot) sBot.textContent = st.running ? 'running' : 'stopped';
+
       if (sEma && st.config) sEma.textContent = `${st.config.ema_fast}/${st.config.ema_slow}`;
+
       if (sInterval && st.config) sInterval.textContent = st.config.candle;
+
       if (sTicker && st.config) sTicker.textContent = st.config.market;
+
     }catch(_){ }
+
   }).catch((e)=>{ console.error('status fail', e); });
 
+
+
   // Screenshot -> clipboard (fallback download)
+
   if (shotBtn) shotBtn.addEventListener('click', async ()=>{
+
     try{
+
       const card = container.closest('.card') || container;
+
       const canvas = await html2canvas(card, { backgroundColor: '#0b1220', scale: 2, useCORS: true });
+
       const tryClipboard = async (blob)=>{
+
         if (navigator.clipboard && window.ClipboardItem){
+
           try {
+
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+
             console.log('Screenshot copied to clipboard');
+
             return true;
+
           } catch (e) {
+
             console.warn('Clipboard write failed', e);
+
           }
+
         }
+
         return false;
+
       };
+
       if (canvas.toBlob){
+
         canvas.toBlob(async (blob)=>{
+
           const ok = await tryClipboard(blob);
+
           if (!ok){
+
             const ts = new Date().toISOString().replace(/[:.]/g,'-');
+
             const link = document.createElement('a');
+
             link.download = `8bit-chart-${ts}.png`;
+
             link.href = URL.createObjectURL(blob);
+
             link.click();
+
           }
+
         }, 'image/png');
+
       } else {
+
         const dataUrl = canvas.toDataURL('image/png');
+
         const blob = await (await fetch(dataUrl)).blob();
+
         const ok = await tryClipboard(blob);
+
         if (!ok){
+
           const ts = new Date().toISOString().replace(/[:.]/g,'-');
+
           const link = document.createElement('a');
+
           link.download = `8bit-chart-${ts}.png`;
+
           link.href = dataUrl;
+
           link.click();
+
         }
+
       }
+
     }catch(e){ console.error('screenshot failed', e); }
+
   });
+
+
 
   if (mlMetricsBtn) mlMetricsBtn.addEventListener('click', async ()=>{
+
     try{
+
       const j = await fetchJsonStrict('/api/ml/metrics');
+
       if (!(j && j.ok)){ uiLog('ML Metrics failed', JSON.stringify(j)); return; }
+
       const cv = j.metrics?.cv || {}; const inr = j.metrics?.in_sample || {};
+
       const acc = inr.report?.accuracy ? (inr.report.accuracy*100).toFixed(1)+'%' : '-';
+
       const f1 = cv.f1_macro ? (cv.f1_macro*100).toFixed(1)+'%' : '-';
+
       const pnl = (cv.pnl_sum||0).toLocaleString(undefined,{maximumFractionDigits:0});
+
       const params = j.params || j.metrics?.params || {};
+
       const trainedAt = j.trained_at ? new Date(j.trained_at).toLocaleString() : '-';
+
       const html = `
+
         <div class="card border-secondary rounded-3 p-2 mt-2">
+
           <div><strong>ML Metrics</strong> <span class="text-muted">(${j.interval})</span></div>
+
           <div class="kv"><span>Accuracy(in-sample)</span><span>${acc}</span></div>
+
           <div class="kv"><span>F1-macro(CV)</span><span>${f1}</span></div>
+
           <div class="kv"><span>CV PnL Sum</span><span>${pnl}</span></div>
+
           <div class="kv"><span>Params</span><span>${JSON.stringify(params)}</span></div>
+
           <div class="kv"><span>Trained At</span><span>${trainedAt}</span></div>
+
         </div>`;
+
       if (mlMetricsBox) mlMetricsBox.innerHTML = html;
+
       uiLog('ML Metrics', `acc=${acc}, f1=${f1}, pnl=${pnl}`);
+
     }catch(e){ uiLog('ML Metrics error', String(e)); }
+
   });
+
+
 
   // -------- Backtest using NB signals on current chart data --------
+
   function runBacktest(){
+
     try{
+
       const data = candle.data();
+
       if (!data || data.length < 50) return;
+
       let raw = (Array.isArray(nbMarkers)? nbMarkers: []).slice().sort((a,b)=>a.time-b.time);
+
       if (!raw.length){
+
         // Fallback: EMA 크로스 기반 신호 생성 (NB 신호 없을 때)
+
         try{
+
           const closes = data.map(d=>d.close);
+
           const ef = Number(emaFastEl?.value||10); const es = Number(emaSlowEl?.value||30);
+
           const efArr = ema(closes, ef); const esArr = ema(closes, es);
+
           const sigs=[];
+
           let prev = efArr[0] - esArr[0];
+
           for (let i=1;i<closes.length;i++){
+
             const diff = (efArr[i] - esArr[i]);
+
             if (prev<=0 && diff>0) sigs.push({ time: data[i].time, text: 'NB BUY' });
+
             else if (prev>=0 && diff<0) sigs.push({ time: data[i].time, text: 'NB SELL' });
+
             prev = diff;
+
           }
+
           raw = sigs;
+
           if (!raw.length){ uiLog('Backtest canceled', 'no signal'); return; }
+
           uiLog('No NB signal → fallback to EMA cross backtest');
+
         }catch(_){ uiLog('Backtest canceled', 'no signal'); return; }
+
       }
+
       // 1) De-duplicate to alternate BUY/SELL
+
       const norm=[]; let lastSide=null;
+
       for(const m of raw){ const side = m.text.includes('BUY')?'BUY':(m.text.includes('SELL')?'SELL':null); if(!side) continue; if(side===lastSide) continue; norm.push({time:m.time, side}); lastSide=side; }
+
       // Drop leading SELL
+
       while (norm.length && norm[0].side==='SELL') norm.shift();
+
       if (norm.length<2){ uiLog('Backtest canceled', 'insufficient signals'); return; }
+
       // 2) Pair trades and compute PnL/Win%
+
       let trades=0, wins=0; let pnl=0; let peak=0, dd=0; let entry=0;
+
       for (let i=0;i<norm.length-1;i+=2){
+
         const buy = norm[i]; const sell = norm[i+1]; if(!buy||!sell) break;
+
         const buyBar = data.find(d=>d.time===buy.time) || data.reduce((p,c)=> Math.abs(c.time-buy.time)<Math.abs((p?.time||0)-buy.time)? c : p, null);
+
         const sellBar = data.find(d=>d.time===sell.time) || data.reduce((p,c)=> Math.abs(c.time-sell.time)<Math.abs((p?.time||0)-sell.time)? c : p, null);
+
         if (!buyBar || !sellBar) continue;
+
         trades++;
+
         entry = buyBar.close;
+
         const ret = (sellBar.close - entry);
+
         pnl += ret;
+
         if (ret>0) wins++;
+
         peak = Math.max(peak, pnl);
+
         dd = Math.max(dd, peak - pnl);
+
       }
+
       const winRate = trades? (wins/trades*100):0;
+
       const sTrades = document.getElementById('bt_trades'); if (sTrades) sTrades.textContent = String(trades);
+
       const sPnl = document.getElementById('bt_pnl'); if (sPnl){ const sign = pnl>=0? '+' : '-'; sPnl.textContent = `${sign}${Math.abs(pnl).toLocaleString(undefined,{maximumFractionDigits:0})}`; }
+
       const sWin = document.getElementById('bt_win'); if (sWin){ const sign = pnl>=0? '+' : '-'; sWin.textContent = `${sign}${winRate.toFixed(1)}%`; }
+
       const sDd = document.getElementById('bt_dd'); if (sDd) sDd.textContent = dd.toLocaleString(undefined,{maximumFractionDigits:0});
+
       const wl = document.getElementById('bt_wl'); if (wl) wl.textContent = `${wins}/${Math.max(0,trades-wins)}`;
+
       uiLog('Backtest done', `trades=${trades}, wins=${wins}, pnl=${pnl.toFixed(0)}, win%=${winRate.toFixed(1)}%, maxDD=${dd.toFixed(0)}`);
+
       // 히스토리 업데이트는 ML Auto 학습 주기에 맞춰서만 실행 (중복 방지)
+
       // pushWinItem({ ts: Date.now(), pnl, winRate, interval: getInterval(), zone: currentZone });
+
       // update top slider
+
       updateTopPnlSlider(pnl, winRate);
+
     }catch(_){ }
+
   }
+
   if (btBtn) btBtn.addEventListener('click', runBacktest);
 
+
+
   if (clearBtn) clearBtn.addEventListener('click', async ()=>{
+
     try{
+
       await fetch('/api/orders/clear', { method:'POST' });
+
               baseMarkers = []; candle.setMarkers([]);
+
       if (orderLog) orderLog.innerHTML='';
+
       orderKeys.clear();
+
     }catch(_){ }
+
   });
+
+
 
   // ordersToggle removed
 
+
+
   // Orders bottom log: clear & export
+
   if (orderClearBtn) orderClearBtn.addEventListener('click', async ()=>{
+
     try{ await fetch('/api/orders/clear', { method:'POST' }); if (orderLog) orderLog.innerHTML=''; orderKeys.clear(); }catch(_){ }
+
   });
+
   if (orderExportBtn) orderExportBtn.addEventListener('click', async ()=>{
+
     try{
+
       const j = await fetchJsonStrict('/api/orders');
+
       const rows = (j && j.data) ? j.data : [];
+
       const header = ['ts','side','price','size','paper','market'];
+
       const csv = [header.join(',')].concat(rows.map(r=>[
+
         r.ts, r.side, r.price, r.size, r.paper, r.market
+
       ].join(','))).join('\n');
+
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
       const url = URL.createObjectURL(blob);
+
       const a = document.createElement('a'); a.href = url; a.download = `orders-${Date.now()}.csv`; a.click();
+
       setTimeout(()=>URL.revokeObjectURL(url), 1000);
+
     }catch(_){ }
+
   });
+
   // Global fetch error hook for order APIs → order log
+
   let _postJson = postJson;
+
   const ORDER_PATHS = new Set(['/api/trade/buy','/api/trade/sell','/api/orders/clear']);
+
   postJson = async function(path, data){
+
     try{
+
       const res = await _postJson(path, data);
+
       if (ORDER_PATHS.has(path) && res && res.ok===false){
+
         const reason = res.error ? String(res.error) : 'unknown_error';
+
         pushOrderLogLine(`[${new Date().toLocaleString()}] ORDER API ERROR ${path}: ${reason}`);
+
       }
+
       return res;
+
     }catch(e){
+
       if (ORDER_PATHS.has(path)){
+
         pushOrderLogLine(`[${new Date().toLocaleString()}] ORDER API EXCEPTION ${path}: ${String(e)}`);
+
       }
+
       throw e;
+
     }
+
   };
 
+
+
   // Trade readiness panel (buyable/sellable)
+
   async function refreshTradeReady(){
+
     try{
+
       const j = await fetchJsonStrict('/api/trade/preflight');
+
       if (!j || !j.ok){ if (tradeReadyBox) tradeReadyBox.textContent = 'Preflight error'; return; }
+
       const p = j.preflight||{};
+
       const price = Number(p.price||0);
+
       // Store current price globally for trainer storage modifications
       window.currentPrice = price;
       const krw = Number(p.krw||0);
+
       const coinBal = Number(p.coin_balance||0);
+
       const buyKrw = Number(p.planned_buy_krw||0);
+
       const sellSize = Number(p.planned_sell_size||0);
+
       const sym = (p.market||'KRW-COIN').split('-')[1]||'';
+
       const buyRemain = Math.max(0, krw - buyKrw);
+
       
       // Use actual BTC balance for sell calculations
       // N/B COIN is virtual village storage, not actual BTC position
@@ -2213,21 +4345,35 @@
       
       const sellRemain = Math.max(0, coinBal - recommendedSellSize);
       const buyLine = p.can_buy
+
         ? `after BUY: ${buyRemain.toLocaleString()} KRW left (spend ${buyKrw.toLocaleString()} KRW)`
+
         : `need ≥ 5,000 KRW (KRW=${krw.toLocaleString()})`;
+
       const sellLine = p.can_sell
+
         ? `after SELL: ${sellRemain.toFixed(8)} ${sym} left (sell ${recommendedSellSize.toFixed(8)} ≈ ${Math.round(recommendedSellSize*price).toLocaleString()} KRW)`
         : `need ≥ 5,000 KRW notional (bal=${coinBal.toFixed(8)} ${sym})`;
+
       if (tradeReadyBox){
+
         // Fetch current N/B COIN status
+
         let coinTxt = '-';
+
         let nbCoinSummary = '';
         try{
+
           const cs = await fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(getInterval())}`);
+
           if (cs && cs.ok){
+
             const c = cs.current;
+
             if (c && c.side){ coinTxt = c.side; }
+
           }
+
           
           // Get N/B COIN summary
           const summaryRes = await fetchJsonStrict('/api/nb/coins/summary');
@@ -2236,6 +4382,7 @@
             nbCoinSummary = `Village: ${summary.total_owned || 0} coins | KRW: ${summary.krw?.toLocaleString() || 0} | Buyable: ${summary.buyable_by_krw || 0}`;
           }
         }catch(_){ }
+
         // Fetch trainer storage information
         let trainerStorageInfo = '';
         let trainerStorageData = {};
@@ -2281,8 +4428,11 @@
         }
         
         tradeReadyBox.innerHTML = `
+
           <div>Price: <b>${price? price.toLocaleString(): '-'}</b></div>
+
           <div>N/B COIN (this bar): <b id="nbCoinNowInline">${coinTxt}</b></div>
+
           <div>BTC Balance: <b>${coinBal.toFixed(8)} ${sym} (≈ ${Math.round(coinBal*price).toLocaleString()} KRW)</b></div>
           <div>N/B Village: <b>${nbCoinSummary || '-'}</b></div>
           <div style="margin-top: 8px; padding: 8px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px;">
@@ -2290,1142 +4440,2277 @@
             ${trainerStorageHTML}
           </div>
           <div>Buy: <b>${buyLine}</b></div>
+
           <div>Sell: <b>${sellLine}</b></div>
+
           <div>Recommended SELL size (~5,000 KRW): <b>${minSellSize>0? minSellSize.toFixed(8): '-'}</b> ${sym}</div>
           <div>Keys: ${p.has_keys} | Paper: ${p.paper}</div>
+
         `;
+
         if (tradeReadyMeta){ tradeReadyMeta.textContent = `(${new Date().toLocaleTimeString()})`; }
+
       }
+
     }catch(_){ if (tradeReadyBox) tradeReadyBox.textContent = 'Preflight error'; }
+
   }
+
   refreshTradeReady().catch(()=>{});
+
   setInterval(()=>{ refreshTradeReady(); }, 15000);
+
   if (assetsRefresh) assetsRefresh.addEventListener('click', ()=>{ refreshTradeReady(); });
 
+
+
         // N/B Zone strip renderer - shows only visible chart zones
+
    async function refreshNbZoneStrip(){
+
      try{
+
        const strip = document.getElementById('nbZoneStrip');
+
        const nowBadge = document.getElementById('nbZoneNow');
+
        const timeframeBadge = document.getElementById('nbZoneTimeframe');
+
        if (!strip && !nowBadge && !timeframeBadge) return;
+
        
+
        // Use chart's full candle data with zone information
+
        const data = candle.data();
+
        if (!data || data.length === 0) {
+
          if (nowBadge) nowBadge.textContent = '-';
+
          if (strip) strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">No chart data available</div>';
+
          return;
+
        }
+
        
+
        // Get chart zone data using the new function
+
        console.log('=== N/B Zone Status: 차트 데이터 가져오기 ===');
+
        const chartZoneData = getChartZoneData();
+
        
+
        console.log('=== N/B Zone Status: 데이터 접근 디버깅 ===');
+
        console.log('  - 차트 데이터 소스:', chartZoneData.source || 'none');
+
        console.log('  - 데이터 존재:', chartZoneData.hasData);
+
        console.log('  - 구역 데이터 길이:', chartZoneData.zones.length);
+
        console.log('  - 기준값 (baseValue):', chartZoneData.baseValue);
+
        
+
        // 데이터가 없으면 없는 상태로 처리
+
        if (!chartZoneData.hasData || chartZoneData.zones.length === 0) {
+
          console.log('  - 차트 구역 데이터가 없음, 없는 상태로 표시');
+
          if (nowBadge) nowBadge.textContent = '-';
+
          if (strip) strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">No chart zone data available</div>';
+
          return;
+
        }
+
        
+
        // 차트 구역 데이터에서 구역 변경 지점 계산
+
        let zoneChangeIndex = -1;
+
        const zones = chartZoneData.zones;
+
        
+
        if (zones.length > 0) {
+
          for (let i = 1; i < zones.length; i++) {
+
            const prevZone = zones[i-1].zone;
+
            const currZone = zones[i].zone;
+
            
+
            if (prevZone !== currZone) {
+
              zoneChangeIndex = i;
+
              break;
+
            }
+
          }
+
        }
+
        
+
        console.log('=== N/B Zone Status: 차트 구역 변경 지점 동기화 ===');
+
        console.log('  - 차트 구역 데이터:', zones.length, '개');
+
        console.log('  - 구역 변경 지점 인덱스:', zoneChangeIndex);
+
        console.log('  - 데이터 소스:', chartZoneData.source);
+
        
+
        console.log('=== N/B Zone Status: 차트 구역 분류 ===');
+
        console.log('  - 차트 구역 데이터:', zones.length, '개');
+
        console.log('  - 첫 번째 점:', zones[0]?.zone, '(', new Date(zones[0]?.time * 1000).toLocaleTimeString(), ')');
+
        console.log('  - 마지막 점:', zones[zones.length-1]?.zone, '(', new Date(zones[zones.length-1]?.time * 1000).toLocaleTimeString(), ')');
+
        
+
        // Verify zone distribution
+
        const totalZones = zones.length;
+
        const orangeZones = zones.filter(z => z.zone === 'ORANGE').length;
+
        const blueZones = zones.filter(z => z.zone === 'BLUE').length;
+
        console.log(`Zone distribution: ${totalZones} total, ${orangeZones} ORANGE, ${blueZones} BLUE`);
+
        
+
        // Debug: Check chart data sources
+
        console.log(`Debug - zoneIndicatorSeries:`, window.zoneIndicatorSeries?.data);
+
        console.log(`Debug - zoneIndicatorSeries type:`, typeof window.zoneIndicatorSeries?.data);
+
        console.log(`Debug - zoneIndicatorSeries isArray:`, Array.isArray(window.zoneIndicatorSeries?.data));
+
        console.log(`Debug - nbWaveSeries:`, window.nbWaveSeries?.data);
+
        console.log(`Debug - nbWaveSeries type:`, typeof window.nbWaveSeries?.data);
+
        console.log(`Debug - nbWaveSeries isArray:`, Array.isArray(window.nbWaveSeries?.data));
+
        console.log(`Debug - orangeZoneArray: ${window.orangeZoneArray?.length || 0} zones`);
+
        console.log(`Debug - blueZoneArray: ${window.blueZoneArray?.length || 0} zones`);
+
        
+
        // Show first few zones for debugging
+
        if (zones.length > 0) {
+
          console.log('Debug - First 5 zones:', zones.slice(0, 5));
+
        }
+
        
+
        // 차트 구역 데이터 사용
+
        const displayZones = zones;
+
        
+
        // Store combined zones array globally for other functions to use
+
        window.combinedZonesArray = displayZones;
+
        
+
        const orangeCount = displayZones.filter(z => z.zone === 'ORANGE').length;
+
        const blueCount = displayZones.filter(z => z.zone === 'BLUE').length;
+
        
+
        console.log(`N/B Zone Status updated: ${displayZones.length} 차트 구역 데이터 (ORANGE: ${orangeCount}, BLUE: ${blueCount})`);
+
        if (displayZones.length > 0) {
+
          console.log(`차트 구역 데이터: ${displayZones.length}개 (소스: ${chartZoneData.source})`);
+
        }
+
        
+
        // Update current zone badge using rightmost (most recent) point's zone
+
        let currentZone = 'BLUE'; // default
+
        
+
        if (zones.length > 0) {
+
          // 우측(최신) 점의 구역을 현재 구역으로 사용
+
          const rightmostZone = zones[zones.length - 1];
+
          currentZone = rightmostZone.zone;
+
          
+
          console.log('=== N/B Zone Status: 우측(최신) 점 기준 구역 ===');
+
          console.log('  - 우측 점 값:', rightmostZone.value.toFixed(0));
+
          console.log('  - 현재 구역:', currentZone);
+
          console.log('  - 데이터 소스:', chartZoneData.source);
+
        }
+
        
+
        if (nowBadge) {
+
          nowBadge.textContent = currentZone;
+
          nowBadge.className = currentZone === 'ORANGE' ? 'badge bg-warning' : 'badge bg-primary';
+
        }
+
        
+
        // Update timeframe badge
+
        if (timeframeBadge) {
+
          const currentInterval = getInterval();
+
          let timeframeDisplay = '';
+
          switch(currentInterval) {
+
            case 'minute1': timeframeDisplay = '1m'; break;
+
            case 'minute3': timeframeDisplay = '3m'; break;
+
            case 'minute5': timeframeDisplay = '5m'; break;
+
            case 'minute10': timeframeDisplay = '10m'; break;
+
            case 'minute15': timeframeDisplay = '15m'; break;
+
            case 'minute30': timeframeDisplay = '30m'; break;
+
            case 'minute60': timeframeDisplay = '1h'; break;
+
            case 'day': timeframeDisplay = '1d'; break;
+
            default: timeframeDisplay = currentInterval;
+
          }
+
          timeframeBadge.textContent = timeframeDisplay;
+
          timeframeBadge.className = 'badge bg-info';
+
        }
+
        
+
        // Update zone strip - show N/B 라인 전체 데이터 (static display)
+
        if (strip) {
+
          strip.innerHTML = '';
+
          if (displayZones.length === 0) {
+
            strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">No N/B data</div>';
+
            return;
+
          }
+
+
 
          // Show N/B 라인 전체 데이터 (static) - 우측부터 검사 순서로 표시
+
          const nblineZones = [...displayZones]; // 우측부터 시작하도록 순서 뒤집기
+
          
+
          nblineZones.forEach((z, index) => {
+
            const el = document.createElement('div');
+
            el.style.height = '8px';
+
            el.style.flex = '1 1 auto';
+
            el.style.margin = '0 1px';
+
            el.style.borderRadius = '2px';
+
            
+
            const zone = String(z.zone).toUpperCase();
+
            el.style.background = zone === 'ORANGE' ? '#ff8c00' : '#0066cc';
+
            
+
            // 구역 변경 지점 표시 (구역 변경 지점이 있는 경우)
+
            if (zoneChangeIndex > 0 && z.index === zoneChangeIndex) {
+
              el.style.background = zone === 'ORANGE' ? '#ff6600' : '#004499';
+
              el.style.border = '1px solid #ffff00';
+
              el.title = `ZONE CHANGE: ${z.zone} (${new Date(z.time * 1000).toLocaleTimeString()}) - 검사순서: ${index + 1}`;
+
            } else {
+
              el.title = `N/B ${z.index + 1}: ${z.zone} (${new Date(z.time * 1000).toLocaleTimeString()}) - 검사순서: ${index + 1}`;
+
            }
+
            
+
            strip.appendChild(el);
+
          });
+
          
+
          console.log(`N/B Zone Strip updated: ${displayZones.length} N/B 라인 데이터 displayed (static, 우측부터 검사 순서)`);
+
        }
+
      } catch (e) {
+
        console.error('Error refreshing N/B Zone strip:', e);
+
      }
+
    }
 
+
+
   // N/B COIN strip renderer
+
   async function refreshNbCoinStrip(){
+
     try{
+
       const strip = document.getElementById('nbCoinStrip');
+
       const nowBadge = document.getElementById('nbCoinNow');
+
       const nowInline = document.getElementById('nbCoinNowInline');
+
       if (!strip && !nowBadge && !nowInline) return;
+
       let cs = null; let cur = null; let recent = [];
+
       try{
+
         cs = await fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(getInterval())}&n=50`);
+
         if (cs && cs.ok){ cur = cs.current||null; recent = cs.recent||[]; }
+
       }catch(_){ }
+
       const label = cur && cur.side ? cur.side : '-';
+
       if (nowBadge){ nowBadge.textContent = label; }
+
       if (nowInline){ nowInline.textContent = label; }
+
       if (strip){
+
         strip.innerHTML = '';
+
         // fallback placeholders when no data
+
         if (!recent || recent.length===0){
+
           recent = Array.from({length:50}).map((_,i)=>({ bucket: 0, side:'NONE' }));
+
         }
+
         // left older → right newer
+
         recent.reverse().forEach(c=>{
+
           const el = document.createElement('div');
+
           el.style.height = '8px'; el.style.flex = '1 1 auto'; el.style.margin = '0 1px'; el.title = `${new Date((c.bucket||0)*1000).toLocaleTimeString()} ${c.side||'NONE'}`;
+
           const side = String(c.side||'NONE').toUpperCase();
+
           el.style.background = side==='BUY' ? '#0ecb81' : (side==='SELL' ? '#f6465d' : '#2b3139');
+
           strip.appendChild(el);
+
         });
+
         // If current bar has diagnostics, append a compact reason list below the strip
+
         try{
+
           const curCoin = cur || null;
+
           const reasonsBox = document.getElementById('nbCoinReasons');
+
           if (reasonsBox){
+
             const m = (curCoin && curCoin.blocks) ? curCoin.blocks : {};
+
             const top = Object.keys(m).map(k=>({k, c: m[k]})).sort((a,b)=> b.c-a.c).slice(0,5);
+
             if (top.length){
+
               // card-style list
+
               reasonsBox.innerHTML = top.map(x=>`<div class='d-flex justify-content-between'><span class='text-muted'>${x.k.replace('blocked:','')}</span><span class='badge bg-secondary'>×${x.c}</span></div>`).join('');
+
             } else {
+
               // fallback to recent reasons
+
               const reasons = (curCoin && Array.isArray(curCoin.reasons)) ? curCoin.reasons.slice(-5) : [];
+
               reasonsBox.textContent = reasons.length ? reasons.join(', ') : '-';
+
             }
+
           }
+
         }catch(_){ }
+
       }
+
       // Render per-interval cards with Masonry updates (no full rebuild to avoid flicker)
+
       try{
+
         const holder = document.getElementById('nbCoinCards');
+
         if (holder){
+
           // ensure sizer exists
+
           if (!holder.querySelector('.nb-coin-sizer')){
+
             const s = document.createElement('div'); s.className='nb-coin-sizer'; s.style.width='33.333%'; holder.appendChild(s);
+
           }
+
           const currentIv = String(getInterval());
+
           const intervals = ['minute1','minute3','minute5','minute10','minute15','minute30','minute60','day'];
+
           // init Masonry once
+
           if (!window.nbCoinMasonry && window.Masonry){
+
             window.nbCoinMasonry = new Masonry(holder, {
+
               itemSelector: '.nb-coin-item',
+
               columnWidth: '.nb-coin-sizer',
+
               percentPosition: true,
+
               gutter: 8,
+
               transitionDuration: '1.2s'
+
             });
+
           }
+
           // fetch current coin for each interval (순차적 실행으로 Rate Limit 방지)
+
           const results = [];
+
           for (const iv of intervals) {
+
             try {
+
               const res = await fetchJsonStrict(`/api/nb/coin?interval=${encodeURIComponent(iv)}&n=1`).catch(()=>null);
+
               results.push(res);
+
               await sleep(200); // Rate Limit 방지를 위한 대기
+
             } catch(_) {
+
               results.push(null);
+
             }
+
           }
+
           
+
           // prefetch model metrics and trainer suggestions per interval (순차적 실행)
+
           const metricsArr = [];
+
           const suggestsArr = [];
+
           for (const iv of intervals) {
+
             try {
+
               const metric = await fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+
               metricsArr.push(metric);
+
               await sleep(200); // Rate Limit 방지를 위한 대기
+
             } catch(_) {
+
               metricsArr.push(null);
+
             }
+
           }
+
           
+
           for (const iv of intervals) {
+
             try {
+
               const suggest = await fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+
               suggestsArr.push(suggest);
+
               await sleep(200); // Rate Limit 방지를 위한 대기
+
             } catch(_) {
+
               suggestsArr.push(null);
+
             }
+
           }
+
           const newElems = [];
+
           results.forEach((res, idx)=>{
+
             const iv = intervals[idx];
+
             const curC = (res && res.ok) ? (res.current||{}) : {};
+
             const bucket = Number(curC.bucket||0);
+
             const ts = bucket? new Date(bucket*1000).toLocaleTimeString() : '-';
+
             const side = String(curC.side||'NONE').toUpperCase();
+
             const coinCount = Number(curC.coin_count ?? 0);
+
             const reasons = (Array.isArray(curC.reasons) && curC.reasons.length)? curC.reasons.slice(-3).map(r=>r.replace('blocked:','')).join(', ') : '-';
+
             let card = holder.querySelector(`.nb-coin-item[data-iv="${iv}"]`);
+
             const isFeatured = (iv === currentIv);
+
             // use prefetched metrics/suggestion
+
             const m = metricsArr[idx];
+
             const ver = (m && m.ok) ? `v${m.train_count||0}` : '-';
+
             const sug = suggestsArr[idx];
+
             const chosen = (sug && sug.ok) ? String(sug.chosen||'-') : '-';
+
             const intent = (sug && sug.ok) ? String(sug.intent||'HOLD') : '-';
+
             const feas = (sug && sug.ok && sug.feasible) ? sug.feasible : { can_buy: false, can_sell: false };
+
             const feasTxt = `${feas.can_buy?'BUY✓':'BUY×'} ${feas.can_sell?'SELL✓':'SELL×'}`;
+
             // Get guild members status for this interval
+
             const guildStatus = getGuildMembersStatusForInterval(iv);
+
             
+
             const html = `<div class='d-flex justify-content-between align-items-center'>
+
                 <div class='text-white'><b>${ts}</b> <span class='badge bg-dark text-white'>${iv}</span> <span class='badge ${side==='BUY'?'bg-success':(side==='SELL'?'bg-danger':'bg-secondary')}'>${side}</span> <span class='badge bg-white text-dark'>${coinCount} coin(s)</span> <span class='badge bg-secondary'>${ver}</span> <span class='badge bg-info text-dark'>${chosen}</span> <span class='badge ${intent==='BUY'?'bg-success':(intent==='SELL'?'bg-danger':'bg-secondary')}'>${intent}</span> <span class='badge bg-dark'>${feasTxt}</span></div>
+
                 <div>
+
                   <button class='btn btn-outline-light btn-coin btn-coin-copy'>Copy</button>
+
                   <button class='btn btn-outline-warning btn-coin btn-coin-gen10' data-iv='${iv}'>10 GEN</button>
+
                 </div>
+
               </div>
+
               <div class='mt-1 nb-bubble'>${buildTrainerMessage(iv, side, coinCount, reasons, { chosen:intent==='HOLD'?chosen:chosen, intent:intent, feasTxt:feasTxt })}</div>
+
               <div class='mt-1' style='font-size:12px; color:#ffffff'>${reasons}</div>
+
               <div class='mt-1' style='font-size:11px; color:#ffffff; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;'>
+
                 <div style='display: flex; justify-content: space-between; align-items: center;'>
+
                   <span>Guild Status:</span>
+
                   <span style='color: ${guildStatus.nbStaminaColor};'>N/B Stamina: ${guildStatus.nbStamina}%</span>
+
                 </div>
+
                 <div style='display: flex; justify-content: space-between; align-items: center; margin-top: 2px;'>
+
                   <span style='font-size: 10px;'>${guildStatus.activeMembers} active</span>
+
                   <span style='font-size: 10px; color: ${guildStatus.treasuryAccess ? '#0ecb81' : '#f6465d'};'>Treasury: ${guildStatus.treasuryAccess ? 'Unlocked' : 'Locked'}</span>
+
                 </div>
+
               </div>`;
+
             if (!card){
+
               card = document.createElement('div');
+
               card.className = 'card border-secondary rounded-3 p-2 mt-2 text-white nb-coin-item';
+
               card.dataset.iv = iv;
+
               holder.appendChild(card);
+
               newElems.push(card);
+
             }
+
             // apply size styles (will animate via Masonry)
+
             card.style.width = isFeatured ? '100%' : '33.333%';
+
             card.style.minHeight = isFeatured ? '160px' : '80px';
+
             card.innerHTML = html;
+
             const onCopy = async ()=>{
+
               try{
+
                 const bubbleEl = card.querySelector('.nb-bubble');
+
                 const bubble = bubbleEl ? String(bubbleEl.textContent||'').trim() : '';
+
                 const npcBox = document.getElementById('nbNpcBox');
+
                 const npc = npcBox ? String(npcBox.textContent||'').trim() : '';
+
                 const header = `N/B COIN S.L | interval=${iv} | time=${ts} | side=${side}`;
+
                 const body = [
+
                   `Trainer: ${bubble||'-'}`,
+
                   `Reasons: ${reasons||'-'}`,
+
                   `NPC:\n${npc||'-'}`
+
                 ].join('\n');
+
                 const txt = `${header}\n${body}`;
+
                 if (navigator.clipboard && navigator.clipboard.writeText){
+
                   await navigator.clipboard.writeText(txt);
+
                 } else {
+
                   const ta = document.createElement('textarea'); ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+
                 }
+
               }catch(_){ }
+
             };
+
             const copyBtn = card.querySelector('.btn-coin-copy');
+
             if (copyBtn) copyBtn.onclick = onCopy;
+
             const genBtn = card.querySelector('.btn-coin-gen10');
+
             if (genBtn){
+
               genBtn.addEventListener('click', async ()=>{
+
                 try{
+
                   const iv = genBtn.getAttribute('data-iv');
+
                   const j = await fetchJsonStrict('/api/npc/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ n: 10, interval: iv }) });
+
                   if (j && j.ok){
+
                     const lines = (j.items||[]).map(x=>`• ${x.text}`);
+
                     const nbNpcBox = document.getElementById('nbNpcBox');
+
                     if (nbNpcBox) nbNpcBox.textContent = lines.length? lines.join('\n') : 'No new messages';
+
                   }
+
                 }catch(_){ }
+
               });
+
             }
+
           });
+
           // move featured card to top (right after sizer)
+
           try{
+
             const featured = holder.querySelector(`.nb-coin-item[data-iv="${currentIv}"]`);
+
             const sizer = holder.querySelector('.nb-coin-sizer');
+
             if (featured && sizer && featured.previousElementSibling !== sizer){
+
               holder.insertBefore(featured, sizer.nextSibling);
+
             }
+
           }catch(_){ }
+
           try{
+
             if (window.nbCoinMasonry){
+
               if (newElems.length){ window.nbCoinMasonry.appended(newElems); }
+
               window.nbCoinMasonry.reloadItems();
+
               window.nbCoinMasonry.layout();
+
             }
+
           }catch(_){ }
+
         }
+
       }catch(_){ }
+
     }catch(_){ }
+
   }
+
   // initial and periodic refresh for N/B COIN (Rate Limit 방지를 위해 간격 증가)
+
   refreshNbCoinStrip().catch(()=>{});
+
     refreshNbZoneStrip().catch(()=>{});
+
     setInterval(()=>{ refreshNbCoinStrip(); }, 15000); // 8초 → 15초로 증가
+
     setInterval(()=>{ refreshNbZoneStrip(); }, 5000); // N/B Zone strip 더 자주 업데이트 (5초마다)
 
+
+
   // N/B COIN summary (owned/buyable)
+
   async function refreshNbCoinSummary(){
+
     try{
+
       const box = document.getElementById('nbCoinSummary');
+
       if (!box) return;
+
       const j = await fetchJsonStrict('/api/nb/coins/summary');
+
       if (!(j && j.ok)){ box.textContent = `-`; return; }
+
       const lines = [
+
         `Owned coins (sum): ${j.total_owned}`,
+
         `Price per coin (KRW): ${Number(j.price_per_coin||0).toLocaleString()}`,
+
         `KRW available: ${Math.round(Number(j.krw||0)).toLocaleString()}`,
+
         `Buyable by KRW: ${Number(j.buyable_by_krw||0).toLocaleString()}`
+
       ];
+
       box.textContent = lines.join(' | ');
+
     }catch(_){ }
+
   }
+
   refreshNbCoinSummary().catch(()=>{});
 
+
+
   // Village State panel (under N/B COIN S.L)
+
   async function refreshVillageState(){
+
     try{
+
       const box = document.getElementById('villageState');
+
       if (!box) return;
+
       const iv = getInterval();
+
       // Fetch extended village state including energy (순차적 실행으로 Rate Limit 방지)
+
       let metrics = null, suggest = null, coins = null, vstate = null, council = null;
+
       
+
       try {
+
         metrics = await fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+
         await sleep(200);
+
       } catch(_) { }
+
       
+
       try {
+
         suggest = await fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+
         await sleep(200);
+
       } catch(_) { }
+
       
+
       try {
+
         coins = await fetchJsonStrict(`/api/nb/coins/summary`).catch(()=>null);
+
         await sleep(200);
+
       } catch(_) { }
+
       
+
       try {
+
         vstate = await fetchJsonStrict(`/api/village/state?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+
         await sleep(200);
+
       } catch(_) { }
+
       
+
       try {
+
         council = await fetchJsonStrict(`/api/council/state`).catch(()=>null);
+
         await sleep(200);
+
       } catch(_) { }
+
       const ver = (metrics && metrics.ok) ? `v${metrics.train_count||0}` : '-';
+
       const chosen = (suggest && suggest.ok) ? (suggest.chosen||'-') : '-';
+
       const intent = (suggest && suggest.ok) ? (suggest.intent||'HOLD') : '-';
+
       const feas = (suggest && suggest.ok && suggest.feasible) ? suggest.feasible : { can_buy:false, can_sell:false };
+
       const own = (coins && coins.ok) ? Number(coins.total_owned||0) : 0;
+
       const krw = (coins && coins.ok) ? Number(coins.krw||0) : 0;
+
       const pricePer = (coins && coins.ok) ? Number(coins.price_per_coin||0) : 0;
+
       const buyable = (coins && coins.ok) ? Number(coins.buyable_by_krw||0) : 0;
+
       const feasTxt = `${feas.can_buy?'BUY✓':'BUY×'} ${feas.can_sell?'SELL✓':'SELL×'}`;
+
       const E = (vstate && vstate.ok) ? Number(vstate.energy||0) : 0;
+
       const reason = (vstate && vstate.ok) ? (vstate.last_reason||'-') : '-';
+
       const cn = (council && council.ok && council.state) ? council.state.consensus : null;
+
       const cv = (cn && cn.votes) ? Object.entries(cn.votes).map(([k,v])=>`${k}:${v}`).join(' ') : '-';
+
       box.innerHTML = `
+
         <div class='d-flex justify-content-between align-items-center'>
+
           <div>Village | interval=${iv} | model ${ver} | strategy=${chosen} | intent=${intent} | ${feasTxt}</div>
+
           <div class='badge ${E>=70?'bg-success':(E>=30?'bg-warning text-dark':'bg-danger')}' title='last: ${reason}'>E ${E.toFixed(1)}</div>
+
         </div>
+
         <div class='mt-1'>Treasury: coins=${own} | KRW=${Math.round(krw).toLocaleString()} | price/coin=${Math.round(pricePer).toLocaleString()} | buyable=${buyable}</div>
+
         <div class='mt-1'>Council: consensus=${(cn && cn.intent)||'-'} | votes=${cv}</div>
+
       `;
+
     }catch(_){ }
+
   }
+
   refreshVillageState().catch(()=>{});
+
   setInterval(()=>{ refreshVillageState(); }, 20000); // 10초 → 20초로 증가
+
   setInterval(()=>{ refreshNbCoinSummary(); }, 20000); // 10초 → 20초로 증가
 
+
+
   // Trainer message (EN) builder
+
   function buildTrainerMessage(iv, side, coinCount, reasons, extra){
+
     try{
+
       const now = new Date().toLocaleTimeString();
+
       const r = (reasons && reasons !== '-') ? `Reasons: ${reasons}.` : '';
+
       const action = (side==='BUY') ? 'I am prepared to buy on strength' : (side==='SELL' ? 'I am ready to sell on weakness' : 'I am watching for confirmation');
+
       const inv = `Inventory: ${coinCount} coin(s).`;
+
       const strat = (extra && extra.chosen) ? ` Strategy: ${extra.chosen}.` : '';
+
       const inten = (extra && extra.intent) ? ` Intent: ${extra.intent}.` : '';
+
       const feas = (extra && extra.feasTxt) ? ` Feasibility: ${extra.feasTxt}.` : '';
+
       return `[${iv} | ${now}] ${action}.${strat}${inten}${feas} ${inv} ${r}`;
+
     }catch(_){ return ''; }
+
   }
+
+
 
   // NPC message generation button
+
   try{
+
     const btnNpcGen = document.getElementById('btnNpcGen');
+
     const nbNpcBox = document.getElementById('nbNpcBox');
+
     const nbNpcInput = null;
+
     const nbNpcPost = null;
+
     const nbNpcZone = null;
+
     const nbNpcNeg = null;
+
     const villageSky = document.getElementById('villageSky');
+
     const villageSkyLabel = document.getElementById('villageSkyLabel');
+
     const villageMap = document.getElementById('villageMap');
+
     const villageMapMeta = document.getElementById('villageMapMeta');
+
     const btnAutoDistributeBtc = document.getElementById('btnAutoDistributeBtc');
+
     const btnClearGrants = document.getElementById('btnClearGrants');
+
     const trainerGrantsBox = document.getElementById('trainerGrantsBox');
+
     if (btnNpcGen){
+
       btnNpcGen.addEventListener('click', async ()=>{
+
         try{
+
           const iv = getInterval();
+
           const j = await fetchJsonStrict('/api/npc/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ n: 10, interval: iv }) });
+
           if (j && j.ok){
+
             const lines = (j.items||[]).map(x=>`• ${x.text}`);
+
             if (nbNpcBox) nbNpcBox.textContent = lines.length? lines.join('\n') : 'No new messages';
+
           } else {
+
             if (nbNpcBox) nbNpcBox.textContent = `Error: ${j?.error||'unknown'}`;
+
           }
+
         }catch(e){ if (nbNpcBox) nbNpcBox.textContent = String(e); }
+
       });
+
     }
+
     // Tavern Chat removed: no user input posting
 
+
+
     // Trainer Grants: simulate random BTC distribution among trainers
+
     function appendGrantLine(text){
+
       try{
+
         if (!trainerGrantsBox) return;
+
         const prev = String(trainerGrantsBox.textContent||'').trim();
+
         trainerGrantsBox.textContent = prev && prev !== '-' ? `${text}\n${prev}` : text;
+
       }catch(_){ }
+
     }
+
     async function autoDistributeBtc(){
+
       try{
+
         // Use current preflight price and order_krw to size grants
+
         const pf = await fetchJsonStrict('/api/trade/preflight');
+
         const price = Number(pf && pf.ok !== false ? (pf.price||0) : 0);
+
         const o = readOpts();
+
         const orderKrw = Number(o && o.order_krw ? o.order_krw : 5000);
+
         if (!orderKrw || isNaN(orderKrw)){ appendGrantLine(`[${new Date().toLocaleTimeString()}] Invalid order_krw: ${orderKrw}`); return; }
+
         appendGrantLine(`[${new Date().toLocaleTimeString()}] Debug: orderKrw=${orderKrw}, price=${price}`);
+
         if (!price || price<=0){
+
           // Fallback: try to get price from chart data
+
           try{
+
             const data = candle.data();
+
             if (data && data.length > 0){
+
               const lastCandle = data[data.length - 1];
+
               const fallbackPrice = Number(lastCandle.close || 0);
+
               if (fallbackPrice > 0){
+
                 appendGrantLine(`[${new Date().toLocaleTimeString()}] Using chart price: ${Math.round(fallbackPrice).toLocaleString()}`);
+
                 return await autoDistributeBtcWithPrice(fallbackPrice, orderKrw);
+
               }
+
             }
+
           }catch(_){ }
+
           appendGrantLine(`[${new Date().toLocaleTimeString()}] Cannot fetch price`);
+
           return;
+
         }
+
         return await autoDistributeBtcWithPrice(price, orderKrw);
+
       }catch(e){ appendGrantLine(`[${new Date().toLocaleTimeString()}] Grant error: ${String(e)}`); }
+
     }
+
     async function autoDistributeBtcWithPrice(price, orderKrw){
+
       try{
+
         if (!price || price <= 0) {
+
           appendGrantLine(`[${new Date().toLocaleTimeString()}] Error: Invalid price: ${price}`);
+
           return;
+
         }
+
         if (!orderKrw || isNaN(orderKrw)) {
+
           appendGrantLine(`[${new Date().toLocaleTimeString()}] Error: Invalid orderKrw: ${orderKrw}`);
+
           return;
+
         }
+
         const personas = ['Scout','Guardian','Analyst','Elder'];
+
         // Example target distribution (from user's sample): BTC 55%, others spread; we only simulate BTC grants here
+
         // Split BTC portion randomly among trainers
+
         const totalKrw = Math.max(5000, Math.round(orderKrw * 4)); // allocate 4x order size pool
+
         const weights = personas.map(()=> Math.random());
+
         const wsum = weights.reduce((a,b)=>a+b,0) || 1;
+
         const grants = personas.map((p,i)=> ({ 
+
           p, 
+
           krw: Math.max(1000, Math.round(totalKrw * (weights[i]/wsum))) 
+
         }));
+
         // Convert to BTC size
+
         const items = grants.map(g=> ({
+
           persona: g.p,
+
           krw: g.krw,
+
           size: (g.krw / price)
+
         })).filter(item => !isNaN(item.krw) && !isNaN(item.size) && item.krw > 0 && item.size > 0);
+
         items.forEach(it=>{
+
           const line = `• ${new Date().toLocaleTimeString()} Grant BTC → ${it.persona}: ${Math.round(it.krw).toLocaleString()} KRW (≈ ${it.size.toFixed(8)} BTC)`;
+
           appendGrantLine(line);
+
         });
+
         if (items.length === 0){
+
           appendGrantLine(`[${new Date().toLocaleTimeString()}] No valid grants generated (check order_krw: ${orderKrw}, price: ${price})`);
+
         }
+
         try{ pushOrderLogLine(`[${new Date().toLocaleString()}] GRANTS distributed to trainers (BTC pool ≈ ${Math.round(totalKrw).toLocaleString()} KRW)`); }catch(_){ }
+
       }catch(e){ appendGrantLine(`[${new Date().toLocaleTimeString()}] Grant error: ${String(e)}`); }
+
     }
+
     if (btnAutoDistributeBtc) btnAutoDistributeBtc.addEventListener('click', autoDistributeBtc);
+
     if (btnClearGrants) btnClearGrants.addEventListener('click', ()=>{ if (trainerGrantsBox) trainerGrantsBox.textContent='-'; });
+
   }catch(_){ }
+
+
 
   // Zone Win% mini gauge updater (from winMajor)
+
   function refreshMiniWinGaugeFromWinMajor(){
+
     try{
+
       const winMajorEl = document.getElementById('winMajor');
+
       const winZoneNowEl = document.getElementById('winZoneNow');
+
       if (!winMajorEl) return;
+
       
+
       const txt = (winMajorEl.textContent||'').toUpperCase().trim();
+
       if (!(txt==='BLUE' || txt==='ORANGE')) return;
+
       
+
       // pct: 미니 게이지는 100%로 고정(요구사항: mini가 winMajor 값을 그대로 사용)
+
       const isBlueMajor = (txt==='BLUE');
+
       const pct = 100;
+
       
+
       // Update mini zone display
+
       if (miniWinZone) miniWinZone.textContent = txt;
+
       
+
       // Update current zone display
+
       const miniWinZoneCurrent = document.getElementById('miniWinZoneCurrent');
+
       if (miniWinZoneCurrent && winZoneNowEl) {
+
         miniWinZoneCurrent.textContent = winZoneNowEl.textContent;
+
       }
+
       
+
       // Update zone statistics with detailed debugging
+
       const miniWinZoneStats = document.getElementById('miniWinZoneStats');
+
       if (miniWinZoneStats) {
+
         const winListEl = document.getElementById('winList');
+
         if (winListEl) {
+
           let blueCount = 0, orangeCount = 0;
+
           const intervalCounts = {};
+
           const zoneDetails = [];
+
           
+
           Array.from(winListEl.children).forEach((el, index) => {
+
             const zone = el.dataset && el.dataset.zone;
+
             const interval = el.dataset && el.dataset.interval;
+
             const text = el.textContent || '';
+
             
+
             if (zone === 'BLUE') blueCount++;
+
             else if (zone === 'ORANGE') orangeCount++;
+
             
+
             if (interval) {
+
               intervalCounts[interval] = (intervalCounts[interval] || 0) + 1;
+
             }
+
             
+
             // Debug: log first few items
+
             if (index < 5) {
+
               zoneDetails.push(`${index+1}:${zone}(${text.includes(zone) ? '✓' : '✗'})`);
+
             }
+
           });
+
           
+
           // Create interval summary
+
           const intervalSummary = Object.entries(intervalCounts)
+
             .sort((a, b) => b[1] - a[1]) // Sort by count descending
+
             .slice(0, 3) // Top 3 intervals
+
             .map(([interval, count]) => `${interval}:${count}`)
+
             .join(' ');
+
           
+
           miniWinZoneStats.textContent = `BLUE: ${blueCount} | ORANGE: ${orangeCount} | ${intervalSummary}`;
+
           
+
           // Debug logging
+
           console.log(`Zone stats: BLUE=${blueCount}, ORANGE=${orangeCount}, Details: ${zoneDetails.join(' ')}`);
+
         }
+
       }
+
       
+
       // Update gauge colors
+
       if (miniWinBaseBar) miniWinBaseBar.style.background = isBlueMajor ? '#ffb703' : '#00d1ff';
+
       if (miniWinOverlayBar){ 
+
         miniWinOverlayBar.style.background = isBlueMajor ? '#00d1ff' : '#ffb703'; 
+
         miniWinOverlayBar.style.width = `${pct}%`; 
+
       }
+
     }catch(_){ }
+
   }
+
   // Wrap updateModelInsight to also drive mini gauge if present
+
   try{
+
     const _prevUpdateModelInsight = updateModelInsight;
+
     updateModelInsight = function(j){
+
       try{ _prevUpdateModelInsight(j); }catch(_){ }
+
       try{ refreshMiniWinGaugeFromWinMajor(); }catch(_){ }
+
     }
+
   }catch(_){ }
+
+
 
   // Manual trade buttons
+
   if (btnBuy) btnBuy.addEventListener('click', async ()=>{
+
     try{
+
       // Arm auto order with 5-sec cancel window
+
       armAutoPending(async ()=>{
+
         const j = await postJson('/api/trade/buy', {});
+
         if (j && j.ok && j.order){
+
           pushOrderMarker(j.order);
+
           uiLog('Manual BUY', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper }));
+
           pushOrderLogLine(`[${new Date().toLocaleString()}] BUY placed @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+
         } else {
+
           const reason = (j && j.error) ? String(j.error) : 'unknown_error';
+
           uiLog('Manual BUY failed', JSON.stringify(j));
+
           pushOrderLogLine(`[${new Date().toLocaleString()}] BUY ERROR: ${reason}`);
+
         }
+
         try{ refreshTradeReady(); }catch(_){ }
+
       });
+
     }catch(e){ uiLog('Manual BUY error', String(e)); }
+
   });
+
   if (btnSell) btnSell.addEventListener('click', async ()=>{
+
     try{
+
       armAutoPending(async ()=>{
+
         const j = await postJson('/api/trade/sell', {});
+
         if (j && j.ok && j.order){
+
           pushOrderMarker(j.order);
+
           uiLog('Manual SELL', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper }));
+
           pushOrderLogLine(`[${new Date().toLocaleString()}] SELL placed @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+
         } else {
+
           const reason = (j && j.error) ? String(j.error) : 'unknown_error';
+
           uiLog('Manual SELL failed', JSON.stringify(j));
+
           pushOrderLogLine(`[${new Date().toLocaleString()}] SELL ERROR: ${reason}`);
+
         }
+
         try{ refreshTradeReady(); }catch(_){ }
+
       });
+
     }catch(e){ uiLog('Manual SELL error', String(e)); }
+
   });
+
+
 
   function armAutoPending(executeFn){
+
     try{
+
       if (!autoPending || !autoPendingBar){ executeFn(); return; }
+
       // Reset UI
+
       autoPending.style.display = '';
+
       autoPendingBar.style.width = '0%';
+
       let ms = 5000; const step = 100;
+
       if (autoPendingTimer) { clearInterval(autoPendingTimer); autoPendingTimer=null; }
+
       autoPendingTimer = setInterval(()=>{
+
         ms -= step; const pct = Math.max(0, Math.min(100, Math.round(((5000-ms)/5000)*100)));
+
         autoPendingBar.style.width = pct + '%';
+
         if (ms <= 0){ clearInterval(autoPendingTimer); autoPendingTimer=null; autoPending.style.display='none'; executeFn(); }
+
       }, step);
+
       if (btnCancelPending){
+
         btnCancelPending.onclick = ()=>{
+
           try{ if (autoPendingTimer) clearInterval(autoPendingTimer); }catch(_){ }
+
           autoPendingTimer = null; autoPending.style.display='none'; uiLog('Auto order cancelled within 5s');
+
         };
+
       }
+
     }catch(_){ executeFn(); }
+
   }
+
+
 
   // Live Trade Preflight test
+
   if (btnPreflight) btnPreflight.addEventListener('click', async ()=>{
+
     try{
+
       const j = await fetchJsonStrict('/api/trade/preflight');
+
       if (!j.ok){ uiLog('Preflight failed', JSON.stringify(j)); return; }
+
       const p = j.preflight || {};
+
       const lines = [
+
         `paper=${p.paper} keys=${p.has_keys} market=${p.market} price=${Number(p.price||0).toLocaleString()}`,
+
         `KRW=${Number(p.krw||0).toLocaleString()} coin_bal=${p.coin_balance}`,
+
         `BUY_KRW=${Number(p.planned_buy_krw||0).toLocaleString()} (>=5000 → ${p.can_buy})`,
+
         `SELL_SIZE=${p.planned_sell_size} (>=5000KRW → ${p.can_sell})`,
+
       ];
+
       uiLog('Preflight', lines.join(' | '));
+
     }catch(e){ uiLog('Preflight error', String(e)); }
+
   });
+
+
 
   // Auto Trade toggle: start/stop server trade loop
+
   if (autoTradeToggle){
+
     autoTradeToggle.addEventListener('change', async ()=>{
+
       try{
+
         if (autoTradeToggle.checked){
+
           await postJson('/api/bot/start', {});
+
           uiLog('Auto Trade', 'started');
+
         } else {
+
           await postJson('/api/bot/stop', {});
+
           uiLog('Auto Trade', 'stopped');
+
         }
+
       }catch(e){ uiLog('Auto Trade toggle error', String(e)); }
+
     });
+
   }
+
   // Inject ML-only/ML-seg-only toggles next to Auto Trade (runtime only)
+
   try{
+
     const parent = document.getElementById('autoTradeToggle')?.closest('.card');
+
     const holder = document.getElementById('tradeReadyBox')?.parentElement;
+
     if (holder){
+
       const wrap = document.createElement('div');
+
       wrap.className = 'mt-2';
+
       wrap.innerHTML = `<div class=\"form-check form-switch\"><input class=\"form-check-input\" type=\"checkbox\" id=\"mlOnlyToggle\"><label class=\"form-check-label text-muted\" for=\"mlOnlyToggle\">ML-only Auto Trade</label></div>
+
       <div class=\"form-check form-switch mt-1\"><input class=\"form-check-input\" type=\"checkbox\" id=\"mlSegOnlyToggle\"><label class=\"form-check-label text-muted\" for=\"mlSegOnlyToggle\">ML segment-only (extreme only)</label></div>`;
+
       holder.appendChild(wrap);
+
       mlOnlyToggle = document.getElementById('mlOnlyToggle');
+
       mlOnlyToggle.addEventListener('change', async ()=>{
+
         try{ await postJson('/api/bot/config', { ml_only: !!mlOnlyToggle.checked }); uiLog('Config', `ml_only=${mlOnlyToggle.checked}`); }catch(_){ }
+
       });
+
       mlSegOnlyToggle = document.getElementById('mlSegOnlyToggle');
+
       mlSegOnlyToggle && mlSegOnlyToggle.addEventListener('change', async ()=>{
+
         try{ await postJson('/api/bot/config', { ml_seg_only: !!mlSegOnlyToggle.checked }); uiLog('Config', `ml_seg_only=${mlSegOnlyToggle.checked}`); }catch(_){ }
+
       });
+
     }
+
   }catch(_){ }
 
+
+
   if (optBtn) optBtn.addEventListener('click', ()=>{ optimizeNb(); });
+
   if (trainBtn) trainBtn.addEventListener('click', async ()=>{
+
     try{
+
       const payload = { count: parseInt(trainCountEl?.value||'1800',10), segments: parseInt(trainSegEl?.value||'3',10), window: parseInt(nbWindowEl?.value||'50',10), debounce: parseInt(nbDebounceEl?.value||'6',10), fee_bps: 10.0, interval: getInterval() };
+
       uiLog('NB Train start', `auto split: ${payload.segments} segments, candle=${payload.interval}, count=${payload.count}`);
+
       const r = await fetch('/api/nb/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
       const j = await r.json();
+
       if (j && j.ok){
+
         uiLog('NB Train done', `chosen seg=${j.chosen.segment}, PnL=${j.chosen.stats.pnl.toFixed(0)}, BUY=${j.chosen.best.buy}, SELL=${j.chosen.best.sell}`);
+
         if (nbBuyThEl) nbBuyThEl.value = String(j.chosen.best.buy);
+
         if (nbSellThEl) nbSellThEl.value = String(j.chosen.best.sell);
+
         updateNB();
+
       } else { uiLog('NB Train failed', JSON.stringify(j)); }
+
     }catch(e){ uiLog('NB Train error', String(e)); }
+
   });
+
   if (autoBtToggle) autoBtToggle.addEventListener('change', ()=>{
+
     if (autoBtToggle.checked){
+
       const run = ()=>{ if (btBtn) btBtn.click(); };
+
       const sec = Math.max(10, parseInt(autoBtSecEl?.value||'60',10));
+
       run();
+
       autoBtTimer = setInterval(run, sec*1000);
+
       uiLog('Auto backtest start', `interval=${sec}s`);
+
     } else {
+
       if (autoBtTimer) clearInterval(autoBtTimer); autoBtTimer=null;
+
       uiLog('Auto backtest stop');
+
     }
+
   });
+
   if (mlTrainBtn) mlTrainBtn.addEventListener('click', async ()=>{
+
     try{
+
       uiLog('ML Train start', 'nb_best_trade (BUY→SELL one-cycle) curriculum');
+
       const payload = { window: parseInt(nbWindowEl?.value||'50',10), ema_fast: parseInt(emaFastEl?.value||'10',10), ema_slow: parseInt(emaSlowEl?.value||'30',10), horizon: 5, tau: 0.002, count: 1800, interval: getInterval(), label_mode: 'nb_best_trade' };
+
       const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
       if (j && j.ok){ uiLog('ML Train done', `labels: BUY=${j.classes['1']}, HOLD=${j.classes['0']}, SELL=${j.classes['-1']}`); if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`; }
+
       else { uiLog('ML Train failed', JSON.stringify(j)); }
+
     }catch(e){ uiLog('ML Train error', String(e)); }
+
   });
+
   if (mlPredictBtn) mlPredictBtn.addEventListener('click', async ()=>{
+
     try{
+
       const j = await fetchJsonStrict('/api/ml/predict').catch(() => null);
+
       if (j && j.ok){
+
         uiLog('ML Predict', `action=${j.action}, pred=${j.pred}`);
+
         if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
+
         updateModelInsight(j);
+
       }
+
       else { uiLog('ML Predict failed', JSON.stringify(j)); }
+
     }catch(e){ uiLog('ML Predict error', String(e)); }
+
   });
+
   if (mlRandomBtn) mlRandomBtn.addEventListener('click', async ()=>{
+
     try{
+
       const n = Math.max(1, parseInt(mlRandNEl?.value||'10',10));
+
       uiLog('ML Random Train start', `trials=${n} (nb_best_trade emphasis)`);
+
       for (let i=0;i<n;i++){
+
         const mins = [1,3,5,10,15,30,60][Math.floor(Math.random()*7)];
+
         const interval = mins===60 ? 'minute60' : `minute${mins}`;
+
         const window = Math.floor(20 + Math.random()*100); // 20~120
+
         const ema_fast = Math.floor(5 + Math.random()*20); // 5~25
+
         const ema_slow = Math.max(ema_fast+5, Math.floor(20 + Math.random()*60));
+
         // Reflect random options on UI so user can see
+
         try{
+
           if (tfEl){ tfEl.value = interval; tfEl.dispatchEvent(new Event('change')); }
+
           if (emaFastEl){ emaFastEl.value = String(ema_fast); emaFastEl.dispatchEvent(new Event('change')); }
+
           if (emaSlowEl){ emaSlowEl.value = String(ema_slow); emaSlowEl.dispatchEvent(new Event('change')); }
+
           if (typeof nbWindowEl !== 'undefined' && nbWindowEl){ nbWindowEl.value = String(window); nbWindowEl.dispatchEvent(new Event('change')); }
+
           // short wait so chart/indicators update
+
           await sleep(400);
+
         }catch(_){ }
+
         const payload = { window, ema_fast, ema_slow, horizon: 5, tau: 0.002, count: 1200, interval, label_mode: 'nb_best_trade' };
+
         uiLog('ML Random Train', JSON.stringify(payload));
+
         const j = await fetchJsonStrict('/api/ml/train', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+
         if (!(j && j.ok)) { uiLog('Train failed, skipping attempt', JSON.stringify(j)); continue; }
+
         if (mlCountEl) mlCountEl.textContent = `(train# ${j.train_count||0})`;
+
         // After each random trial: wait NB signals ready → run backtest
+
         try{
+
           // Retry several times to absorb async delay
+
           await backtestAfterReady(6000);
+
           await sleep(1200); await backtestAfterReady(3000);
+
         }catch(_){ }
+
       }
+
       const pred = await fetchJsonStrict('/api/ml/predict').catch(() => null);
+
       if (pred && pred.ok){ uiLog('ML Predict(after random)', `action=${pred.action}, pred=${pred.pred}`); if (mlCountEl) mlCountEl.textContent = `(train# ${pred.train_count||0})`; }
+
       else { uiLog('ML Predict failed(after random)', JSON.stringify(pred)); }
+
       // 마지막으로 한 번 더 백테스트 갱신
+
       try{
+
         await backtestAfterReady(4000);
+
         await sleep(1200); await backtestAfterReady(3000);
+
       }catch(_){ }
+
     }catch(e){ uiLog('ML Random error', String(e)); }
+
   });
+
   if (loadBalBtn) loadBalBtn.addEventListener('click', async ()=>{
+
     try{
+
       const j = await fetchJsonStrict('/api/balance');
+
       const box = document.getElementById('balanceBox');
+
       if (!box) return;
+
       if (!j.ok){ box.textContent = `Error: ${j.error||'unknown'}`; return; }
+
       if (j.paper){ box.textContent = 'PAPER mode (no live assets)'; return; }
+
       const rows = (j.balances||[]);
+
       const lines = rows.map(b=>`${b.currency}: balance=${b.balance} locked=${b.locked} avg_buy=${b.avg_buy_price}`);
+
       box.textContent = lines.length? lines.join('\n') : 'No balances';
+
     }catch(e){ const box = document.getElementById('balanceBox'); if (box) box.textContent = String(e); }
+
   });
+
   // --- Top assets auto loader ---
+
   async function refreshAssets(){
+
     try{
+
       const j = await fetchJsonStrict('/api/balance');
+
       if (!j.ok){ if (assetsMeta) assetsMeta.textContent = `(error: ${j.error||'unknown'})`; return; }
+
       if (j.paper){ if (assetsMeta) assetsMeta.textContent = '(PAPER mode)'; return; }
+
       const rows = (j.balances||[]);
+
       // show KRW first, then others sorted by balance desc
+
       const krw = rows.filter(b=>b.currency==='KRW');
+
       const rest = rows.filter(b=>b.currency!=='KRW').sort((a,b)=> (b.balance||0) - (a.balance||0));
+
       const all = [...krw, ...rest];
+
       // Stats cards
+
       const totalValue = all.reduce((s,b)=> s + Number(b.asset_value||0), 0);
+
       const krwVal = Number((krw[0]?.asset_value)||0);
+
       const sellables = rest.filter(b=> Number(b.asset_value||0) > 0).map(b=> b.currency).slice(0, 20);
+
       if (assetTotalEl) assetTotalEl.textContent = Math.round(totalValue).toLocaleString();
+
       if (assetBuyableEl) assetBuyableEl.textContent = Math.round(krwVal).toLocaleString();
+
       if (assetSellableEl) assetSellableEl.innerHTML = sellables.length? sellables.map(s=>`<span class='chip'>${s}</span>`).join(' ') : '<span class="chip">-</span>';
 
+
+
       // Bars by KRW value proportions (top 10 including KRW)
+
       if (assetsBars){
+
         assetsBars.innerHTML = '';
+
         const top = [{ currency:'KRW', asset_value: krwVal }, ...rest].filter(b=> (b.asset_value||0)>0).slice(0, 10);
+
         const sum = top.reduce((s,b)=> s + Number(b.asset_value||0), 0) || 1;
+
         top.forEach(b=>{
+
           const pct = Math.max(1, Math.round((Number(b.asset_value||0)/sum)*100));
+
           const row = document.createElement('div');
+
           row.className = 'asset-bar' + (b.currency==='KRW'?' krw':'');
+
           row.innerHTML = `<div class='top'><div class='label'>${b.currency}</div><div class='muted'>${Math.round(b.asset_value||0).toLocaleString()} KRW (${pct}%)</div></div>
+
             <div class='meter'><div class='fill' style='width:${pct}%;'></div></div>`;
+
           assetsBars.appendChild(row);
+
         });
+
       }
+
       if (assetsMeta) assetsMeta.textContent = `(${new Date().toLocaleTimeString()})`;
+
     }catch(e){ if (assetsBox) assetsBox.textContent = String(e); }
+
   }
+
   if (assetsRefresh) assetsRefresh.addEventListener('click', refreshAssets);
+
   if (assetsAutoToggle) assetsAutoToggle.addEventListener('change', ()=>{
+
     if (assetsAutoToggle.checked){
+
       refreshAssets();
+
       assetsTimer = setInterval(refreshAssets, 30*1000);
+
     } else {
+
       if (assetsTimer) clearInterval(assetsTimer), assetsTimer=null;
+
     }
+
   });
+
   // kick off initial load
+
   refreshAssets().catch(()=>{});
+
   if (assetsAutoToggle && assetsAutoToggle.checked){ assetsTimer = setInterval(refreshAssets, 30*1000); }
+
   if (logClearBtn) logClearBtn.addEventListener('click', ()=>{ if (logBox) logBox.textContent=''; });
 
+
+
   // ===== Village HP & N/B Stamina System =====
+
   
+
   // Guild Members Data Structure
+
   let guildMembers = {
+
     scout: { 
+
       name: 'Scout', 
+
       hp: 85, 
+
       maxHp: 100, 
+
       stamina: 70, 
+
       maxStamina: 100, 
+
       location: 'Gate', 
+
       role: 'Explorer',
+
       trainerCards: ['minute1', 'minute3'],
+
       specialty: 'Quick Signals',
+
       description: 'Monitors 1m & 3m charts for rapid opportunities',
+
       // Trading records
+
       realTrades: [],
+
       mockTrades: [],
+
       totalProfit: 0,
+
       winRate: 0,
+
       lastTrade: null,
+
              // Auto learning system
+
        skillLevel: 1.0,
+
        experience: 0,
+
        learningRate: 0.1,
+
        autoTradingEnabled: true,
+
        lastAutoTrade: null,
+
        tradeFrequency: 0.6, // 60% chance per cycle (increased for more active trading)
+
        strategy: 'momentum',
+
        // Position tracking
+
        openPosition: null,
+
        // N/B Coin inventory
+
        nbCoins: 0.001, // Current N/B coin balance (initialized for real trading)
+
        totalNbCoinsEarned: 0.0, // Total coins earned from profitable trades
+
        totalNbCoinsLost: 0.0, // Total coins lost from losing trades
+
        // Position tracking with multiple trades
+
        positionHistory: [], // Array of all trades in current position
+
        averagePrice: 0.0, // Average entry price
+
        totalPositionSize: 0.0 // Total position size
+
     },
+
     guardian: { 
+
       name: 'Guardian', 
+
       hp: 95, 
+
       maxHp: 100, 
+
       stamina: 80, 
+
       maxStamina: 100, 
+
       location: 'Market', 
+
       role: 'Protector',
+
       trainerCards: ['minute5', 'minute10'],
+
       specialty: 'Trend Protection',
+
       description: 'Guards 5m & 10m trends and manages risk',
+
       // Trading records
+
       realTrades: [],
+
       mockTrades: [],
+
       totalProfit: 0,
+
       winRate: 0,
+
       lastTrade: null,
+
              // Auto learning system
+
        skillLevel: 1.0,
+
        experience: 0,
+
        learningRate: 0.1,
+
        autoTradingEnabled: true,
+
        lastAutoTrade: null,
+
        tradeFrequency: 0.5, // 50% chance per cycle (increased for more active trading)
+
        strategy: 'meanrev',
+
        // Position tracking
+
        openPosition: null,
+
        // N/B Coin inventory
+
        nbCoins: 0.001, // Current N/B coin balance (initialized for real trading)
+
        totalNbCoinsEarned: 0.0, // Total coins earned from profitable trades
+
        totalNbCoinsLost: 0.0, // Total coins lost from losing trades
+
        // Position tracking with multiple trades
+
        positionHistory: [], // Array of all trades in current position
+
        averagePrice: 0.0, // Average entry price
+
        totalPositionSize: 0.0 // Total position size
+
     },
+
     analyst: { 
+
       name: 'Analyst', 
+
       hp: 60, 
+
       maxHp: 100, 
+
       stamina: 90, 
+
       maxStamina: 100, 
+
       location: 'Tower', 
+
       role: 'Strategist',
+
       trainerCards: ['minute15', 'minute30'],
+
       specialty: 'Strategic Analysis',
+
       description: 'Analyzes 15m & 30m patterns for strategy',
+
       // Trading records
+
       realTrades: [],
+
       mockTrades: [],
+
       totalProfit: 0,
+
       winRate: 0,
+
       lastTrade: null,
+
              // Auto learning system
+
        skillLevel: 1.0,
+
        experience: 0,
+
        learningRate: 0.15,
+
        autoTradingEnabled: true,
+
        lastAutoTrade: null,
+
        tradeFrequency: 0.7, // 70% chance per cycle (increased for more active trading)
+
        strategy: 'breakout',
+
        // Position tracking
+
        openPosition: null,
+
        // N/B Coin inventory
+
        nbCoins: 0.001, // Current N/B coin balance (initialized for real trading)
+
        totalNbCoinsEarned: 0.0, // Total coins earned from profitable trades
+
        totalNbCoinsLost: 0.0 // Total coins lost from losing trades
+
     },
+
     elder: { 
+
       name: 'Elder', 
+
       hp: 45, 
+
       maxHp: 100, 
+
       stamina: 50, 
+
       maxStamina: 100, 
+
       location: 'Inn', 
+
       role: 'Advisor',
+
       trainerCards: ['minute60', 'day'],
+
       specialty: 'Long-term Wisdom',
+
       description: 'Provides wisdom from 1h & daily perspectives',
+
       // Trading records
+
       realTrades: [],
+
       mockTrades: [],
+
       totalProfit: 0,
+
       winRate: 0,
+
       lastTrade: null,
+
              // Auto learning system
+
        skillLevel: 1.0,
+
        experience: 0,
+
        learningRate: 0.12,
+
        autoTradingEnabled: true,
+
        lastAutoTrade: null,
+
        tradeFrequency: 0.4, // 40% chance per cycle (increased for more active trading)
+
        strategy: 'scalping',
+
        // Position tracking
+
        openPosition: null,
+
        // N/B Coin inventory
+
        nbCoins: 0.0, // Current N/B coin balance
+
        totalNbCoinsEarned: 0.0, // Total coins earned from profitable trades
+
        totalNbCoinsLost: 0.0, // Total coins lost from losing trades
+
        // Position tracking with multiple trades
+
        positionHistory: [], // Array of all trades in current position
+
        averagePrice: 0.0, // Average entry price
+
        totalPositionSize: 0.0 // Total position size
+
     }
+
   };
+
+
 
   // Village Mayor System
+
   let villageMayor = {
+
     name: '촌장',
+
     role: 'Leader',
+
     location: 'Town Hall',
+
     currentZone: 'BLUE', // Current market zone (BLUE/ORANGE)
+
     lastAnnouncement: null,
+
     announcementInterval: 5 * 60 * 1000, // 5 minutes
+
     zoneStrategy: {
+
       BLUE: {
+
         bias: 'BUY',
+
         confidence: 0.7,
+
         message: '🔵 BLUE 구역: 알파 구역으로 매수세가 강합니다. 신중하게 매수 전략을 실행하세요.'
+
       },
+
       ORANGE: {
+
         bias: 'SELL',
+
         confidence: 0.6,
+
         message: '🟠 ORANGE 구역: 베타적 관계 형성에 주의. 빠른 수익 실현이 중요합니다.'
+
       }
+
     }
+
   };
+
+
 
   // N/B Stamina System
+
   let nbStamina = {
+
     current: 0, // Start from 0
+
     max: 100,
+
     recoveryRate: 0, // No automatic recovery
+
     lastRecovery: Date.now(),
+
     treasuryAccess: false
+
   };
+
+
 
   // Mock Test Results for Stamina Recovery
+
   let mockTestResults = {
+
     totalTests: 0,
+
     profitableTests: 0,
+
     totalProfit: 0
+
   };
 
+
+
     // Update real-time trading status
+
   async function updateRealTimeTradingStatus() {
     try {
+
       const statusDiv = document.getElementById('realTimeTradingStatus');
+
       const indicator = document.getElementById('tradingStatusIndicator');
+
       if (!statusDiv || !indicator) return;
+
       
+
       let activeTraders = 0;
+
       let totalTraders = 0;
+
       let tradingActivity = [];
+
       let openPositions = [];
+
       let totalPnl = 0;
+
       
       // Get trainer storage data
       let trainerStorageData = {};
@@ -3441,18 +6726,28 @@
         console.error('Failed to fetch trainer storage data:', e);
       }
       
+
       Object.values(guildMembers).forEach(member => {
+
         totalTraders++;
+
         const canTrade = member.autoTradingEnabled && member.stamina >= 10;
+
         const timeSinceLastTrade = member.lastAutoTrade ? Date.now() - member.lastAutoTrade : 0;
+
         const fiveMinutes = 5 * 60 * 1000;
+
         const cooldownActive = timeSinceLastTrade < fiveMinutes;
+
         const cooldownRemaining = cooldownActive ? Math.ceil((fiveMinutes - timeSinceLastTrade) / 60000) : 0;
+
         
+
         // Check for open position using trainer storage data
         const trainerData = trainerStorageData[member.name];
         if (trainerData && trainerData.coins > 0) {
           const currentPrice = getCurrentPrice();
+
           const entryPrice = trainerData.entry_price || 0;
           const coinAmount = trainerData.coins;
           
@@ -3471,7 +6766,9 @@
             }
           }
           
+
           let currentPnl = 0;
+
           let effectiveEntryPrice = entryPrice;
           
           // If entry price is 0 or invalid, use current price (no P&L)
@@ -3479,114 +6776,214 @@
             effectiveEntryPrice = currentPrice;
             currentPnl = 0; // No P&L for invalid entry price
           } else {
-            if (positionSide === 'BUY') {
+          if (positionSide === 'BUY') {
+
               currentPnl = ((currentPrice - effectiveEntryPrice) / effectiveEntryPrice) * 100;
-            } else {
+          } else {
+
               currentPnl = ((effectiveEntryPrice - currentPrice) / effectiveEntryPrice) * 100;
             }
           }
+
           
+
           totalPnl += currentPnl;
+
           
-          const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
-          let minutesHeld = 0;
-          try {
+
+                     const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
+
+           let minutesHeld = 0;
+
+           try {
+
             if (trainerData.last_update) {
               const timeHeld = Date.now() - (trainerData.last_update * 1000);
-              minutesHeld = Math.floor(timeHeld / (1000 * 60));
-              if (isNaN(minutesHeld) || minutesHeld < 0) {
-                minutesHeld = 0;
+             minutesHeld = Math.floor(timeHeld / (1000 * 60));
+
+             if (isNaN(minutesHeld) || minutesHeld < 0) {
+
+               minutesHeld = 0;
+
               }
-            }
-          } catch (e) {
-            minutesHeld = 0;
-          }
+             }
+
+           } catch (e) {
+
+             minutesHeld = 0;
+
+           }
+
           
+
           openPositions.push({
+
             name: member.name,
+
             side: positionSide,
+
             coinAmount: coinAmount,
+
             entryPrice: effectiveEntryPrice,
             currentPrice: currentPrice,
+
             pnl: currentPnl,
+
             pnlColor: pnlColor,
+
             minutesHeld: minutesHeld,
+
             strategy: member.strategy
+
           });
+
         }
+
         
+
         if (canTrade && !cooldownActive) {
+
           activeTraders++;
+
           tradingActivity.push(`${member.name}: 거래 준비 완료`);
+
         } else if (canTrade && cooldownActive) {
+
           tradingActivity.push(`${member.name}: 대기 중 (${cooldownRemaining}분)`);
+
         } else if (!canTrade) {
+
           tradingActivity.push(`${member.name}: 체력 부족 (${member.stamina}/100)`);
+
         }
+
       });
+
       
+
       // Update indicator
+
       if (activeTraders > 0) {
+
         indicator.className = 'badge bg-success';
+
         indicator.textContent = `${activeTraders}/${totalTraders} 활성`;
+
       } else {
+
         indicator.className = 'badge bg-warning';
+
         indicator.textContent = '대기 중';
+
       }
+
       
+
       // Update status content
+
       const currentTime = new Date().toLocaleTimeString();
+
       const currentPrice = getCurrentPrice();
+
       let html = `<div style="color: #00d1ff; font-weight: 600;">🕐 ${currentTime} | 💰 ${Number(currentPrice).toLocaleString()}</div>`;
+
       html += `<div style="margin-top: 4px;">활성 거래자: ${activeTraders}/${totalTraders} | 오픈 포지션: ${openPositions.length}</div>`;
+
       
+
       // Show open positions with real-time P&L
+
       if (openPositions.length > 0) {
+
         html += '<div style="margin-top: 8px; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 4px;">';
+
         html += '<div style="font-size: 11px; color: #00d1ff; margin-bottom: 4px;">📊 실시간 포지션</div>';
+
         
+
         // Calculate total P&L color outside the loop
+
           const totalPnlColor = totalPnl > 0 ? '#0ecb81' : totalPnl < 0 ? '#f6465d' : '#ffffff';
+
         
+
         openPositions.forEach(pos => {
+
           html += `<div style="font-size: 10px; margin-bottom: 2px;">`;
+
           html += `<span style="color: #ffffff;">${pos.name}:</span> `;
+
           html += `<span style="color: ${pos.side === 'BUY' ? '#0ecb81' : '#f6465d'};">${pos.side}</span> `;
+
           html += `<span style="color: #ffffff;">${pos.coinAmount} BTC</span> `;
+
           html += `<span style="color: #888888;">@ ${Number(pos.entryPrice).toLocaleString()}</span> `;
+
           html += `<span style="color: ${pos.pnlColor}; font-weight: 600;">${pos.pnl > 0 ? '+' : ''}${pos.pnl.toFixed(2)}%</span> `;
+
           html += `<span style="color: #888888;">(${pos.minutesHeld}분)</span>`;
+
           html += `</div>`;
+
         });
+
         
+
         html += `<div style="font-size: 11px; color: ${totalPnlColor}; font-weight: 600; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">`;
+
         html += `총 P&L: ${totalPnl > 0 ? '+' : ''}${totalPnl.toFixed(2)}%`;
+
         html += `</div>`;
+
         html += '</div>';
+
       }
+
       
+
       // Show trading activity
+
       if (tradingActivity.length > 0) {
+
         html += '<div style="margin-top: 8px; font-size: 10px;">';
+
         html += '<div style="color: #888888; margin-bottom: 4px;">거래 상태:</div>';
+
         tradingActivity.forEach(activity => {
+
           html += `<div style="margin-bottom: 2px;">• ${activity}</div>`;
+
         });
+
         html += '</div>';
+
       }
+
       
+
       statusDiv.innerHTML = html;
+
       
+
     } catch (e) {
+
       console.error('Error updating real-time trading status:', e);
+
     }
+
   }
 
+
+
   // Update Integrated Guild Members & Auto Trading Status
+
   async function updateGuildMembersStatus() {
     try {
+
       const integratedGuildStatus = document.getElementById('integratedGuildStatus');
+
       if (!integratedGuildStatus) return;
+
 
       // Get trainer storage data
       let trainerStorageData = {};
@@ -3602,37 +6999,66 @@
         console.error('Failed to fetch trainer storage data:', e);
       }
 
+
       // System status header
+
       const nbStaminaStatus = typeof nbStamina !== 'undefined' ? 
+
         `N/B Stamina: ${nbStamina.current}/${nbStamina.max}` : 'N/B Stamina: 초기화 중';
+
       
+
       let html = `<div style="font-size: 11px; color: #d9e2f3; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">${nbStaminaStatus}</div>`;
+
       
+
       Object.values(guildMembers).forEach(member => {
+
         const hpPercent = Math.round((member.hp / member.maxHp) * 100);
+
         const staminaPercent = Math.round((member.stamina / member.maxStamina) * 100);
+
         
+
         const hpColor = hpPercent > 70 ? '#0ecb81' : hpPercent > 40 ? '#ffb703' : '#f6465d';
+
         const staminaColor = staminaPercent > 70 ? '#4285f4' : staminaPercent > 40 ? '#ffb703' : '#f6465d';
+
         
+
         // Calculate trading stats
+
         const totalRealTrades = member.realTrades.length;
+
         const totalMockTrades = member.mockTrades.length;
+
         const profitColor = member.totalProfit > 0 ? '#0ecb81' : member.totalProfit < 0 ? '#f6465d' : '#ffffff';
+
         const winRateColor = member.winRate > 60 ? '#0ecb81' : member.winRate > 40 ? '#ffb703' : '#f6465d';
+
         
+
                  // Get last trade info
+
          const lastTrade = member.lastTrade;
+
          const lastTradeInfo = lastTrade ? 
+
            `<span style="font-size: 10px; color: ${lastTrade.profit > 0 ? '#0ecb81' : '#f6465d'};">
+
              Last: ${lastTrade.type} ${lastTrade.profit > 0 ? '+' : ''}${lastTrade.profit.toFixed(2)}%
+
            </span>` : '';
+
          
+
          // Get position status with real-time P&L using trainer storage data
          let positionStatus = '';
+
          const trainerData = trainerStorageData[member.name];
          if (trainerData && trainerData.coins > 0) {
            const currentPrice = getCurrentPrice();
+
            const entryPrice = trainerData.entry_price || 0;
            const coinAmount = trainerData.coins;
            
@@ -3651,1195 +7077,2363 @@
            
            // Calculate real-time P&L with validation
            let currentPnl = 0;
+
            let effectiveEntryPrice = entryPrice;
            
+
            if (entryPrice <= 0 || entryPrice > currentPrice * 10 || entryPrice < currentPrice * 0.1) {
              effectiveEntryPrice = currentPrice;
              currentPnl = 0;
            } else {
-             if (positionSide === 'BUY') {
+           if (positionSide === 'BUY') {
+
                currentPnl = ((currentPrice - effectiveEntryPrice) / effectiveEntryPrice) * 100;
-             } else {
+           } else {
+
                currentPnl = ((effectiveEntryPrice - currentPrice) / effectiveEntryPrice) * 100;
              }
            }
+
            
+
            const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
            
+
            positionStatus = `<span style="font-size: 10px; color: #00d1ff; font-weight: 600;">
+
              📊 ${positionSide} ${coinAmount.toFixed(8)} @ ${Number(effectiveEntryPrice).toLocaleString()}
            </span>
+
            <span style="font-size: 10px; color: ${pnlColor}; margin-left: 8px;">
+
              P&L: ${currentPnl > 0 ? '+' : ''}${currentPnl.toFixed(2)}%
+
            </span>`;
+
          }
+
          
+
          // Add N/B coin balance
+
          const nbCoinColor = member.nbCoins > 0 ? '#ffd700' : '#888888';
+
          const nbCoinStatus = `<span style="font-size: 10px; color: ${nbCoinColor}; margin-left: 8px;">
+
            🪙 N/B: ${member.nbCoins.toFixed(6)}
+
          </span>`;
+
         
+
                  // Check auto trading status with detailed information
+
          const canTrade = member.autoTradingEnabled && member.stamina >= 10;
+
          const timeSinceLastTrade = member.lastAutoTrade ? Date.now() - member.lastAutoTrade : 0;
+
          const fiveMinutes = 5 * 60 * 1000;
+
          const cooldownActive = timeSinceLastTrade < fiveMinutes;
+
          const cooldownRemaining = cooldownActive ? Math.ceil((fiveMinutes - timeSinceLastTrade) / 60000) : 0;
+
          
+
          let tradeStatus = '🤖 거래 가능';
+
          let tradeStatusColor = '#0ecb81';
+
          
+
          // Check if member has open position
+
          if (member.openPosition) {
+
            try {
+
              const timeHeld = Date.now() - new Date(member.openPosition.timestamp).getTime();
+
              const minutesHeld = Math.floor(timeHeld / (1000 * 60));
+
              if (isNaN(minutesHeld) || minutesHeld < 0) {
+
                tradeStatus = `📊 포지션 보유`;
+
              } else {
+
                tradeStatus = `📊 포지션 보유 (${minutesHeld}분)`;
+
              }
+
            } catch (e) {
+
              tradeStatus = `📊 포지션 보유`;
+
            }
+
            tradeStatusColor = '#00d1ff';
+
          } else if (!canTrade) {
+
            tradeStatus = '🔴 체력 부족';
+
            tradeStatusColor = '#f6465d';
+
          } else if (cooldownActive) {
+
            tradeStatus = `⏸️ 대기 중 (${cooldownRemaining}분)`;
+
            tradeStatusColor = '#ffb703';
+
          } else if (Math.random() > member.tradeFrequency) {
+
            tradeStatus = '⏳ 확률 대기';
+
            tradeStatusColor = '#ffb703';
+
          }
+
         
-        // Skill level display
-        const skillDisplay = member.skillLevel > 1.5 ? `(Level ${member.skillLevel.toFixed(1)})` : '';
+
+        // 창고 자산 기반 등급 표시
+        const warehouseValue = member.nbCoins * (window.currentPrice || 160000000);
+        const warehouseGrade = enhanceSpecialty(member.specialty, member.skillLevel, warehouseValue);
+        const skillDisplay = `(Level ${member.skillLevel.toFixed(1)}) - ${warehouseGrade.split('(')[1].split(')')[0]}`;
+
         
+
         // Trainer cards display
+
         const trainerCardsHtml = member.trainerCards ? member.trainerCards.map(card => 
+
           `<span class="badge bg-info text-dark" style="font-size: 10px; margin-right: 2px;">${card}</span>`
+
         ).join('') : '';
+
         
+
         html += `
+
           <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+
             <div style="flex: 1;">
+
               <div class="d-flex align-items-center mb-1">
+
                 <span style="font-weight: 600; color: #ffffff;">${member.name}</span>
+
               <span style="color: #ffffff; font-size: 11px; margin-left: 8px;">(${member.role})</span>
+
               <span style="color: #ffffff; font-size: 11px; margin-left: 8px;">[${member.location}]</span>
+
                 <span style="color: #ffffff; font-size: 11px; margin-left: 8px;">${skillDisplay}</span>
+
               </div>
+
               <div style="font-size: 11px; color: #ffffff; margin-bottom: 4px;">
+
                 <strong>${member.specialty}</strong>: ${member.description}
+
               </div>
+
               <div style="margin-bottom: 4px;">
+
                 ${trainerCardsHtml}
+
               </div>
+
               <div style="font-size: 10px; color: #ffffff; margin-bottom: 2px;">
+
                 <span style="color: ${profitColor};">Profit: ${member.totalProfit > 0 ? '+' : ''}${member.totalProfit.toFixed(2)}%</span>
+
                 <span style="margin-left: 8px; color: ${winRateColor};">Win Rate: ${member.winRate.toFixed(1)}%</span>
+
               </div>
+
               <div style="font-size: 10px; color: #ffffff; margin-bottom: 2px;">
+
                 <span>Real: ${totalRealTrades}</span>
+
                 <span style="margin-left: 8px;">Mock: ${totalMockTrades}</span>
+
                 <span style="margin-left: 8px; color: ${tradeStatusColor};">${tradeStatus}</span>
+
               </div>
+
                              <div style="font-size: 10px; color: #ffffff;">
+
                  ${lastTradeInfo}
+
                  ${positionStatus}
+
                  ${nbCoinStatus}
+
                  <span style="font-size: 10px; color: #00d1ff; margin-left: 8px;">
+
                    💰 Current Price: ${Number(getCurrentPrice()).toLocaleString()}
+
                  </span>
+
                </div>
+
               <div style="font-size: 9px; color: #888888; margin-top: 2px;">
+
                 <span>Strategy: ${member.strategy}</span>
+
                 <span style="margin-left: 8px;">Confidence: ${calculateMemberConfidence(member).toFixed(0)}%</span>
+
                 <span style="margin-left: 8px;">Freq: ${(member.tradeFrequency * 100).toFixed(0)}%</span>
+
                 ${cooldownActive ? `<span style="margin-left: 8px; color: #ffb703;">⏱️ ${cooldownRemaining}분</span>` : ''}
+
               </div>
+
             </div>
+
             <div class="d-flex align-items-center" style="gap: 8px;">
+
               <div style="text-align: right;">
+
                 <div style="font-size: 11px; color: #ffffff;">HP: ${member.hp}/${member.maxHp}</div>
+
                 <div style="width: 60px; height: 4px; background: #1a1a1a; border-radius: 2px; overflow: hidden;">
+
                   <div style="width: ${hpPercent}%; height: 100%; background: ${hpColor};"></div>
+
                 </div>
+
               </div>
+
               <div style="text-align: right;">
+
                 <div style="font-size: 11px; color: #ffffff;">Stamina: ${member.stamina}/${member.maxStamina}</div>
+
                 <div style="width: 60px; height: 4px; background: #1a1a1a; border-radius: 2px; overflow: hidden;">
+
                   <div style="width: ${staminaPercent}%; height: 100%; background: ${staminaColor};"></div>
+
                 </div>
+
               </div>
+
             </div>
+
           </div>
+
         `;
+
       });
+
       
+
       integratedGuildStatus.innerHTML = html;
+
       
+
       // Update individual trade slides
+
       updateIndividualTradeSlides();
+
       
+
     } catch (e) {
+
       console.error('Error updating integrated guild status:', e);
+
     }
+
   }
+
+
 
   // Generate Trade Slide HTML for individual member
+
   function generateTradeSlideHTML(member) {
+
     const hasPosition = member.openPosition !== null;
+
     const currentPrice = getCurrentPrice();
+
     
+
     if (!hasPosition) {
+
       return `
+
         <div style="font-size:11px; color:#888888; padding:8px; background:rgba(255,255,255,0.05); border-radius:4px; text-align:center;">
+
           📊 No active position
+
         </div>
+
       `;
+
     }
+
     
+
     const entryPrice = member.averagePrice || member.openPosition.price;
+
     const coinAmount = member.totalPositionSize || member.openPosition.coinAmount;
+
     const positionSide = member.openPosition.side;
+
     const tradeStartTime = new Date(member.openPosition.timestamp);
+
     const timeHeld = Date.now() - tradeStartTime.getTime();
+
     const minutesHeld = Math.floor(timeHeld / (1000 * 60));
+
     
+
     // Calculate P&L
+
     let currentPnl = 0;
+
     if (positionSide === 'BUY') {
+
       currentPnl = ((currentPrice - entryPrice) / entryPrice) * 100;
+
     } else {
+
       currentPnl = ((entryPrice - currentPrice) / entryPrice) * 100;
+
     }
+
     
+
     const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
+
     const pnlBgColor = currentPnl > 0 ? 'rgba(14,203,129,0.1)' : currentPnl < 0 ? 'rgba(246,70,93,0.1)' : 'rgba(255,255,255,0.05)';
+
     
+
     // Sell prediction logic
+
     const sellPrediction = calculateSellPrediction(member, currentPnl, minutesHeld);
+
     
+
     return `
+
       <div style="font-size:11px; color:#ffffff; background:rgba(0,209,255,0.1); border-radius:6px; padding:8px; border-left:3px solid #00d1ff;">
+
         <!-- Trade Progress Bar -->
+
         <div class="mb-2">
+
           <div class="d-flex justify-content-between align-items-center mb-1">
+
             <span style="font-size:10px; color:#ffffff;">Trade Progress</span>
+
             <span style="font-size:10px; color:#00d1ff;">${Math.min(100, (minutesHeld / 60) * 100).toFixed(1)}%</span>
+
           </div>
+
           <div style="width:100%; height:6px; background:#1a1a1a; border-radius:3px; overflow:hidden;">
+
             <div style="width:${Math.min(100, (minutesHeld / 60) * 100)}%; height:100%; background:linear-gradient(90deg, #00d1ff, #0ecb81); transition:width 0.3s ease;"></div>
+
           </div>
+
         </div>
+
         
+
         <!-- Trade Status -->
+
         <div class="mb-2" style="font-size:10px; color:#ffffff; padding:6px; background:rgba(0,209,255,0.1); border-radius:4px;">
+
           <div class="d-flex justify-content-between align-items-center">
+
             <span>🔄 ${positionSide} Position Active</span>
+
             <span style="color:#00d1ff;">${minutesHeld}m</span>
+
           </div>
+
         </div>
+
         
+
         <!-- Trade Details -->
+
         <div class="mb-2">
+
           <div class="row">
+
             <div class="col-6">
+
               <div style="background:rgba(255,255,255,0.05); padding:4px; border-radius:3px; margin-bottom:3px;">
+
                 <span style="color:#888888; font-size:9px;">Entry:</span><br>
+
                 <span style="color:#ffffff; font-weight:600; font-size:10px;">${Number(entryPrice).toLocaleString()}</span>
+
               </div>
+
             </div>
+
             <div class="col-6">
+
               <div style="background:rgba(255,255,255,0.05); padding:4px; border-radius:3px; margin-bottom:3px;">
+
                 <span style="color:#888888; font-size:9px;">Current:</span><br>
+
                 <span style="color:#ffffff; font-weight:600; font-size:10px;">${Number(currentPrice).toLocaleString()}</span>
+
               </div>
+
             </div>
+
           </div>
+
           <div class="row">
+
             <div class="col-6">
+
               <div style="background:rgba(255,255,255,0.05); padding:4px; border-radius:3px; margin-bottom:3px;">
+
                 <span style="color:#888888; font-size:9px;">Size:</span><br>
+
                 <span style="color:#ffffff; font-weight:600; font-size:10px;">${coinAmount.toFixed(6)}</span>
+
               </div>
+
             </div>
+
             <div class="col-6">
+
               <div style="background:rgba(255,255,255,0.05); padding:4px; border-radius:3px; margin-bottom:3px;">
+
                 <span style="color:#888888; font-size:9px;">Strategy:</span><br>
+
                 <span style="color:#ffffff; font-weight:600; font-size:10px;">${member.strategy}</span>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
+
         
+
         <!-- P&L Display -->
+
         <div class="mb-2" style="font-size:11px; padding:6px; border-radius:4px; text-align:center; background:${pnlBgColor};">
+
           <div style="font-size:12px; font-weight:600; margin-bottom:2px;">P&L</div>
+
           <div style="font-size:14px; font-weight:700; color:${pnlColor};">${currentPnl > 0 ? '+' : ''}${currentPnl.toFixed(2)}%</div>
+
           <div style="font-size:9px; color:#888888;">${(currentPnl * entryPrice * coinAmount / 100).toFixed(0)} KRW</div>
+
         </div>
+
         
+
         <!-- Sell Prediction -->
+
         <div class="mb-2" style="font-size:10px; color:#ffffff; padding:6px; background:rgba(255,183,3,0.1); border-radius:4px; border-left:2px solid #ffb703;">
+
           <div class="d-flex justify-content-between align-items-center">
+
             <span>🎯 Sell Prediction</span>
+
             <span style="color:#ffb703;">${sellPrediction.time}</span>
+
           </div>
+
           <div style="font-size:9px; color:#888888; margin-top:2px;">${sellPrediction.reason}</div>
+
         </div>
+
       </div>
+
     `;
+
   }
+
+
 
   // Calculate Sell Prediction
+
   function calculateSellPrediction(member, currentPnl, minutesHeld) {
+
     const strategy = member.strategy;
+
     const confidence = calculateMemberConfidence(member);
+
     
+
     let prediction = {
+
       time: 'Unknown',
+
       reason: 'Analyzing market conditions...'
+
     };
+
     
+
     // Strategy-based predictions
+
     if (strategy === 'meanrev') {
+
       if (currentPnl > 2) {
+
         prediction = {
+
           time: 'Soon',
+
           reason: 'Mean reversion target reached (+2%)'
+
         };
+
       } else if (currentPnl < -3) {
+
         prediction = {
+
           time: 'Hold',
+
           reason: 'Waiting for reversal signal'
+
         };
+
       } else {
+
         prediction = {
+
           time: `${Math.max(0, 30 - minutesHeld)}m`,
+
           reason: 'Mean reversion in progress'
+
         };
+
       }
+
     } else if (strategy === 'momentum') {
+
       if (currentPnl > 1.5) {
+
         prediction = {
+
           time: 'Now',
+
           reason: 'Momentum peak detected'
+
         };
+
       } else {
+
         prediction = {
+
           time: `${Math.max(0, 45 - minutesHeld)}m`,
+
           reason: 'Momentum building'
+
         };
+
       }
+
     } else if (strategy === 'breakout') {
+
       if (currentPnl > 3) {
+
         prediction = {
+
           time: 'Immediate',
+
           reason: 'Breakout target achieved'
+
         };
+
       } else {
+
         prediction = {
+
           time: `${Math.max(0, 60 - minutesHeld)}m`,
+
           reason: 'Breakout confirmation pending'
+
         };
+
       }
+
     }
+
     
+
     // Confidence adjustment
+
     if (confidence > 80) {
+
       prediction.time = prediction.time === 'Unknown' ? 'Soon' : prediction.time;
+
     }
+
     
+
     return prediction;
+
   }
+
+
 
   // Toggle Trade Slide for individual member
+
   function toggleTradeSlide(memberName) {
+
     const slideElement = document.getElementById(`tradeSlide_${memberName}`);
+
     if (slideElement) {
+
       slideElement.style.display = slideElement.style.display === 'none' ? 'block' : 'none';
+
     }
+
   }
+
+
 
   // Update Individual Trade Slides
+
   function updateIndividualTradeSlides() {
+
     Object.values(guildMembers).forEach(member => {
+
       const slideElement = document.getElementById(`tradeSlide_${member.name}`);
+
       if (slideElement && slideElement.style.display !== 'none') {
+
         slideElement.innerHTML = generateTradeSlideHTML(member);
+
       }
+
     });
+
   }
+
+
 
   // Toggle All Trade Slides
+
   function toggleAllTradeSlides() {
+
     const slides = document.querySelectorAll('[id^="tradeSlide_"]');
+
     const isAnyVisible = Array.from(slides).some(slide => slide.style.display !== 'none');
+
     
+
     slides.forEach(slide => {
+
       slide.style.display = isAnyVisible ? 'none' : 'block';
+
     });
+
     
+
     // Update button text
+
     const toggleBtn = document.getElementById('btnToggleAllSlides');
+
     if (toggleBtn) {
+
       toggleBtn.textContent = isAnyVisible ? 'Show All' : 'Hide All';
+
     }
+
   }
+
+
 
   // Update N/B Stamina System Display
+
   function updateStaminaSystem() {
+
     try {
+
       const staminaSystem = document.getElementById('staminaSystem');
+
       const staminaMeta = document.getElementById('staminaMeta');
+
       if (!staminaSystem || !staminaMeta) return;
 
+
+
       const staminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+
       const staminaColor = staminaPercent > 70 ? '#4285f4' : staminaPercent > 40 ? '#ffb703' : '#f6465d';
+
       
+
       const treasuryStatus = nbStamina.treasuryAccess ? 'Unlocked' : 'Locked';
+
       const treasuryColor = nbStamina.treasuryAccess ? '#0ecb81' : '#f6465d';
+
       
+
       staminaSystem.innerHTML = `
+
         <div class="d-flex justify-content-between align-items-center mb-2">
+
           <div>
+
             <span style="font-weight: 600;">N/B Stamina:</span>
+
             <span style="color: ${staminaColor}; margin-left: 8px;">${nbStamina.current}/${nbStamina.max}</span>
+
           </div>
+
           <div style="width: 120px; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden;">
+
             <div style="width: ${staminaPercent}%; height: 100%; background: ${staminaColor};"></div>
+
           </div>
+
         </div>
+
         <div class="d-flex justify-content-between align-items-center">
+
           <div>
+
             <span style="font-weight: 600;">Treasury Access:</span>
+
             <span style="color: ${treasuryColor}; margin-left: 8px;">${treasuryStatus}</span>
+
           </div>
+
           <div>
+
             <span style="font-size: 11px; color: #ffffff;">Recovery: Profitable Mock Tests Only</span>
+
           </div>
+
         </div>
+
         <div style="margin-top: 8px; font-size: 11px; color: #ffffff;">
+
           Mock Tests: ${mockTestResults.profitableTests}/${mockTestResults.totalTests} profitable
+
           ${mockTestResults.totalProfit > 0 ? `(+${mockTestResults.totalProfit.toFixed(2)}% avg)` : ''}
+
         </div>
+
       `;
+
       
+
       staminaMeta.textContent = `(${new Date().toLocaleTimeString()})`;
+
     } catch (e) {
+
       console.error('Error updating stamina system:', e);
+
     }
+
   }
+
+
 
   // Rest All Guild Members
+
   function restAllGuildMembers() {
+
     try {
+
       Object.values(guildMembers).forEach(member => {
+
         // Rest increases stamina by 20, but decreases HP by 5
+
         member.stamina = Math.min(member.maxStamina, member.stamina + 20);
+
         member.hp = Math.max(0, member.hp - 5);
+
       });
+
       
+
       updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
       pushOrderLogLine(`[${new Date().toLocaleString()}] All guild members rested. Stamina +20, HP -5`);
+
     } catch (e) {
+
       console.error('Error resting guild members:', e);
+
     }
+
   }
+
+
 
   // Heal All Guild Members
+
   function healAllGuildMembers() {
+
     try {
+
       Object.values(guildMembers).forEach(member => {
+
         // Heal increases HP by 15, but decreases stamina by 10
+
         member.hp = Math.min(member.maxHp, member.hp + 15);
+
         member.stamina = Math.max(0, member.stamina - 10);
+
       });
+
       
+
       updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
       pushOrderLogLine(`[${new Date().toLocaleString()}] All guild members healed. HP +15, Stamina -10`);
+
     } catch (e) {
+
       console.error('Error healing guild members:', e);
+
     }
+
   }
+
+
 
   // Process Mock Test Results for Stamina Recovery
+
   function processMockTestResult(profitPercent) {
+
     try {
+
       mockTestResults.totalTests++;
+
       mockTestResults.totalProfit += profitPercent;
+
       
+
       if (profitPercent > 0) {
+
         mockTestResults.profitableTests++;
+
         // Only profitable mock tests recover stamina
+
         const staminaRecovery = Math.min(15, Math.round(profitPercent * 3)); // Max 15 stamina per test, higher multiplier
+
         nbStamina.current = Math.min(nbStamina.max, nbStamina.current + staminaRecovery);
+
         
+
         // Check if treasury access should be unlocked
+
         if (nbStamina.current >= 80 && !nbStamina.treasuryAccess) {
+
           nbStamina.treasuryAccess = true;
+
           pushOrderLogLine(`[${new Date().toLocaleString()}] 🎉 Treasury access UNLOCKED! N/B Stamina reached 80+ (${nbStamina.current})`);
+
         }
+
         
+
         pushOrderLogLine(`[${new Date().toLocaleString()}] ✅ Mock test profitable (+${profitPercent.toFixed(2)}%). Stamina +${staminaRecovery} (Total: ${nbStamina.current})`);
+
       } else {
+
         // Unprofitable mock tests do NOT consume stamina (stamina stays the same)
+
         // Only profitable tests can recover stamina
+
         
+
         pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ Mock test unprofitable (${profitPercent.toFixed(2)}%). No stamina recovery.`);
+
       }
+
       
+
       // Record mock trade for guild members
+
       recordMockTrade(profitPercent);
+
       
+
       updateStaminaSystem();
+
     } catch (e) {
+
       console.error('Error processing mock test result:', e);
+
     }
+
   }
+
+
 
   // Record Mock Trade for Guild Members
+
   function recordMockTrade(profitPercent) {
+
     try {
+
       // Find the guild member who participated in the mock trade
+
       const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30);
+
       if (activeMembers.length === 0) return;
+
       
+
       // Randomly select a participating member (simulating consultation)
+
       const participatingMember = activeMembers[Math.floor(Math.random() * activeMembers.length)];
+
       
+
       // Create mock trade record
+
       const mockTrade = {
+
         timestamp: new Date().toLocaleString(),
+
         type: 'MOCK',
+
         profit: profitPercent,
+
         strategy: ['meanrev', 'momentum', 'breakout', 'scalping'][Math.floor(Math.random() * 4)],
+
         interval: getInterval(),
+
         success: profitPercent > 0
+
       };
+
       
+
       // Add to member's mock trades
+
       participatingMember.mockTrades.push(mockTrade);
+
       
+
       // Update member's stats
+
       updateMemberStats(participatingMember);
+
       
+
       // Update last trade
+
       participatingMember.lastTrade = mockTrade;
+
       
+
       console.log(`Mock trade recorded for ${participatingMember.name}: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}%`);
+
       
+
     } catch (e) {
+
       console.error('Error recording mock trade:', e);
+
     }
+
   }
+
+
 
   // Record Real Trade for Guild Members
+
   function recordRealTrade(side, price, size, profit = 0) {
+
     try {
+
       // Find the guild member responsible for the current interval
+
       const currentInterval = getInterval();
+
       let responsibleMember = null;
+
       
+
       for (const member of Object.values(guildMembers)) {
+
         if (member.trainerCards && member.trainerCards.includes(currentInterval)) {
+
           responsibleMember = member;
+
           break;
+
         }
+
       }
+
       
+
       // If no specific member is responsible, assign to a random active member
+
       if (!responsibleMember) {
+
         const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30);
+
         if (activeMembers.length > 0) {
+
           responsibleMember = activeMembers[Math.floor(Math.random() * activeMembers.length)];
+
         }
+
       }
+
       
+
       if (!responsibleMember) return;
+
       
+
       // Create real trade record
+
       const realTrade = {
+
         timestamp: new Date().toLocaleString(),
+
         type: 'REAL',
+
         side: side,
+
         price: price,
+
         size: size,
+
         profit: profit,
+
         interval: currentInterval,
+
         success: profit > 0
+
       };
+
       
+
       // Add to member's real trades
+
       responsibleMember.realTrades.push(realTrade);
+
       
+
       // Update member's stats
+
       updateMemberStats(responsibleMember);
+
       
+
       // Update last trade
+
       responsibleMember.lastTrade = realTrade;
+
       
+
       // Log detailed real trade information
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💼 ${responsibleMember.name} (${responsibleMember.role}) - 실제 거래 실행`);
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 ${side} ${size} @ ${Number(price).toLocaleString()} | ${currentInterval} 차트`);
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 수익: ${profit > 0 ? '+' : ''}${profit.toFixed(2)}% | 누적 수익: ${responsibleMember.totalProfit > 0 ? '+' : ''}${responsibleMember.totalProfit.toFixed(2)}%`);
+
       
+
       console.log(`Real trade recorded for ${responsibleMember.name}: ${side} ${size} @ ${price} (${profit > 0 ? '+' : ''}${profit.toFixed(2)}%)`);
+
       
+
     } catch (e) {
+
       console.error('Error recording real trade:', e);
+
     }
+
   }
+
+
 
   // Update Member Statistics
+
   function updateMemberStats(member) {
+
     try {
+
       // Calculate total profit from all trades
+
       const allTrades = [...member.realTrades, ...member.mockTrades];
+
       const totalProfit = allTrades.reduce((sum, trade) => sum + trade.profit, 0);
+
       
+
       // Calculate win rate
+
       const successfulTrades = allTrades.filter(trade => trade.success).length;
+
       const winRate = allTrades.length > 0 ? (successfulTrades / allTrades.length) * 100 : 0;
+
       
+
       // Update member stats
+
       member.totalProfit = totalProfit;
+
       member.winRate = winRate;
+
       
+
     } catch (e) {
+
       console.error('Error updating member stats:', e);
+
     }
+
   }
+
+
 
   // Auto Stamina Recovery (disabled - only through profitable mock tests)
+
   function autoStaminaRecovery() {
+
     try {
+
       // No automatic recovery - stamina only recovers through profitable mock tests
+
       // This function is kept for potential future use but does nothing
+
     } catch (e) {
+
       console.error('Error in auto stamina recovery:', e);
+
     }
+
   }
 
+
+
   // Event Listeners for New Buttons
+
   const btnRestAll = document.getElementById('btnRestAll');
+
   const btnHealAll = document.getElementById('btnHealAll');
+
   const btnMockTrade = document.getElementById('btnMockTrade');
+
   const btnEmergencyReset = document.getElementById('btnEmergencyReset');
+
   const btnClearMockResults = document.getElementById('btnClearMockResults');
+
   const btnTrainerDiagnostics = document.getElementById('btnTrainerDiagnostics');
+
   const btnClearDiagnostics = document.getElementById('btnClearDiagnostics');
+
   
+
   if (btnRestAll) {
+
     btnRestAll.addEventListener('click', restAllGuildMembers);
+
   }
+
   
+
   if (btnHealAll) {
+
     btnHealAll.addEventListener('click', healAllGuildMembers);
+
   }
+
   
+
   // Mock Trade button removed - now using auto trading system
+
   
+
   if (btnEmergencyReset) {
+
     btnEmergencyReset.addEventListener('click', emergencyStaminaReset);
+
   }
+
   
+
   if (btnClearMockResults) {
+
     btnClearMockResults.addEventListener('click', () => {
+
       // Clear mock trade log
+
       const mockTradeBox = document.getElementById('mockTradeBox');
+
       if (mockTradeBox) mockTradeBox.textContent = '-';
+
       
+
       // Clear all trade history for all guild members
+
       Object.values(guildMembers).forEach(member => {
+
         // Reset trade history
+
         member.realTrades = [];
+
         member.mockTrades = [];
+
         member.positionHistory = [];
+
         member.totalPositionSize = 0;
+
         member.averagePrice = 0;
+
         member.openPosition = null;
+
         member.lastTrade = null;
+
         
+
         // Reset stats
+
         member.totalProfit = 0;
+
         member.winRate = 0;
+
         member.totalTrades = 0;
+
         member.successfulTrades = 0;
+
         
+
         // Reset N/B coins to initial value
+
         member.nbCoins = 0.001;
+
       });
+
       
+
       // Update displays
+
       updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
       updateRealTimeTradingStatus().catch(e => console.error('Error updating real-time trading status:', e));
       
+
       console.log('All trade history cleared for all guild members');
+
     });
+
   }
+
+
 
   // Add Toggle All Trade Slides button event listener
+
   const btnToggleAllSlides = document.getElementById('btnToggleAllSlides');
+
   if (btnToggleAllSlides) {
+
     btnToggleAllSlides.addEventListener('click', toggleAllTradeSlides);
-  }
-  
-  if (btnTrainerDiagnostics) {
-    btnTrainerDiagnostics.addEventListener('click', runTrainerDiagnostics);
-  }
-  
-  if (btnClearDiagnostics) {
-    btnClearDiagnostics.addEventListener('click', () => {
-      const trainerDiagnosticsBox = document.getElementById('trainerDiagnosticsBox');
-      if (trainerDiagnosticsBox) trainerDiagnosticsBox.textContent = '-';
-    });
+
   }
 
+  
+
+  if (btnTrainerDiagnostics) {
+
+    btnTrainerDiagnostics.addEventListener('click', runTrainerDiagnostics);
+
+  }
+
+  
+
+  if (btnClearDiagnostics) {
+
+    btnClearDiagnostics.addEventListener('click', () => {
+
+      const trainerDiagnosticsBox = document.getElementById('trainerDiagnosticsBox');
+
+      if (trainerDiagnosticsBox) trainerDiagnosticsBox.textContent = '-';
+
+    });
+
+  }
+
+
+
   // Initialize and start auto updates
+
   updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
   updateStaminaSystem();
+
   
   // Force initial village mayor announcement
   setTimeout(() => {
     villageMayorAnnouncement();
   }, 2000); // 2초 후 첫 공지사항
   
+
   // Auto recovery timer (check every 5 minutes)
+
   setInterval(autoStaminaRecovery, 5 * 60 * 1000);
+
   
+
   // Village Mayor and Auto Trading System
+
   setInterval(villageMayorAnnouncement, 5 * 60 * 1000); // Every 5 minutes (mayor announcements)
+
   setInterval(autoMockTradingScheduler, 30 * 1000); // Every 30 seconds for more frequent trading
+
   setInterval(trainerLearningSystem, 5 * 60 * 1000); // Every 5 minutes
+
   
+
   // Update displays every 5 seconds for real-time P&L
+
   setInterval(() => {
+
     updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
     updateStaminaSystem();
+
     updateAutoTradingStatus();
+
           updateRealTimeTradingStatus().catch(e => console.error('Error updating real-time trading status:', e));
   }, 5 * 1000);
 
+
+
   // Get Guild Members Status for specific interval
+
   function getGuildMembersStatusForInterval(interval) {
+
     try {
+
       // Calculate active members (those with stamina > 30)
+
       const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30).length;
+
       
+
       // Calculate N/B Stamina percentage
+
       const nbStaminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+
       
+
       // Determine N/B Stamina color
+
       let nbStaminaColor = '#f6465d'; // red
+
       if (nbStaminaPercent > 70) {
+
         nbStaminaColor = '#4285f4'; // blue
+
       } else if (nbStaminaPercent > 40) {
+
         nbStaminaColor = '#ffb703'; // yellow
+
       }
+
       
+
       // Different intervals have different guild member distributions
+
       const intervalModifiers = {
+
         'minute1': { staminaBonus: 5, activeBonus: 1 },
+
         'minute3': { staminaBonus: 3, activeBonus: 1 },
+
         'minute5': { staminaBonus: 2, activeBonus: 0 },
+
         'minute10': { staminaBonus: 0, activeBonus: 0 },
+
         'minute15': { staminaBonus: -2, activeBonus: -1 },
+
         'minute30': { staminaBonus: -3, activeBonus: -1 },
+
         'minute60': { staminaBonus: -5, activeBonus: -2 },
+
         'day': { staminaBonus: -10, activeBonus: -3 }
+
       };
+
       
+
       const modifier = intervalModifiers[interval] || { staminaBonus: 0, activeBonus: 0 };
+
       const adjustedStamina = Math.max(0, Math.min(100, nbStaminaPercent + modifier.staminaBonus));
+
       const adjustedActive = Math.max(0, Math.min(4, activeMembers + modifier.activeBonus));
+
       
+
       return {
+
         nbStamina: adjustedStamina,
+
         nbStaminaColor: adjustedStamina > 70 ? '#4285f4' : adjustedStamina > 40 ? '#ffb703' : '#f6465d',
+
         activeMembers: adjustedActive,
+
         treasuryAccess: adjustedStamina >= 80
+
       };
+
     } catch (e) {
+
       console.error('Error getting guild status for interval:', e);
+
       return {
+
         nbStamina: 0,
+
         nbStaminaColor: '#f6465d',
+
         activeMembers: 0,
+
         treasuryAccess: false
+
       };
+
     }
+
   }
+
+
 
   // Real Market-Based Mock Trading System
+
   async function executeMockTrade() {
+
     try {
+
       // Check if we have enough N/B Stamina
+
       if (nbStamina.current < 10) {
+
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ❌ Insufficient N/B Stamina (${nbStamina.current}/100). Need at least 10 to trade.`);
+
         return;
+
       }
+
+
 
       // Consume stamina for mock trading
+
       const staminaCost = 10;
+
       nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+
       
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🔄 Starting Real Market Mock Trade (Stamina -${staminaCost}, Remaining: ${nbStamina.current})`);
+
       
+
       // Step 1: Market Analysis Phase
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📊 Phase 1: Market Analysis...`);
+
       await sleep(500);
+
       
+
       // Get current market data
+
       const currentInterval = getInterval();
+
       const chartData = candle.data();
+
       const lastPrice = chartData && chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
+
       
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 Current Price: ${Number(lastPrice).toLocaleString()} KRW (${currentInterval})`);
+
       
+
       // Step 2: Strategy Selection Phase
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎯 Phase 2: Strategy Selection...`);
+
       await sleep(300);
+
       
+
       const strategies = ['meanrev', 'momentum', 'breakout', 'scalping'];
+
       const selectedStrategy = strategies[Math.floor(Math.random() * strategies.length)];
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎲 Selected Strategy: ${selectedStrategy}`);
+
       
+
       // Step 3: Guild Members Consultation
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 👥 Phase 3: Guild Members Consultation...`);
+
       await sleep(400);
+
       
+
       const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30);
+
       const consultedMember = activeMembers[Math.floor(Math.random() * activeMembers.length)];
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💬 ${consultedMember.name} (${consultedMember.role}): "${consultedMember.specialty}"`);
+
       
+
       // Step 4: Decision Making Phase
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🤔 Phase 4: Decision Making...`);
+
       await sleep(600);
+
       
+
       const decisions = ['BUY', 'SELL', 'HOLD'];
+
       const decision = decisions[Math.floor(Math.random() * decisions.length)];
+
       const confidence = Math.floor(Math.random() * 40) + 60; // 60-100%
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ✅ Decision: ${decision} (Confidence: ${confidence}%)`);
+
       
+
       // Step 5: Execution Phase
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚡ Phase 5: Trade Execution...`);
+
       await sleep(800);
+
       
+
       // Simulate trade execution with more realistic timing
+
       const executionDelay = 1000 + Math.random() * 2000; // 1-3 seconds
+
       setTimeout(async () => {
+
         try {
+
           // Calculate profit based on real market conditions
+
           let profitPercent = 0;
+
           let marketComment = '';
+
           
+
           if (decision !== 'HOLD') {
+
             // Get real market data for profit calculation
+
             const entryPrice = lastPrice;
+
             
+
             // Simulate price movement based on decision and real market conditions
+
             let priceChange = 0;
+
             const volatility = 0.02; // 2% base volatility
+
             
+
             if (decision === 'BUY') {
+
               // For BUY: simulate price increase (positive bias)
+
               const marketBias = Math.random() * 0.6 + 0.2; // 20-80% chance of profit
+
               const priceMovement = (Math.random() - 0.5) * volatility * 2; // -2% to +2%
+
               priceChange = priceMovement + (marketBias * 0.01); // Add positive bias
+
             } else if (decision === 'SELL') {
+
               // For SELL: simulate price decrease (negative bias)
+
               const marketBias = Math.random() * 0.6 + 0.2; // 20-80% chance of profit
+
               const priceMovement = (Math.random() - 0.5) * volatility * 2; // -2% to +2%
+
               priceChange = -priceMovement - (marketBias * 0.01); // Add negative bias
+
             }
+
             
+
             // Calculate profit percentage
+
             profitPercent = priceChange * 100;
+
             
+
             // Add market commentary based on real conditions
+
             if (profitPercent > 3) {
+
               marketComment = '📈 Strong market movement!';
+
             } else if (profitPercent > 1) {
+
               marketComment = '📊 Moderate gains';
+
             } else if (profitPercent > -1) {
+
               marketComment = '📉 Minor setback';
+
             } else if (profitPercent > -3) {
+
               marketComment = '📉 Moderate loss';
+
             } else {
+
               marketComment = '💥 Significant loss';
+
             }
+
             
+
             // Add strategy effectiveness factor
+
             const strategyEffectiveness = Math.random() * 0.4 - 0.2; // -20% to +20% adjustment
+
             profitPercent += strategyEffectiveness;
+
             
+
             // Add guild member expertise factor
+
             const guildExpertise = Math.random() * 0.3 - 0.15; // -15% to +15% adjustment
+
             profitPercent += guildExpertise;
+
             
+
             // Add confidence factor
+
             const confidenceFactor = (confidence - 60) / 40 * 0.2; // 0% to +20% based on confidence
+
             profitPercent += confidenceFactor;
+
             
+
           } else {
+
             // HOLD decision: minimal impact
+
             profitPercent = (Math.random() - 0.5) * 2; // -1% to +1%
+
             marketComment = '⏸️ Market observation';
+
           }
+
           
+
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ${marketComment} Trade Result: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}%`);
+
           
+
           processMockTestResult(profitPercent);
+
           
+
           // Update stamina system display
+
           updateStaminaSystem();
+
           
+
         } catch (e) {
+
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ❌ Profit calculation error: ${String(e)}`);
+
         }
+
       }, executionDelay);
+
       
+
     } catch (e) {
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ❌ Mock Trade Error: ${String(e)}`);
+
     }
+
   }
+
+
 
   // Simulate mock test results for demonstration (legacy function)
+
   function simulateMockTest() {
+
     // Increase chance of profitable tests to demonstrate stamina recovery
+
     const profitPercent = (Math.random() - 0.3) * 25; // -7.5% to +17.5% range, slightly more profitable
+
     processMockTestResult(profitPercent);
+
   }
+
+
 
   // Helper function to append lines to mock trade box
+
   function appendMockTradeLine(line) {
+
     const mockTradeBox = document.getElementById('mockTradeBox');
+
     if (mockTradeBox) {
+
       if (mockTradeBox.textContent === '-') {
+
         mockTradeBox.textContent = line;
+
       } else {
+
         mockTradeBox.textContent += '\n' + line;
+
       }
+
       mockTradeBox.scrollTop = mockTradeBox.scrollHeight;
+
     }
+
   }
+
+
 
   // Helper function to append lines to trainer diagnostics box
+
   function appendDiagnosticsLine(line) {
+
     const trainerDiagnosticsBox = document.getElementById('trainerDiagnosticsBox');
+
     if (trainerDiagnosticsBox) {
+
       if (trainerDiagnosticsBox.textContent === '-') {
+
         trainerDiagnosticsBox.textContent = line;
+
       } else {
+
         trainerDiagnosticsBox.textContent += '\n' + line;
+
       }
+
       trainerDiagnosticsBox.scrollTop = trainerDiagnosticsBox.scrollHeight;
+
     }
+
   }
+
+
 
   // Trainer System Diagnostics Function
+
   async function runTrainerDiagnostics() {
+
     try {
+
       appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🔍 Starting Trainer System Diagnostics...`);
+
       
+
       // 1. Check current interval
+
       const currentInterval = getInterval();
+
       appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 📊 Current Interval: ${currentInterval}`);
+
       
+
       // 2. Check chart data
+
       const chartData = candle.data();
+
       const lastPrice = chartData && chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
+
       appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 📈 Chart Data: ${chartData ? chartData.length : 0} candles, Last Price: ${Number(lastPrice).toLocaleString()}`);
+
       
+
       // 3. Check N/B zone and parameters
+
       try {
+
         const nbZoneResponse = await fetchJsonStrict('/api/nb/zone');
+
         if (nbZoneResponse && nbZoneResponse.ok) {
+
           const zone = nbZoneResponse.zone || 'UNKNOWN';
+
           const pBlue = nbZoneResponse.p_blue || 0;
+
           const pOrange = nbZoneResponse.p_orange || 0;
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🎯 N/B Zone: ${zone} (BLUE: ${(pBlue*100).toFixed(1)}%, ORANGE: ${(pOrange*100).toFixed(1)}%)`);
+
         } else {
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ N/B Zone: Error - ${JSON.stringify(nbZoneResponse)}`);
+
         }
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ N/B Zone: Error - ${String(e)}`);
+
       }
+
       
+
       // 4. Check ML model (simulated)
+
       try {
+
         // Simulate ML model predictions
+
         const zones = ['BLUE', 'ORANGE', 'GREEN'];
+
         const zone = zones[Math.floor(Math.random() * zones.length)];
+
         const confidence = 200 + Math.random() * 100; // 200-300%
+
         
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🤖 ML Model: Zone=${zone}, Confidence=${confidence.toFixed(1)}%`);
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ ML Model: Error - ${String(e)}`);
+
       }
+
       
+
       // 5. Check trainer suggestions (simulated)
+
       try {
+
         // Simulate trainer suggestions based on current state
+
         const strategies = ['meanrev', 'momentum', 'breakout', 'scalping'];
+
         const strategy = strategies[Math.floor(Math.random() * strategies.length)];
+
         const intent = Math.random() > 0.5 ? 'BUY' : 'SELL';
+
         const canBuy = Math.random() > 0.3;
+
         const canSell = Math.random() > 0.3;
+
         
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🎓 Trainer: Strategy=${strategy}, Intent=${intent}, BUY=${canBuy ? '✓' : '×'}, SELL=${canSell ? '✓' : '×'}`);
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ Trainer: Error - ${String(e)}`);
+
       }
+
       
+
       // 6. Check trade readiness (simulated)
+
       try {
+
         // Simulate trade readiness based on current state
+
         const krw = 15000 + Math.random() * 50000;
+
         const coins = 0.0001 + Math.random() * 0.001;
+
         const canBuy = krw > 10000;
+
         const canSell = coins > 0.0001;
+
         
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 💰 Trade Readiness: BUY=${canBuy ? '✓' : '×'}, SELL=${canSell ? '✓' : '×'}, KRW=${Number(krw).toLocaleString()}, Coins=${coins.toFixed(8)}`);
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ Trade Readiness: Error - ${String(e)}`);
+
       }
+
       
+
       // 7. Check N/B COIN status
+
       try {
+
         const coinResponse = await fetchJsonStrict('/api/nb/coin');
+
         if (coinResponse && coinResponse.ok) {
+
           const currentCoin = coinResponse.current || {};
+
           const recentCoins = coinResponse.recent || [];
+
           const activeCoins = recentCoins.filter(coin => coin && coin.side && coin.side !== 'NONE').length;
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B COIN: Current=${currentCoin.side || 'NONE'}, Active=${activeCoins}/${recentCoins.length} recent`);
+
         } else {
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ N/B COIN: Error - ${JSON.stringify(coinResponse)}`);
+
         }
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ N/B COIN: Error - ${String(e)}`);
+
       }
+
       
+
       // 8. Check guild members status
+
       try {
+
         if (typeof guildMembers !== 'undefined' && guildMembers) {
+
           const members = Object.values(guildMembers);
+
           const activeMembers = members.filter(member => member.stamina > 30).length;
+
           const totalStamina = members.reduce((sum, member) => sum + member.stamina, 0);
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 👥 Guild: ${activeMembers}/${members.length} active members, Total Stamina=${totalStamina}`);
+
           
+
           // Add trainer card integration info
+
           members.forEach(member => {
+
             const cardList = member.trainerCards ? member.trainerCards.join(', ') : 'None';
+
             appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🎯 ${member.name} (${member.role}): ${member.specialty} - Cards: [${cardList}]`);
+
           });
+
         } else {
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 👥 Guild: Not initialized yet`);
+
         }
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ Guild: Error - ${String(e)}`);
+
       }
+
       
+
       // 9. Check N/B Stamina
+
       try {
+
         if (typeof nbStamina !== 'undefined' && nbStamina) {
+
           const staminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Stamina: ${nbStamina.current}/${nbStamina.max} (${staminaPercent}%)`);
+
         } else {
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Stamina: Not initialized yet`);
+
         }
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ N/B Stamina: Error - ${String(e)}`);
+
       }
+
       
+
       // 10. Check Auto Trade status
+
       try {
+
         const autoTradeResponse = await fetchJsonStrict('/api/bot/status');
+
         if (autoTradeResponse) {
+
           // The response is the status object directly, not wrapped in {ok: true, status: {...}}
+
           const status = autoTradeResponse;
+
           const running = status.running ? 'ENABLED' : 'DISABLED';
+
           const lastSignal = status.last_signal || 'NONE';
+
           const coin = status.coin || {};
+
           const reasons = coin.reasons || [];
+
           
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🤖 Auto Trade: ${running} (Last Signal: ${lastSignal})`);
+
           
+
           // Show coin status if available
+
           if (coin.side && coin.side !== 'NONE') {
+
             appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] 🪙 Coin Status: ${coin.side} (${coin.coin_count || 0} coins)`);
+
           }
+
           
+
           // Show blocking reasons if any
+
           if (reasons.length > 0) {
+
             const reasonText = reasons.join(', ');
+
             appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ⚠️ Blocked: ${reasonText}`);
+
           }
+
         } else {
+
           appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ Auto Trade: No response data`);
+
         }
+
       } catch (e) {
+
         appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ Auto Trade: Error - ${String(e)}`);
+
       }
+
       
+
       appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ✅ Trainer System Diagnostics Complete`);
+
       
+
     } catch (e) {
+
       appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ❌ Diagnostics Error: ${String(e)}`);
+
     }
+
   }
+
+
 
   // Emergency Stamina Reset Function
+
   function emergencyStaminaReset() {
+
     try {
+
       // Only allow reset if stamina is critically low (less than 10)
+
       if (nbStamina.current >= 10) {
+
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚠️ Emergency Reset not needed. Current stamina: ${nbStamina.current}/100`);
+
         return;
+
       }
+
+
 
       // Reset stamina to 30 (enough for 3 mock trades)
+
       const oldStamina = nbStamina.current;
+
       nbStamina.current = 30;
+
       
+
       // Reset guild members to active state
+
       Object.values(guildMembers).forEach(member => {
+
         member.stamina = Math.min(member.maxStamina, member.stamina + 40);
+
         member.hp = Math.min(member.maxHp, member.hp + 20);
+
       });
+
+
 
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🚨 EMERGENCY RESET ACTIVATED!`);
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Stamina: ${oldStamina} → ${nbStamina.current}/100`);
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 👥 Guild Members: Restored to active state`);
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎯 Trainer Cards: All 8 intervals linked to guild members`);
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ✅ System ready for Mock Trading`);
 
+
+
       // Update displays
+
       updateStaminaSystem();
+
       updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
       
+
       // Log the emergency reset
+
       pushOrderLogLine(`[${new Date().toLocaleString()}] 🚨 Emergency Stamina Reset activated. Stamina: ${oldStamina} → ${nbStamina.current}`);
+
       
+
     } catch (e) {
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ❌ Emergency Reset Error: ${String(e)}`);
+
     }
+
   }
+
+
 
   // Add mock test simulation to auto distribute BTC button
+
   const originalAutoDistributeBtc = window.autoDistributeBtc;
+
   if (originalAutoDistributeBtc) {
+
     window.autoDistributeBtc = async function() {
+
       await originalAutoDistributeBtc();
+
       // Simulate mock test result after distribution
+
       setTimeout(simulateMockTest, 1000);
+
     };
+
   }
+
+
 
   // Hook into existing trade functions to record real trades
+
   const originalPushOrderLogLine = window.pushOrderLogLine || function() {};
+
   window.pushOrderLogLine = function(line) {
+
     originalPushOrderLogLine(line);
+
     
+
     // Parse trade information from log line
+
     try {
+
       if (line.includes('BUY') || line.includes('SELL')) {
+
         const side = line.includes('BUY') ? 'BUY' : 'SELL';
+
         const priceMatch = line.match(/(\d{1,3}(?:,\d{3})*)/);
+
         const sizeMatch = line.match(/(\d+\.\d+)/);
+
         
+
         if (priceMatch && sizeMatch) {
+
           const price = parseFloat(priceMatch[1].replace(/,/g, ''));
+
           const size = parseFloat(sizeMatch[1]);
+
           
+
           // Calculate estimated profit (simplified)
+
           const profit = (Math.random() - 0.5) * 10; // -5% to +5% for demo
+
           
+
           recordRealTrade(side, price, size, profit);
+
         }
+
       }
+
     } catch (e) {
+
       console.error('Error parsing trade log:', e);
+
     }
+
   };
 
+
+
   // Add demo data for testing
+
   function addDemoTrades() {
+
     try {
+
       // Add some demo trades for each guild member
+
       Object.values(guildMembers).forEach((member, index) => {
+
         // Add demo real trades
+
         for (let i = 0; i < 3 + index; i++) {
+
           const profit = (Math.random() - 0.4) * 8; // Slightly positive bias
+
           const realTrade = {
+
             timestamp: new Date(Date.now() - Math.random() * 86400000).toLocaleString(),
+
             type: 'REAL',
+
             side: Math.random() > 0.5 ? 'BUY' : 'SELL',
+
             price: 160000000 + Math.random() * 10000000,
+
             size: 0.001 + Math.random() * 0.01,
+
             profit: profit,
+
             interval: member.trainerCards[Math.floor(Math.random() * member.trainerCards.length)],
+
             success: profit > 0
+
           };
+
           member.realTrades.push(realTrade);
+
         }
+
         
+
         // Add demo mock trades
+
         for (let i = 0; i < 5 + index * 2; i++) {
+
           const profit = (Math.random() - 0.3) * 6; // Positive bias for mock trades
+
           const mockTrade = {
+
             timestamp: new Date(Date.now() - Math.random() * 86400000).toLocaleString(),
+
             type: 'MOCK',
+
             profit: profit,
+
             strategy: ['meanrev', 'momentum', 'breakout', 'scalping'][Math.floor(Math.random() * 4)],
+
             interval: member.trainerCards[Math.floor(Math.random() * member.trainerCards.length)],
+
             success: profit > 0
+
           };
+
           member.mockTrades.push(mockTrade);
+
         }
+
         
+
         // Update stats
+
         updateMemberStats(member);
+
         
+
         // Set last trade
+
         if (member.realTrades.length > 0 || member.mockTrades.length > 0) {
+
           const allTrades = [...member.realTrades, ...member.mockTrades];
+
           member.lastTrade = allTrades[allTrades.length - 1];
+
         }
+
       });
+
       
+
       console.log('Demo trades added for all guild members');
+
       
+
     } catch (e) {
+
       console.error('Error adding demo trades:', e);
+
     }
+
   }
 
+
+
   // Village Mayor Announcement System
+
   function villageMayorAnnouncement() {
+
     try {
+
       const currentZone = getCurrentZone();
+
       const timeSinceLastAnnouncement = villageMayor.lastAnnouncement ? 
+
         Date.now() - villageMayor.lastAnnouncement : villageMayor.announcementInterval + 1000;
+
       
+
       // Make announcement every 5 minutes or when zone changes
+
       if (timeSinceLastAnnouncement >= villageMayor.announcementInterval || 
+
           villageMayor.currentZone !== currentZone) {
+
         
+
         villageMayor.currentZone = currentZone;
+
         villageMayor.lastAnnouncement = Date.now();
+
         
+
         const zoneInfo = villageMayor.zoneStrategy[currentZone];
+
         const currentPrice = getCurrentPrice();
+
         
+
         // Mayor's announcement
+
         const nbZone = window.zoneNow || 'BLUE';
+
         const mlZone = currentZone;
         
         // Zone discrepancy analysis
@@ -4851,9 +9445,11 @@
         }
         
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🏛️ ${villageMayor.name} 공지사항`);
+
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📊 현재 구역: ${nbZone === 'BLUE' ? '🔵 BLUE' : '🟠 ORANGE'} (N/B 기반) | ML 모델: ${mlZone === 'BLUE' ? '🔵 BLUE' : '🟠 ORANGE'} | 현재가: ${Number(currentPrice).toLocaleString()}`);
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📢 ${zoneInfo.message}${zoneAnalysis}`);
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎯 권장 전략: ${zoneInfo.bias} | 신뢰도: ${(zoneInfo.confidence * 100).toFixed(0)}%`);
+
         
         // Zone-based trading instruction
         const tradingInstruction = nbZone === 'BLUE' ? 
@@ -4861,20 +9457,33 @@
           '🟠 ORANGE 구역: 마을 주민 트레이너들에게 SELL 전략을 실행하도록 지침';
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ${tradingInstruction}`);
         
+
         // Update all guild members with zone information
+
         Object.values(guildMembers).forEach(member => {
+
           member.currentZone = currentZone;
+
           member.zoneBias = zoneInfo.bias;
+
           member.zoneConfidence = zoneInfo.confidence;
+
         });
+
         
         console.log('🏛️ Village Mayor announcement made:', currentZone, zoneInfo.message);
       }
+
       
+
     } catch (e) {
+
       console.error('Village Mayor Announcement Error:', e);
+
     }
+
   }
+
 
   // Information Trust System Functions
   async function loadTrustConfig() {
@@ -5003,475 +9612,944 @@
       return mlWeight > nbWeight ? mlZone : nbZone;
     }
   }
-  
+
+
   // Auto Mock Trading Scheduler
+
   function autoMockTradingScheduler() {
+
     try {
+
       if (typeof guildMembers === 'undefined' || !guildMembers) return;
+
       
+
       // Debug: Log current system status
+
       console.log('Auto Mock Trading Scheduler running...');
+
       console.log('N/B Stamina:', typeof nbStamina !== 'undefined' ? nbStamina.current : 'undefined');
+
       
+
       Object.values(guildMembers).forEach(member => {
+
         // Increase trade frequency and reduce cooldown for more active trading
+
         const canTrade = member.autoTradingEnabled && 
+
                         member.stamina >= 5 && // Reduced stamina requirement
+
                         Math.random() < (member.tradeFrequency * 1.5) && // Increased frequency
+
                         (!member.lastAutoTrade || Date.now() - member.lastAutoTrade > 120000); // Reduced cooldown to 2 minutes
+
         
+
         // Debug: Log member status
+
         console.log(`${member.name}: enabled=${member.autoTradingEnabled}, stamina=${member.stamina}, frequency=${member.tradeFrequency}, canTrade=${canTrade}`);
+
         
+
         if (canTrade) {
+
           // Force both mock and real trades more frequently
+
           const shouldDoRealTrade = decideTradeType(member);
+
           
+
           // Execute both types of trades more aggressively
+
           if (shouldDoRealTrade && member.nbCoins >= 0.001) {
+
             executeRealTrade(member);
+
           } else {
+
             executeAutoMockTrade(member);
+
           }
+
           
+
           // Additional mock trade if conditions are met
+
           if (Math.random() < 0.3 && member.stamina >= 15) { // 30% chance for additional mock trade
+
             setTimeout(() => executeAutoMockTrade(member), 5000); // 5 second delay
+
           }
+
         }
+
       });
+
     } catch (e) {
+
       console.error('Auto Mock Trading Scheduler Error:', e);
+
     }
+
   }
+
+
 
   // Execute Real Trade for specific member
+
   async function executeRealTrade(member) {
+
     try {
+
       // Check if we have enough N/B Stamina
+
       if (typeof nbStamina !== 'undefined' && nbStamina && nbStamina.current < 10) {
+
         console.log(`Not enough N/B Stamina: ${nbStamina.current}/100`);
+
         return; // Not enough stamina
+
       }
+
+
 
       // Consume stamina for real trading
+
       if (typeof nbStamina !== 'undefined' && nbStamina) {
+
         const staminaCost = 15; // Higher cost for real trades
+
         nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+
       }
+
+
 
       // Update member's last auto trade time
+
       member.lastAutoTrade = Date.now();
 
+
+
       // Get current market data
+
       const currentInterval = getInterval();
+
       const chartData = candle.data();
+
       const lastPrice = chartData && chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
+
+
       // Check if member has an open position
+
       const hasOpenPosition = member.openPosition && member.openPosition.side;
+
       
+
       if (hasOpenPosition) {
+
         // Close existing position
+
         const closeDecision = shouldClosePosition(member, lastPrice, currentInterval);
+
         
+
         if (closeDecision) {
+
           // Close position logic (similar to mock trade but with real market impact)
+
           const entryPrice = member.averagePrice || member.openPosition.price;
+
           const positionSide = member.openPosition.side;
+
           const coinAmount = member.totalPositionSize || member.openPosition.coinAmount;
+
           const tradeValue = member.averagePrice * member.totalPositionSize || member.openPosition.tradeValue;
+
           const profitPercent = calculatePositionProfit(positionSide, entryPrice, lastPrice);
+
           const profitValue = (profitPercent / 100) * tradeValue;
+
           
+
           // Real trade impact on N/B coins (more significant)
+
           if (profitPercent > 0) {
+
             const coinGain = coinAmount * (profitPercent / 100) * 1.5; // 50% bonus for real trades
+
             member.nbCoins += coinGain;
+
             member.totalNbCoinsEarned += coinGain;
+
             member.experience += Math.floor(coinGain * 1500); // More experience for real trades
+
             member.skillLevel += coinGain * 0.15;
+
           } else {
+
             const coinLoss = coinAmount * Math.abs(profitPercent / 100) * 1.5; // 50% penalty for real trades
+
             member.nbCoins = Math.max(0, member.nbCoins - coinLoss);
+
             member.totalNbCoinsLost += coinLoss;
+
             member.experience += Math.floor(coinLoss * 750);
+
             member.skillLevel = Math.max(0.1, member.skillLevel - coinLoss * 0.08);
+
           }
+
           
+
           // Record real trade
+
           const realTrade = {
+
             timestamp: new Date().toLocaleString(),
+
             type: 'REAL_CLOSE',
+
             profit: profitPercent,
+
             strategy: member.strategy,
+
             interval: currentInterval,
+
             decision: positionSide === 'BUY' ? 'SELL' : 'BUY',
+
             confidence: calculateMemberConfidence(member),
+
             entryPrice: entryPrice,
+
             exitPrice: lastPrice,
+
             coinAmount: coinAmount,
+
             tradeValue: tradeValue,
+
             success: profitPercent > 0
+
           };
+
           
+
           member.realTrades.push(realTrade);
+
           member.lastTrade = realTrade;
+
           
+
           // Clear position
+
           member.openPosition = null;
+
           member.positionHistory = [];
+
           member.averagePrice = 0.0;
+
           member.totalPositionSize = 0.0;
+
           
+
           // Log real trade
+
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 ${member.name} (${member.role}) - 실제 거래 종료`);
+
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 ${positionSide === 'BUY' ? 'SELL' : 'BUY'} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()} | 진입가: ${Number(entryPrice).toLocaleString()}`);
+
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 실제 수익: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}% (${profitValue > 0 ? '+' : ''}${Number(profitValue).toLocaleString()} KRW)`);
+
           
+
           if (profitPercent > 0) {
+
             const coinGain = coinAmount * (profitPercent / 100) * 1.5;
+
             appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 실제 N/B 코인 획득: +${coinGain.toFixed(6)} | 총 보유: ${member.nbCoins.toFixed(6)}`);
+
           } else {
+
             const coinLoss = coinAmount * Math.abs(profitPercent / 100) * 1.5;
+
             appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 실제 N/B 코인 손실: -${coinLoss.toFixed(6)} | 총 보유: ${member.nbCoins.toFixed(6)}`);
+
           }
+
         }
+
       } else {
+
         // Open new position
+
         const decision = makeMemberDecision(member, lastPrice, currentInterval);
+
         const confidence = calculateMemberConfidence(member);
+
         
+
         if (decision !== 'HOLD') {
+
           const coinAmount = 0.001;
+
           const tradeValue = lastPrice * coinAmount;
+
           
+
           // Use N/B coins for real trade
+
           if (member.nbCoins >= coinAmount) {
+
             member.nbCoins -= coinAmount; // Spend N/B coins for real trade
+
             
+
             // Position tracking (same as mock trade)
+
             if (member.openPosition && member.openPosition.side === decision) {
+
               const newTrade = {
+
                 price: lastPrice,
+
                 coinAmount: coinAmount,
+
                 timestamp: new Date().toISOString()
+
               };
+
               
+
               member.positionHistory.push(newTrade);
+
               member.totalPositionSize += coinAmount;
+
               member.averagePrice = calculateAveragePrice(member.positionHistory);
+
               
+
               member.openPosition.price = member.averagePrice;
+
               member.openPosition.coinAmount = member.totalPositionSize;
+
               member.openPosition.tradeValue = member.averagePrice * member.totalPositionSize;
+
               
+
             } else {
+
               member.positionHistory = [{
+
                 price: lastPrice,
+
                 coinAmount: coinAmount,
+
                 timestamp: new Date().toISOString()
+
               }];
+
               member.totalPositionSize = coinAmount;
+
               member.averagePrice = lastPrice;
+
               
+
               member.openPosition = {
+
                 side: decision,
+
                 price: lastPrice,
+
                 coinAmount: coinAmount,
+
                 tradeValue: tradeValue,
+
                 timestamp: new Date().toISOString(),
+
                 strategy: member.strategy
+
               };
+
             }
+
             
+
             // Log real trade opening
+
             appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 ${member.name} (${member.role}) - 실제 거래 시작`);
+
             appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📊 현재가: ${Number(lastPrice).toLocaleString()} | 전략: ${member.strategy} | 신뢰도: ${confidence.toFixed(0)}%`);
+
             
+
             if (member.positionHistory.length > 1) {
+
               appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎯 실제 포지션 추가: ${decision} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()}`);
+
               appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 평균가: ${Number(member.averagePrice).toLocaleString()} | 총 수량: ${member.totalPositionSize.toFixed(6)} BTC`);
+
             } else {
+
               appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎯 실제 포지션 오픈: ${decision} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()} (${Number(tradeValue).toLocaleString()} KRW)`);
+
             }
+
             
+
             appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 사용: -${coinAmount.toFixed(6)} | 잔액: ${member.nbCoins.toFixed(6)}`);
+
           } else {
+
             // Not enough N/B coins, fall back to mock trade
+
             appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚠️ ${member.name} - N/B 코인 부족 (${member.nbCoins.toFixed(6)}), 모의 거래로 전환`);
+
             executeAutoMockTrade(member);
+
           }
+
         }
+
       }
+
       
+
     } catch (e) {
+
       console.error('Real Trade Error:', e);
+
     }
+
   }
+
+
 
   // Execute Auto Mock Trade for specific member
+
   async function executeAutoMockTrade(member) {
+
     try {
+
       // Check if we have enough N/B Stamina
+
       if (typeof nbStamina !== 'undefined' && nbStamina && nbStamina.current < 10) {
+
         console.log(`Not enough N/B Stamina: ${nbStamina.current}/100`);
+
         return; // Not enough stamina
+
       }
+
+
 
       // Consume stamina for mock trading
+
       if (typeof nbStamina !== 'undefined' && nbStamina) {
+
         const staminaCost = 10;
+
         nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+
       }
+
+
 
       // Update member's last auto trade time
+
       member.lastAutoTrade = Date.now();
 
+
+
       // Get current market data
+
       const currentInterval = getInterval();
+
       const chartData = candle.data();
+
       const lastPrice = chartData && chartData.length > 0 ? chartData[chartData.length - 1].close : 0;
 
+
+
       // Check if member has an open position
+
       const hasOpenPosition = member.openPosition && member.openPosition.side;
+
       
+
       if (hasOpenPosition) {
+
         // If has open position, decide whether to close it (SELL if BUY position, BUY if SELL position)
+
         const closeDecision = shouldClosePosition(member, lastPrice, currentInterval);
+
         
+
                           if (closeDecision) {
+
            // Close the position and calculate profit using average price
+
            const entryPrice = member.averagePrice || member.openPosition.price;
+
            const positionSide = member.openPosition.side;
+
            const coinAmount = member.totalPositionSize || member.openPosition.coinAmount;
+
            const tradeValue = member.averagePrice * member.totalPositionSize || member.openPosition.tradeValue;
+
            const profitPercent = calculatePositionProfit(positionSide, entryPrice, lastPrice);
+
            const profitValue = (profitPercent / 100) * tradeValue;
+
            
+
            // Handle N/B coin gains/losses based on profit/loss (with real-time learning impact)
+
            if (profitPercent > 0) {
+
              // Profit: Gain additional N/B coins
+
              const coinGain = coinAmount * (profitPercent / 100);
+
              member.nbCoins += coinGain;
+
              member.totalNbCoinsEarned += coinGain;
+
              
+
              // Learning: Positive reinforcement based on N/B coin gain
+
              member.experience += Math.floor(coinGain * 1000); // Convert coin gain to experience points
+
              member.skillLevel += coinGain * 0.1; // Skill improvement proportional to coin gain
+
              
+
              // Adjust trade frequency based on success (more confident = trade more)
+
              member.tradeFrequency = Math.min(0.8, member.tradeFrequency + coinGain * 0.05);
+
              
+
            } else {
+
              // Loss: Lose some N/B coins
+
              const coinLoss = coinAmount * Math.abs(profitPercent / 100);
+
              member.nbCoins = Math.max(0, member.nbCoins - coinLoss);
+
              member.totalNbCoinsLost += coinLoss;
+
              
+
              // Learning: Negative reinforcement (but still learn from mistakes)
+
              member.experience += Math.floor(coinLoss * 500); // Less experience for losses
+
              member.skillLevel = Math.max(0.1, member.skillLevel - coinLoss * 0.05); // Skill decrease
+
              
+
              // Adjust trade frequency based on failure (more cautious = trade less)
+
              member.tradeFrequency = Math.max(0.1, member.tradeFrequency - coinLoss * 0.03);
+
            }
+
            
+
            // Record the closing trade
+
            const closeTrade = {
+
              timestamp: new Date().toLocaleString(),
+
              type: 'AUTO_MOCK_CLOSE',
+
              profit: profitPercent,
+
              strategy: member.strategy,
+
              interval: currentInterval,
+
              decision: positionSide === 'BUY' ? 'SELL' : 'BUY',
+
              confidence: calculateMemberConfidence(member),
+
              entryPrice: entryPrice,
+
              exitPrice: lastPrice,
+
              coinGain: profitPercent > 0 ? coinAmount * (profitPercent / 100) : 0,
+
              coinLoss: profitPercent < 0 ? coinAmount * Math.abs(profitPercent / 100) : 0,
+
              success: profitPercent > 0
+
            };
+
           
+
           member.mockTrades.push(closeTrade);
+
           member.lastTrade = closeTrade;
+
           
+
                      // Clear open position and reset position tracking
+
            member.openPosition = null;
+
            member.positionHistory = [];
+
            member.averagePrice = 0.0;
+
            member.totalPositionSize = 0.0;
+
           
+
                      // Log closing trade
+
            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🤖 ${member.name} (${member.role}) - 포지션 종료`);
+
            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 ${positionSide === 'BUY' ? 'SELL' : 'BUY'} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()} | 진입가: ${Number(entryPrice).toLocaleString()}`);
+
            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 수익: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}% (${profitValue > 0 ? '+' : ''}${Number(profitValue).toLocaleString()} KRW) | 누적 수익: ${member.totalProfit > 0 ? '+' : ''}${member.totalProfit.toFixed(2)}%`);
+
            
+
            // Log N/B coin changes
+
            if (profitPercent > 0) {
+
              const coinGain = coinAmount * (profitPercent / 100);
+
              appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 획득: +${coinGain.toFixed(6)} | 총 보유: ${member.nbCoins.toFixed(6)}`);
+
            } else {
+
              const coinLoss = coinAmount * Math.abs(profitPercent / 100);
+
              appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 손실: -${coinLoss.toFixed(6)} | 총 보유: ${member.nbCoins.toFixed(6)}`);
+
            }
+
           
+
         } else {
+
           // Hold the position
+
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🤖 ${member.name} (${member.role}) - 포지션 유지 중 (${member.openPosition.side} @ ${Number(member.openPosition.price).toLocaleString()})`);
+
         }
+
         
+
       } else {
+
         // No open position, decide whether to open a new one
+
         const decision = makeMemberDecision(member, lastPrice, currentInterval);
+
         const confidence = calculateMemberConfidence(member);
+
         
+
                  if (decision !== 'HOLD') {
+
            // Calculate trade amount (fixed 0.001 BTC per trade)
+
            const coinAmount = 0.001;
+
            const tradeValue = lastPrice * coinAmount;
+
            
+
            // Receive N/B coins when opening position (learning impact)
+
            member.nbCoins += coinAmount;
+
            
+
            // Learning: Position opening affects confidence and experience
+
            member.experience += 10; // Small experience gain for taking action
+
            member.skillLevel += 0.01; // Small skill improvement for active trading
+
            
+
            // Check if we already have a position in the same direction
+
            if (member.openPosition && member.openPosition.side === decision) {
+
              // Add to existing position (average down/up)
+
              const newTrade = {
+
                price: lastPrice,
+
                coinAmount: coinAmount,
+
                timestamp: new Date().toISOString()
+
              };
+
              
+
              member.positionHistory.push(newTrade);
+
              member.totalPositionSize += coinAmount;
+
              member.averagePrice = calculateAveragePrice(member.positionHistory);
+
              
+
              // Update open position with new totals
+
              member.openPosition.price = member.averagePrice;
+
              member.openPosition.coinAmount = member.totalPositionSize;
+
              member.openPosition.tradeValue = member.averagePrice * member.totalPositionSize;
+
              
+
            } else {
+
              // Start new position
+
              member.positionHistory = [{
+
                price: lastPrice,
+
                coinAmount: coinAmount,
+
                timestamp: new Date().toISOString()
+
              }];
+
              member.totalPositionSize = coinAmount;
+
              member.averagePrice = lastPrice;
+
              
+
              // Open new position with detailed information
+
              member.openPosition = {
+
                side: decision,
+
                price: lastPrice,
+
                coinAmount: coinAmount,
+
                tradeValue: tradeValue,
+
                timestamp: new Date().toISOString(), // Use ISO string for better compatibility
+
                strategy: member.strategy
+
              };
+
            }
+
           
+
           // Record the opening trade
+
           const openTrade = {
+
             timestamp: new Date().toLocaleString(),
+
             type: 'AUTO_MOCK_OPEN',
+
             profit: 0, // No profit yet
+
             strategy: member.strategy,
+
             interval: currentInterval,
+
             decision: decision,
+
             confidence: confidence,
+
             entryPrice: lastPrice,
+
             success: true // Opening is always successful
+
           };
+
           
+
           member.mockTrades.push(openTrade);
+
           member.lastTrade = openTrade;
+
           
+
                      // Log opening trade
+
            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🤖 ${member.name} (${member.role}) - ${currentInterval} 차트 분석 중...`);
+
            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📊 현재가: ${Number(lastPrice).toLocaleString()} | 전략: ${member.strategy} | 신뢰도: ${confidence.toFixed(0)}%`);
+
            
+
            if (member.positionHistory.length > 1) {
+
              // Multiple trades in same position
+
              appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎯 포지션 추가: ${decision} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()}`);
+
              appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 평균가: ${Number(member.averagePrice).toLocaleString()} | 총 수량: ${member.totalPositionSize.toFixed(6)} BTC`);
+
            } else {
+
              // New position
+
              appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🎯 포지션 오픈: ${decision} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()} (${Number(tradeValue).toLocaleString()} KRW)`);
+
            }
+
           
+
         } else {
+
           // HOLD decision
+
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🤖 ${member.name} (${member.role}) - 관망 중 (${currentInterval} 차트)`);
+
         }
+
       }
+
       
+
       // Update member stats
+
       updateMemberStats(member);
+
       
+
       // Process result for stamina recovery (only for closed positions)
+
       if (member.lastTrade && member.lastTrade.type === 'AUTO_MOCK_CLOSE' && typeof processMockTestResult === 'function') {
+
         processMockTestResult(member.lastTrade.profit);
+
       }
+
       
+
     } catch (e) {
+
       console.error('Auto Mock Trade Error:', e);
+
     }
+
   }
 
+
+
   // Make member-specific trading decision (with zone awareness)
+
   function makeMemberDecision(member, price, interval) {
+
     const role = member.role;
+
     const skillLevel = member.skillLevel || 1.0;
+
     
+
     // Get current zone information from mayor's announcement
+
     const currentZone = member.currentZone || getCurrentZone();
+
     const zoneBias = member.zoneBias || (currentZone === 'BLUE' ? 'BUY' : 'SELL');
+
     const zoneConfidence = member.zoneConfidence || 0.6;
+
     
+
     // Simulate market sentiment (in real implementation, this would come from ML model)
+
     const marketSentiment = Math.random(); // 0 = bearish, 1 = bullish
+
     const isBullish = marketSentiment > 0.5;
+
     const isBearish = marketSentiment < 0.3;
+
     
+
     // Base decision on role and current market conditions
+
     let decision = 'HOLD';
+
     
+
     if (role === 'Leader') {
+
       // Mayor manages village finances and follows N/B Guild directives
+
       // Orange zone: Very cautious, beta relationship formation, quick profit taking
+
       // Blue zone: Aggressive, alpha approach, strong buy bias
+
       
+
       // Use actual current zone from mayor's system
+
       const currentZone = getCurrentZone();
+
       
+
       if (currentZone === 'ORANGE') {
+
         // Orange zone: Very cautious, beta relationship formation, quick profit taking
+
         // High chance of HOLD due to extreme caution, but when trading, prefer BUY for quick profit
+
         const holdBias = 0.60; // 60% chance of HOLD due to extreme caution
+
         const tradeDecision = Math.random() > 0.6 ? 'BUY' : 'SELL'; // When trading, slight BUY bias for quick profit
+
         
+
         if (Math.random() < holdBias) {
+
           decision = 'HOLD';
+
         } else {
+
           decision = tradeDecision;
+
         }
+
         member.strategy = 'ultra_cautious';
+
       } else {
+
         // Blue zone: Aggressive, alpha approach, strong buy bias
+
         const buyBias = 0.70; // 70% chance of BUY in Blue zone
+
         decision = Math.random() > buyBias ? 'SELL' : 'BUY';
+
         member.strategy = 'aggressive';
+
       }
+
       
+
       console.log(`🏛️ Mayor decision in ${currentZone} zone: ${decision} (${member.strategy} strategy)`);
-    } else {
+
+      } else {
+
       // N/B 기반 Zone 결정 (ML 모델보다 우선시)
       const nbZone = window.zoneNow || 'BLUE';
       const zoneDecision = nbZone === 'BLUE' ? 'BUY' : 'SELL';
@@ -5502,681 +10580,1350 @@
         decision = zoneDecision;
         console.log(`${member.name} (${role}) - Following N/B Zone: ${nbZone} → ${zoneDecision} (${(zoneProbability*100).toFixed(0)}% probability)${zoneDiscrepancy ? ' - Zone discrepancy detected!' : ''}`);
       } else {
+
         // Fallback to market sentiment (lower probability)
-        if (isBullish) {
+      if (isBullish) {
+
           decision = Math.random() > 0.3 ? 'BUY' : 'SELL';
-        } else if (isBearish) {
+      } else if (isBearish) {
+
           decision = Math.random() > 0.7 ? 'BUY' : 'SELL';
-        } else {
+      } else {
+
           decision = Math.random() > 0.5 ? 'BUY' : 'SELL';
         }
         console.log(`${member.name} (${role}) - Following market sentiment: ${decision} (${((1-zoneProbability)*100).toFixed(0)}% probability)`);
       }
+
     }
+
     
+
     // Skill level affects decision quality
+
     if (skillLevel > 1.5) {
+
       // Higher skill = better decisions
+
       if (Math.random() < (skillLevel - 1.0) * 0.2) {
+
         decision = 'HOLD'; // More skilled traders know when to wait
+
       }
+
     }
+
     
+
     // Log market sentiment and decision
+
     const sentimentText = isBullish ? 'Bullish' : isBearish ? 'Bearish' : 'Neutral';
+
     console.log(`${member.name} (${role}) - Market: ${sentimentText}, Decision: ${decision}`);
+
     
+
     return decision;
+
   }
+
+
 
   // Decide whether to do real trade or mock trade based on N/B coin balance
+
   function decideTradeType(member) {
+
     // Factors that influence real vs mock trading decision:
+
     // 1. N/B coin balance (higher balance = more likely to do real trade)
+
     // 2. Skill level (higher skill = more confident for real trades)
+
     // 3. Recent performance (good performance = more likely real trade)
+
     // 4. Current zone (Orange zone = more cautious, prefer mock trades)
+
     
+
     const coinBalance = member.nbCoins || 0;
+
     const skillLevel = member.skillLevel || 1.0;
+
     const winRate = member.winRate || 50;
+
     const currentZone = member.currentZone || getCurrentZone();
+
     
+
     // Base probability of real trade - INCREASED for more active trading
+
     let realTradeProb = 0.3; // 30% base chance (increased from 10%)
+
     
+
     // N/B coin balance influence (more coins = higher chance)
+
     if (coinBalance > 0.01) {
+
       realTradeProb += 0.4; // +40% if high balance (increased from 30%)
+
     } else if (coinBalance > 0.005) {
+
       realTradeProb += 0.3; // +30% if moderate balance (increased from 20%)
+
     } else if (coinBalance > 0.001) {
+
       realTradeProb += 0.2; // +20% if low balance (increased from 10%)
+
     }
+
     
+
     // Skill level influence (higher skill = higher chance)
+
     if (skillLevel > 2.0) {
+
       realTradeProb += 0.25; // +25% for master level (increased from 20%)
+
     } else if (skillLevel > 1.5) {
+
       realTradeProb += 0.2; // +20% for expert level (increased from 15%)
+
     } else if (skillLevel > 1.2) {
+
       realTradeProb += 0.15; // +15% for advanced level (increased from 10%)
+
     }
+
     
+
     // Win rate influence (better performance = higher chance)
+
     if (winRate > 70) {
+
       realTradeProb += 0.2; // +20% for high win rate (increased from 15%)
+
     } else if (winRate > 60) {
+
       realTradeProb += 0.15; // +15% for good win rate (increased from 10%)
+
     }
+
     
+
     // Zone influence (Orange zone = more cautious) - REDUCED impact
+
     if (currentZone === 'ORANGE') {
+
       realTradeProb *= 0.7; // 30% reduction in Orange zone (reduced from 50%)
+
     }
+
     
+
     // Cap at 90% maximum probability (increased from 80%)
+
     realTradeProb = Math.min(0.9, realTradeProb);
+
     
+
     // Log decision factors
+
     console.log(`${member.name} trade decision factors: coins=${coinBalance.toFixed(6)}, skill=${skillLevel.toFixed(2)}, winRate=${winRate.toFixed(1)}%, zone=${currentZone}, realTradeProb=${(realTradeProb*100).toFixed(1)}%`);
+
     
+
     return Math.random() < realTradeProb;
+
   }
+
+
 
   // Calculate member confidence based on skill and experience
+
   function calculateMemberConfidence(member) {
+
     const baseConfidence = 60;
+
     const skillBonus = (member.skillLevel - 1.0) * 20;
+
     const experienceBonus = Math.min(member.experience * 0.1, 20);
+
     
+
     return Math.min(100, baseConfidence + skillBonus + experienceBonus);
+
   }
+
+
 
   // Check if member should close their position
+
   function shouldClosePosition(member, currentPrice, interval) {
+
     const position = member.openPosition;
+
     if (!position) return false;
+
     
+
     const entryPrice = position.price;
+
     const positionSide = position.side;
+
     const timeHeld = Date.now() - new Date(position.timestamp).getTime();
+
     const minutesHeld = timeHeld / (1000 * 60);
+
     
+
     // Calculate current profit/loss
+
     let currentProfit = 0;
+
     if (positionSide === 'BUY') {
+
       currentProfit = ((currentPrice - entryPrice) / entryPrice) * 100;
+
     } else {
+
       currentProfit = ((entryPrice - currentPrice) / entryPrice) * 100;
+
     }
+
     
+
     // Close conditions based on member role and strategy
+
     const role = member.role;
+
     let shouldClose = false;
+
     
+
     if (role === 'Explorer') {
+
       // Scout: Quick trades, close within 5-15 minutes or at 2% profit/loss
+
       shouldClose = minutesHeld >= 5 + Math.random() * 10 || Math.abs(currentProfit) >= 2;
+
     } else if (role === 'Protector') {
+
       // Guardian: Conservative, close within 10-30 minutes or at 1.5% profit/loss
+
       shouldClose = minutesHeld >= 10 + Math.random() * 20 || Math.abs(currentProfit) >= 1.5;
+
     } else if (role === 'Strategist') {
+
       // Analyst: Strategic, close within 15-60 minutes or at 3% profit/loss
+
       shouldClose = minutesHeld >= 15 + Math.random() * 45 || Math.abs(currentProfit) >= 3;
+
     } else if (role === 'Advisor') {
+
       // Elder: Long-term, close within 30-120 minutes or at 5% profit/loss
+
       shouldClose = minutesHeld >= 30 + Math.random() * 90 || Math.abs(currentProfit) >= 5;
+
     } else if (role === 'Leader') {
+
       // Mayor: Balanced approach
+
       shouldClose = minutesHeld >= 20 + Math.random() * 40 || Math.abs(currentProfit) >= 2.5;
+
     }
+
     
+
     // Add some randomness to make it more realistic
+
     shouldClose = shouldClose && Math.random() > 0.3; // 70% chance to close when conditions are met
+
     
+
     return shouldClose;
+
   }
+
   
+
   // 구역 변경 추적을 위한 변수
+
   let lastKnownZone = null;
+
   let zoneChangeTime = 0;
+
   let lastCandleData = null; // Store the latest OHLCV data for zone determination
+
   let currentIntervalZone = null; // Store the current interval zone
+
   let lastIntervalTime = null; // Store the last interval time
+
   let nbZoneStartTime = null; // Store when current N/B zone started
+
   let nbZoneDuration = 0; // Store current N/B zone duration in seconds
+
   
+
   // Update title with current zone information (based on previous 25 values average)
+
   function updateTitleWithZone() {
+
     try {
+
       // Update both title and meta elements
+
       const titleElement = document.getElementById('title');
+
       const metaElement = document.getElementById('meta');
+
       
+
       const currentInterval = getInterval();
+
       
+
       // N/B 라인의 마지막 점을 기준으로 구역 결정 (N/B Zone Status와 동일한 로직)
+
       let currentZone = 'BLUE'; // default
+
       const nbWaveData = window.nbWaveSeries?.data || [];
+
       const baseValue = window.nbWaveSeries?.options()?.baseValue?.price || 0;
+
       
+
       if (nbWaveData.length > 0) {
+
         const lastWave = nbWaveData[nbWaveData.length - 1];
+
         currentZone = lastWave.value >= baseValue ? 'ORANGE' : 'BLUE';
+
       }
+
       
+
       const zoneEmoji = currentZone === 'ORANGE' ? '🟠' : '🔵';
+
       
+
       // Format interval for display
+
       let intervalDisplay = '';
+
       switch(currentInterval) {
+
         case 'minute1': intervalDisplay = '1m'; break;
+
         case 'minute3': intervalDisplay = '3m'; break;
+
         case 'minute5': intervalDisplay = '5m'; break;
+
         case 'minute10': intervalDisplay = '10m'; break;
+
         case 'minute15': intervalDisplay = '15m'; break;
+
         case 'minute30': intervalDisplay = '30m'; break;
+
         case 'minute60': intervalDisplay = '1h'; break;
+
         case 'day': intervalDisplay = '1d'; break;
+
         default: intervalDisplay = currentInterval;
+
       }
+
       
+
       // Update title element
+
       if (titleElement) {
+
         titleElement.innerHTML = `KRW-BTC ${intervalDisplay} | HOLD | EMA 24/45 | ${zoneEmoji} ${currentZone}`;
+
       }
+
       
+
       // Update meta element (if not updated by stream)
+
       if (metaElement && !metaElement.textContent.includes(zoneEmoji)) {
+
         const currentSignal = 'HOLD'; // Default signal
+
         const emaFast = 24; // Default EMA values
+
         const emaSlow = 45;
+
         metaElement.textContent = `KRW-BTC ${intervalDisplay} | ${currentSignal} | EMA ${emaFast}/${emaSlow} | ${zoneEmoji} ${currentZone}`;
+
       }
+
       
+
       console.log(`Title updated: KRW-BTC ${intervalDisplay} | HOLD | EMA 24/45 | ${zoneEmoji} ${currentZone} (chart line)`);
+
     } catch (e) {
+
       console.error('Error updating title with zone:', e);
+
     }
+
   }
+
+
+
 
 
   
 
 
-  // ========================================
-  // 🎯 사용자 수정 가능한 구역 분류 함수
-  // ========================================
-  // 이 함수를 수정하여 구역 분류 로직을 변경할 수 있습니다.
-  // 
-  // 매개변수:
-  // - candle: 개별 캔들 데이터 (time, open, high, low, close, volume)
-  // - nbWaveData: N/B 웨이브 시리즈 데이터 배열
-  // - baseValue: N/B 웨이브의 기준값 (중간선)
-  // - orangeZoneArray: 저장된 ORANGE 구역 배열
-  // - blueZoneArray: 저장된 BLUE 구역 배열
-  // 
-  // 반환값: 'ORANGE' 또는 'BLUE'
-  // 
-  // 현재 로직:
-  // 1. N/B 웨이브 위치 확인 (가장 정확한 차트 표시)
-  // 2. 저장된 구역 배열 확인 (fallback)
-  // 3. 캔들 패턴 확인 (최종 fallback)
-  // ========================================
-  function determineZone(candle, nbWaveData, baseValue, orangeZoneArray, blueZoneArray) {
-    try {
-      // 🔧 방법 1: N/B 웨이브 위치 확인 (가장 정확한 차트 표시)
-      if (nbWaveData && Array.isArray(nbWaveData) && nbWaveData.length > 0) {
-        const matchingNb = nbWaveData.find(nbItem => nbItem.time === candle.time);
-        if (matchingNb) {
-          // N/B 웨이브가 기준값보다 아래면 ORANGE (하단 영역 - 차트에서 파란색)
-          // N/B 웨이브가 기준값보다 위면 BLUE (상단 영역 - 차트에서 주황색)
-          const zone = matchingNb.value < baseValue ? 'ORANGE' : 'BLUE';
-          
-          // 디버그 로그 (필요시 주석 해제)
-          // console.log(`N/B 웨이브 위치: ${matchingNb.value.toFixed(0)} vs 기준값 ${baseValue.toFixed(0)} → ${zone}`);
-          
-          return zone;
-        }
-      }
-      
-      // 🔧 방법 2: 저장된 구역 배열 확인 (fallback)
-      if (orangeZoneArray && blueZoneArray) {
-        const isOrange = orangeZoneArray.some(zone => zone.time === candle.time);
-        const isBlue = blueZoneArray.some(zone => zone.time === candle.time);
-        
-        if (isOrange) {
-          return 'ORANGE';
-        } else if (isBlue) {
-          return 'BLUE';
-        }
-      }
-      
-      // 🔧 방법 3: 캔들 패턴 확인 (최종 fallback)
-      // 종가가 시가보다 높으면 ORANGE (상승), 낮으면 BLUE (하락)
-      const zone = candle.close > candle.open ? 'ORANGE' : 'BLUE';
-      
-      // 디버그 로그 (필요시 주석 해제)
-      // console.log(`캔들 패턴: 종가 ${candle.close.toFixed(0)} vs 시가 ${candle.open.toFixed(0)} → ${zone}`);
-      
-      return zone;
-      
-    } catch (e) {
-      console.error('구역 분류 오류:', e);
-      return 'BLUE'; // 기본값
-    }
-  }
+
+
 
   // ========================================
-  // 🎯 사용자 수정 가능한 현재 구역 확인 함수
+
+  // 🎯 사용자 수정 가능한 구역 분류 함수
+
   // ========================================
-  // 이 함수를 수정하여 현재 구역 확인 로직을 변경할 수 있습니다.
+
+  // 이 함수를 수정하여 구역 분류 로직을 변경할 수 있습니다.
+
   // 
+
+  // 매개변수:
+
+  // - candle: 개별 캔들 데이터 (time, open, high, low, close, volume)
+
+  // - nbWaveData: N/B 웨이브 시리즈 데이터 배열
+
+  // - baseValue: N/B 웨이브의 기준값 (중간선)
+
+  // - orangeZoneArray: 저장된 ORANGE 구역 배열
+
+  // - blueZoneArray: 저장된 BLUE 구역 배열
+
+  // 
+
   // 반환값: 'ORANGE' 또는 'BLUE'
+
   // 
+
   // 현재 로직:
-  // 1. N/B 웨이브 시리즈의 마지막 포인트 위치 확인
-  // 2. 저장된 구역 배열에서 마지막 캔들 확인
-  // 3. 마지막 캔들 패턴 확인
+
+  // 1. N/B 웨이브 위치 확인 (가장 정확한 차트 표시)
+
+  // 2. 저장된 구역 배열 확인 (fallback)
+
+  // 3. 캔들 패턴 확인 (최종 fallback)
+
   // ========================================
-  function determineCurrentZone() {
+
+  function determineZone(candle, nbWaveData, baseValue, orangeZoneArray, blueZoneArray) {
+
     try {
-      // 🔧 방법 1: N/B 웨이브 시리즈의 마지막 포인트 위치 확인
-      if (window.nbWaveSeries && window.nbWaveSeries.data) {
-        const nbData = window.nbWaveSeries.data;
-        if (Array.isArray(nbData) && nbData.length > 0) {
-          const lastNbPoint = nbData[nbData.length - 1];
-          const baseValue = window.nbWaveSeries.options().baseValue?.price || 0;
+
+      // 🔧 방법 1: N/B 웨이브 위치 확인 (가장 정확한 차트 표시)
+
+      if (nbWaveData && Array.isArray(nbWaveData) && nbWaveData.length > 0) {
+
+        const matchingNb = nbWaveData.find(nbItem => nbItem.time === candle.time);
+
+        if (matchingNb) {
+
+          // N/B 웨이브가 기준값보다 아래면 ORANGE (하단 영역 - 차트에서 파란색)
+
+          // N/B 웨이브가 기준값보다 위면 BLUE (상단 영역 - 차트에서 주황색)
+
+          const zone = matchingNb.value < baseValue ? 'ORANGE' : 'BLUE';
+
           
-          // N/B 웨이브가 기준값보다 아래면 ORANGE (하단 영역)
-          // N/B 웨이브가 기준값보다 위면 BLUE (상단 영역)
-          const zone = lastNbPoint.value < baseValue ? 'ORANGE' : 'BLUE';
-          
+
           // 디버그 로그 (필요시 주석 해제)
-          // console.log(`현재 N/B 웨이브: ${lastNbPoint.value.toFixed(0)} vs 기준값 ${baseValue.toFixed(0)} → ${zone}`);
+
+          // console.log(`N/B 웨이브 위치: ${matchingNb.value.toFixed(0)} vs 기준값 ${baseValue.toFixed(0)} → ${zone}`);
+
           
+
           return zone;
+
         }
+
       }
+
       
-      // 🔧 방법 2: 저장된 구역 배열에서 마지막 캔들 확인
-      if (window.orangeZoneArray && window.blueZoneArray) {
-        const candleData = candle.data();
-        if (candleData && candleData.length > 0) {
-          const lastCandleTime = candleData[candleData.length - 1].time;
-          
-          const isInOrange = window.orangeZoneArray.some(zone => zone.time === lastCandleTime);
-          const isInBlue = window.blueZoneArray.some(zone => zone.time === lastCandleTime);
-          
-          if (isInOrange) {
-            return 'ORANGE';
-          } else if (isInBlue) {
-            return 'BLUE';
-          }
+
+      // 🔧 방법 2: 저장된 구역 배열 확인 (fallback)
+
+      if (orangeZoneArray && blueZoneArray) {
+
+        const isOrange = orangeZoneArray.some(zone => zone.time === candle.time);
+
+        const isBlue = blueZoneArray.some(zone => zone.time === candle.time);
+
+        
+
+        if (isOrange) {
+
+          return 'ORANGE';
+
+        } else if (isBlue) {
+
+          return 'BLUE';
+
         }
+
       }
+
       
-      // 🔧 방법 3: 마지막 캔들 패턴 확인
-      const data = candle.data();
-      if (data && data.length > 0) {
-        const lastCandle = data[data.length - 1];
-        const zone = lastCandle.close > lastCandle.open ? 'ORANGE' : 'BLUE';
-        
-        // 디버그 로그 (필요시 주석 해제)
-        // console.log(`현재 캔들 패턴: 종가 ${lastCandle.close.toFixed(0)} vs 시가 ${lastCandle.open.toFixed(0)} → ${zone}`);
-        
-        return zone;
-      }
+
+      // 🔧 방법 3: 캔들 패턴 확인 (최종 fallback)
+
+      // 종가가 시가보다 높으면 ORANGE (상승), 낮으면 BLUE (하락)
+
+      const zone = candle.close > candle.open ? 'ORANGE' : 'BLUE';
+
       
-      return 'BLUE'; // 기본값
+
+      // 디버그 로그 (필요시 주석 해제)
+
+      // console.log(`캔들 패턴: 종가 ${candle.close.toFixed(0)} vs 시가 ${candle.open.toFixed(0)} → ${zone}`);
+
+      
+
+      return zone;
+
+      
+
     } catch (e) {
-      console.error('현재 구역 확인 오류:', e);
-      return 'BLUE';
+
+      console.error('구역 분류 오류:', e);
+
+      return 'BLUE'; // 기본값
+
     }
+
   }
+
+
+
+  // ========================================
+
+  // 🎯 사용자 수정 가능한 현재 구역 확인 함수
+
+  // ========================================
+
+  // 이 함수를 수정하여 현재 구역 확인 로직을 변경할 수 있습니다.
+
+  // 
+
+  // 반환값: 'ORANGE' 또는 'BLUE'
+
+  // 
+
+  // 현재 로직:
+
+  // 1. N/B 웨이브 시리즈의 마지막 포인트 위치 확인
+
+  // 2. 저장된 구역 배열에서 마지막 캔들 확인
+
+  // 3. 마지막 캔들 패턴 확인
+
+  // ========================================
+
+  function determineCurrentZone() {
+
+    try {
+
+      // 🔧 방법 1: N/B 웨이브 시리즈의 마지막 포인트 위치 확인
+
+      if (window.nbWaveSeries && window.nbWaveSeries.data) {
+
+        const nbData = window.nbWaveSeries.data;
+
+        if (Array.isArray(nbData) && nbData.length > 0) {
+
+          const lastNbPoint = nbData[nbData.length - 1];
+
+          const baseValue = window.nbWaveSeries.options().baseValue?.price || 0;
+
+          
+
+          // N/B 웨이브가 기준값보다 아래면 ORANGE (하단 영역)
+
+          // N/B 웨이브가 기준값보다 위면 BLUE (상단 영역)
+
+          const zone = lastNbPoint.value < baseValue ? 'ORANGE' : 'BLUE';
+
+          
+
+          // 디버그 로그 (필요시 주석 해제)
+
+          // console.log(`현재 N/B 웨이브: ${lastNbPoint.value.toFixed(0)} vs 기준값 ${baseValue.toFixed(0)} → ${zone}`);
+
+          
+
+          return zone;
+
+        }
+
+      }
+
+      
+
+      // 🔧 방법 2: 저장된 구역 배열에서 마지막 캔들 확인
+
+      if (window.orangeZoneArray && window.blueZoneArray) {
+
+        const candleData = candle.data();
+
+        if (candleData && candleData.length > 0) {
+
+          const lastCandleTime = candleData[candleData.length - 1].time;
+
+          
+
+          const isInOrange = window.orangeZoneArray.some(zone => zone.time === lastCandleTime);
+
+          const isInBlue = window.blueZoneArray.some(zone => zone.time === lastCandleTime);
+
+          
+
+          if (isInOrange) {
+
+            return 'ORANGE';
+
+          } else if (isInBlue) {
+
+            return 'BLUE';
+
+          }
+
+        }
+
+      }
+
+      
+
+      // 🔧 방법 3: 마지막 캔들 패턴 확인
+
+      const data = candle.data();
+
+      if (data && data.length > 0) {
+
+        const lastCandle = data[data.length - 1];
+
+        const zone = lastCandle.close > lastCandle.open ? 'ORANGE' : 'BLUE';
+
+        
+
+        // 디버그 로그 (필요시 주석 해제)
+
+        // console.log(`현재 캔들 패턴: 종가 ${lastCandle.close.toFixed(0)} vs 시가 ${lastCandle.open.toFixed(0)} → ${zone}`);
+
+        
+
+        return zone;
+
+      }
+
+      
+
+      return 'BLUE'; // 기본값
+
+    } catch (e) {
+
+      console.error('현재 구역 확인 오류:', e);
+
+      return 'BLUE';
+
+    }
+
+  }
+
+
 
   // Get zone directly from N/B wave series position (actual chart display)
+
   function getZoneFromChartLine() {
+
     return determineCurrentZone();
+
   }
 
+
+
   // ========================================
+
   // 🎨 차트 래스터라이즈 및 픽셀 분석 함수
+
   // ========================================
+
   
 
 
+
+
+
   // ========================================
+
   // 🌐 전역 함수 노출 (사용자 수정 가능)
+
   // ========================================
+
   // 브라우저 콘솔에서 직접 수정할 수 있도록 전역으로 노출
+
   window.determineZone = determineZone;
+
   window.determineCurrentZone = determineCurrentZone;
+
   window.getZoneFromChartLine = getZoneFromChartLine;
+
   
+
   console.log('🎯 구역 분류 함수가 전역으로 노출되었습니다:');
+
   console.log('  - window.determineZone(candle, nbWaveData, baseValue, orangeZoneArray, blueZoneArray)');
+
   console.log('  - window.determineCurrentZone()');
+
   console.log('  - window.getZoneFromChartLine()');
+
   console.log('💡 구역 분류 로직을 수정하려면 window.determineZone 함수를 직접 편집하세요.');
+
   
+
   // ========================================
+
   // 📝 사용자 수정 가이드
+
   // ========================================
+
   // 구역 분류 로직을 수정하려면:
+
   // 
+
   // 1. 브라우저 콘솔에서 다음 명령어로 현재 함수를 확인:
+
   //    console.log(window.determineZone.toString());
+
   // 
+
   // 2. 새로운 로직으로 함수를 재정의:
+
   //    window.determineZone = function(candle, nbWaveData, baseValue, orangeZoneArray, blueZoneArray) {
+
   //      // 여기에 새로운 로직 작성
+
   //      // 예시: EMA 기반 구역 분류
+
   //      if (candle.close > candle.open * 1.01) return 'ORANGE';
+
   //      if (candle.close < candle.open * 0.99) return 'BLUE';
+
   //      return 'BLUE'; // 기본값
+
   //    };
+
   // 
+
   // 3. 변경사항을 즉시 적용하려면:
+
   //    refreshNbZoneStrip(); // N/B Zone Status 업데이트
+
   //    saveChartData(); // 차트 데이터 저장 (새로운 로직 적용)
+
   // 
+
   // 4. 원래 로직으로 되돌리려면:
+
   //    location.reload(); // 페이지 새로고침
+
   // ========================================
+
+
 
   // Calculate zone based on previous 25 values average (26th-50th from end)
+
   function calculateZoneFromPrevious25Values() {
+
     try {
+
       const data = candle.data();
+
       if (!data || data.length < 50) return 'BLUE'; // Need at least 50 data points
+
       
+
       // Get 25 values from 26th to 50th position from the end (avoiding most recent noise)
+
       const previous25Values = [];
+
       const startIndex = Math.max(0, data.length - 50);
+
       const endIndex = data.length - 25;
+
       
+
       for (let i = startIndex; i < endIndex; i++) {
+
         const point = data[i];
+
         if (point && point.close) {
+
           previous25Values.push(point.close);
+
         }
+
       }
+
       
+
       if (previous25Values.length < 25) return 'BLUE';
+
       
+
       // Calculate average of previous 25 values (26th-50th from end)
+
       const average = previous25Values.reduce((sum, val) => sum + val, 0) / previous25Values.length;
+
       
+
       // Get current price (most recent)
+
       const currentPrice = data[data.length - 1].close;
+
       
+
       // Determine zone based on current price vs average
+
       // If current price > average, it's ORANGE (uptrend)
+
       // If current price < average, it's BLUE (downtrend)
+
       const zone = currentPrice > average ? 'ORANGE' : 'BLUE';
+
       
+
       console.log(`Zone calculation - Previous 25 avg (26th-50th): ${average.toFixed(0)}, Current: ${currentPrice.toFixed(0)}, Zone: ${zone}`);
+
       console.log(`Window.zoneNow will be set to: ${zone}`);
+
       
+
       return zone;
+
     } catch (e) {
+
       console.error('Error calculating zone from previous 25 values:', e);
+
       return 'BLUE';
+
     }
+
   }
+
+
 
   // Update N/B line with text display
+
   function updateNBLineWithText() {
+
     try {
+
       if (!lastCandleData) return;
+
       
+
       const chartData = candle.data();
+
       if (chartData && chartData.length > 0) {
+
         const nbZone = window.zoneNow || 'BLUE';
+
         const currentZone = nbZone;
+
         const lastCandle = chartData[chartData.length - 1];
+
         
+
         // Create N/B line data
+
         const nbLineData = [];
+
         const nbTextData = [];
+
         
+
         // Get current interval
+
         const currentInterval = getInterval();
+
         let intervalSeconds;
+
         switch(currentInterval) {
+
           case 'minute1': intervalSeconds = 60; break;
+
           case 'minute3': intervalSeconds = 180; break;
+
           case 'minute5': intervalSeconds = 300; break;
+
           case 'minute15': intervalSeconds = 900; break;
+
           case 'minute30': intervalSeconds = 1800; break;
+
           case 'minute60': intervalSeconds = 3600; break;
+
           default: intervalSeconds = 600;
+
         }
+
         
+
         // Create N/B line points
+
         const startTime = lastCandle.time - intervalSeconds;
+
         const endTime = lastCandle.time + intervalSeconds;
+
         
+
         // Calculate N/B line value (use current price as base)
+
         const currentPrice = lastCandle.close;
+
         const nbLineValue = currentPrice;
+
         
+
         // Add N/B line data points
+
         nbLineData.push({ time: startTime, value: nbLineValue });
+
         nbLineData.push({ time: endTime, value: nbLineValue });
+
         
+
         // Add text data at the end of N/B line
+
         const durationText = nbZoneDuration >= 60 ? ` (${nbZoneDuration}s)` : '';
+
         const zoneText = `${currentZone} (N/B)${durationText}`;
+
         
+
         nbTextData.push({ 
+
           time: endTime, 
+
           value: nbLineValue,
+
           text: zoneText
+
         });
+
         
+
         // Set N/B line data
+
         nbLineSeries.setData(nbLineData);
+
         
+
         // All markers disabled to prevent transparent bars
+
         nbLineSeries.setMarkers([]);
+
         
+
         console.log(`N/B line updated: ${currentZone} at time ${endTime}`);
+
       }
+
     } catch (e) {
+
       console.error('N/B line update error:', e);
+
     }
+
   }
 
+
+
   // Update zone indicator on chart
+
   function updateZoneIndicator() {
+
     try {
+
       if (!lastCandleData) return;
+
       
+
       const chartData = candle.data();
+
       
+
       if (chartData && chartData.length > 0) {
+
         // Use N/B zone instead of candle-based zone
+
         const nbZone = window.zoneNow || 'BLUE'; // Default to BLUE if N/B zone not available
+
         const currentZone = nbZone;
+
         // Check if we need to update (only if interval zone changed or first time)
+
         const lastCandle = chartData[chartData.length - 1];
+
         const currentInterval = getInterval();
+
         
+
         // Calculate the time range for the current interval
+
         let intervalSeconds;
+
         switch(currentInterval) {
+
           case 'minute1': intervalSeconds = 60; break;
+
           case 'minute3': intervalSeconds = 180; break;
+
           case 'minute5': intervalSeconds = 300; break;
+
           case 'minute15': intervalSeconds = 900; break;
+
           case 'minute30': intervalSeconds = 1800; break;
+
           case 'minute60': intervalSeconds = 3600; break;
+
           default: intervalSeconds = 600; // default 10 minutes
+
         }
+
         
+
         // Check if we're in a new interval
+
         const currentIntervalStart = lastCandle.time - intervalSeconds;
+
         const intervalEndTime = currentIntervalStart + intervalSeconds;
+
         const isNewInterval = lastIntervalTime === null || 
+
                              lastCandle.time >= intervalEndTime || 
+
                              Math.floor(lastCandle.time / intervalSeconds) !== Math.floor(lastIntervalTime / intervalSeconds);
+
         
+
         // Only update if it's a new interval or first time
+
         if (!isNewInterval && currentIntervalZone !== null) {
+
           return; // Skip update if interval hasn't changed
+
         }
+
         
+
         // Check if we need to update the interval zone
+
         
+
         if (isNewInterval) {
+
           // Calculate the completed interval - use the most recent completed interval
+
           const currentTime = lastCandle.time;
+
           const completedIntervalEnd = Math.floor(currentTime / intervalSeconds) * intervalSeconds;
+
           const completedIntervalStart = completedIntervalEnd - intervalSeconds;
+
           
+
           // Get candles for the completed interval
+
           const completedIntervalCandles = chartData.filter(candle => 
+
             candle.time >= completedIntervalStart && candle.time < completedIntervalEnd
+
           );
+
           
+
           console.log(`Completed interval: ${completedIntervalStart} to ${completedIntervalEnd}, Candles found: ${completedIntervalCandles.length}`);
+
           if (completedIntervalCandles.length > 0) {
+
             console.log(`First candle: ${completedIntervalCandles[0].time}, Last candle: ${completedIntervalCandles[completedIntervalCandles.length - 1].time}`);
+
           }
+
           
+
           // Determine zone for the completed interval
+
           const getIntervalZone = (candles) => {
+
             if (candles.length === 0) return null;
+
             
+
             // Analyze all candles in the interval
+
             let bullishCount = 0;
+
             let bearishCount = 0;
+
             let totalPriceChange = 0;
+
             
+
             candles.forEach(candle => {
+
               if (candle.close > candle.open) {
+
                 bullishCount++;
+
                 totalPriceChange += (candle.close - candle.open) / candle.open;
+
               } else {
+
                 bearishCount++;
+
                 totalPriceChange += (candle.close - candle.open) / candle.open;
+
               }
+
             });
+
             
+
             // Debug logging
+
             console.log(`Interval Analysis - Candles: ${candles.length}, Bullish: ${bullishCount}, Bearish: ${bearishCount}, Total Change: ${(totalPriceChange * 100).toFixed(2)}%`);
+
             
+
             // Determine zone based on majority and overall trend
+
             if (bullishCount > bearishCount) {
+
               console.log(`Zone determined: ORANGE (bullish: ${bullishCount}, bearish: ${bearishCount})`);
+
               return 'ORANGE';
+
             } else if (bearishCount > bullishCount) {
+
               console.log(`Zone determined: BLUE (bullish: ${bullishCount}, bearish: ${bearishCount})`);
+
               return 'BLUE';
+
             } else {
+
               // If equal, use total price change
+
               if (totalPriceChange > 0) {
+
                 console.log(`Zone determined: ORANGE (equal counts, trend up: ${(totalPriceChange * 100).toFixed(2)}%)`);
+
                 return 'ORANGE';
+
               } else {
+
                 console.log(`Zone determined: BLUE (equal counts, trend down: ${(totalPriceChange * 100).toFixed(2)}%)`);
+
                 return 'BLUE';
+
               }
+
             }
+
           };
+
           
+
           const newIntervalZone = getIntervalZone(completedIntervalCandles);
+
           
+
           // Update the current interval zone if we have a valid zone
+
           if (newIntervalZone) {
+
             currentIntervalZone = newIntervalZone;
+
             lastIntervalTime = completedIntervalEnd;
+
             console.log(`New interval zone determined: ${currentIntervalZone} for interval ending at ${completedIntervalEnd}`);
+
           }
+
         }
+
         
+
         // Use chart data to determine zone instead of N/B zone for display
+
         // This ensures the zone matches the actual chart pattern
+
         let displayZone = nbZone;
+
         
+
         // Override with chart-based zone determination if available
+
         if (lastCandleData) {
+
           const open = lastCandleData.open;
+
           const close = lastCandleData.close;
+
           const chartBasedZone = close > open ? 'ORANGE' : 'BLUE';
+
           
+
           // Use chart-based zone for display, but keep N/B zone for reference
+
           displayZone = chartBasedZone;
+
           console.log(`Chart-based zone: ${chartBasedZone} (Open: ${open}, Close: ${close}), N/B zone: ${nbZone}`);
+
         }
+
         
+
         console.log(`Final display zone: ${displayZone}`);
+
         
+
         // Create zone indicator data for the interval
+
         // Use the stored interval zone for display
+
         const intervalStartTime = lastCandle.time - intervalSeconds;
+
         const intervalCandles = chartData.filter(candle => candle.time >= intervalStartTime);
+
         
+
         // Use zone arrays created by updateNB() function
+
         const orangeZones = window.orangeZoneArray || [];
+
         const blueZones = window.blueZoneArray || [];
+
         
+
         // Log zone statistics
+
         console.log(`Using updateNB Zone Arrays - ORANGE: ${orangeZones.length} zones, BLUE: ${blueZones.length} zones`);
+
         
+
         // Create zone indicator data using actual ORANGE/BLUE zones from chart
+
         const zoneData = [];
+
         
+
         // Add ORANGE zones (candles colored orange)
+
         orangeZones.forEach(zone => {
+
           zoneData.push({
+
             time: zone.time,
+
             open: zone.open,
+
             high: zone.high,
+
             low: zone.low,
+
             close: zone.close
+
           });
+
         });
+
         
+
         // Add BLUE zones (candles colored blue)
+
         blueZones.forEach(zone => {
+
           zoneData.push({
+
             time: zone.time,
+
             open: zone.open,
+
             high: zone.high,
+
             low: zone.low,
+
             close: zone.close
+
           });
+
         });
+
         
+
         // Sort by time to maintain chronological order
+
         zoneData.sort((a, b) => a.time - b.time);
+
         
+
         // Update zone indicator series with actual ORANGE/BLUE zones
+
         zoneIndicatorSeries.setData(zoneData);
+
         
+
         // Zone background disabled to remove BLUE/ORANGE bars
+
         zoneBackgroundSeries.setData([]);
+
         
+
         // All markers disabled to prevent transparent bars
+
         candle.setMarkers([]);
+
         
+
         console.log(`N/B Zone indicator updated: ${displayZone} at time ${lastCandle.time}`);
+
         
+
         // Update N/B line with text
+
         updateNBLineWithText();
+
       }
+
     } catch (e) {
+
       console.error('Zone indicator update error:', e);
+
     }
+
   }
+
+
 
     // Get current market zone from trust-weighted decision
   function getCurrentZone() {
+
     try {
+
       // Use trust-weighted zone decision
       const trustWeightedZone = getTrustWeightedZone();
       console.log(`Trust-Weighted Zone Decision: ${trustWeightedZone} (ML: ${trustConfig.mlTrust}%, N/B: ${trustConfig.nbTrust}%)`);
@@ -6185,232 +11932,471 @@
       console.error('Error in getCurrentZone:', e);
       
       // Fallback to N/B zone if trust system fails
-      const nbZone = window.zoneNow || 'BLUE';
+        const nbZone = window.zoneNow || 'BLUE';
+
       console.log(`Trust System Fallback to N/B Zone: ${nbZone}`);
       return nbZone;
     }
+
   }
+
+
 
   // Get current market price
+
   function getCurrentPrice() {
+
     try {
+
       // Use lastCandleData if available, otherwise fall back to chart data
+
       if (lastCandleData) {
-        return lastCandleData.close;
+
+        const price = lastCandleData.close;
+
+        window.currentPrice = price; // 전역 변수로 저장
+
+        return price;
+
       }
+
       const chartData = candle.data();
-      return chartData && chartData.length > 0 ? chartData[chartData.length - 1].close : 163000000;
+
+      const price = chartData && chartData.length > 0 ? chartData[chartData.length - 1].close : 163000000;
+
+      window.currentPrice = price; // 전역 변수로 저장
+
+      return price;
+
     } catch (e) {
-      return 163000000; // Fallback price
+
+      const price = 163000000; // Fallback price
+
+      window.currentPrice = price; // 전역 변수로 저장
+
+      return price;
+
     }
+
   }
+
   
+
   // Calculate average price for multiple trades
+
   function calculateAveragePrice(positionHistory) {
+
     if (positionHistory.length === 0) return 0;
+
     
+
     let totalValue = 0;
+
     let totalSize = 0;
+
     
+
     positionHistory.forEach(trade => {
+
       totalValue += trade.price * trade.coinAmount;
+
       totalSize += trade.coinAmount;
+
     });
+
     
+
     return totalSize > 0 ? totalValue / totalSize : 0;
+
   }
+
   
+
   // Calculate profit for a closed position
+
   function calculatePositionProfit(positionSide, entryPrice, exitPrice) {
+
     if (positionSide === 'BUY') {
+
       return ((exitPrice - entryPrice) / entryPrice) * 100;
+
     } else {
+
       return ((entryPrice - exitPrice) / entryPrice) * 100;
+
     }
+
   }
+
   
+
   // Simulate trade result based on member's characteristics (legacy function - kept for compatibility)
+
   function simulateTradeResult(decision, member, price, confidence) {
+
     if (decision === 'HOLD') {
+
       return (Math.random() - 0.5) * 2; // -1% to +1%
+
     }
+
     
+
     // Base profit calculation
+
     let profitPercent = 0;
+
     const volatility = 0.02; // 2% base volatility
+
     
+
     if (decision === 'BUY') {
+
       const marketBias = Math.random() * 0.6 + 0.2; // 20-80% chance of profit
+
       const priceMovement = (Math.random() - 0.5) * volatility * 2;
+
       profitPercent = priceMovement + (marketBias * 0.01);
+
     } else if (decision === 'SELL') {
+
       const marketBias = Math.random() * 0.6 + 0.2;
+
       const priceMovement = (Math.random() - 0.5) * volatility * 2;
+
       profitPercent = -priceMovement - (marketBias * 0.01);
+
     }
+
     
+
     // Apply member-specific modifiers
+
     const skillEffect = (member.skillLevel - 1.0) * 0.3; // -30% to +30% based on skill
+
     const strategyEffect = getStrategyEffectiveness(member.strategy);
+
     const confidenceEffect = (confidence - 60) / 40 * 0.2; // 0% to +20% based on confidence
+
     
+
     profitPercent += skillEffect + strategyEffect + confidenceEffect;
+
     
+
     return profitPercent;
+
   }
+
+
 
   // Get strategy effectiveness
+
   function getStrategyEffectiveness(strategy) {
+
     const effectiveness = {
+
       'ultra_cautious': 0.25, // Mayor's ultra cautious strategy in Orange zone (quick profit taking)
+
       'aggressive': 0.22, // Mayor's aggressive strategy in Blue zone
+
       'defensive': 0.18, // Mayor's defensive strategy in Orange zone
+
       'balanced': 0.12, // Mayor's balanced strategy
+
       'momentum': 0.1,
+
       'meanrev': 0.05,
+
       'breakout': 0.15,
+
       'scalping': 0.08
+
     };
+
     return effectiveness[strategy] || 0;
+
   }
+
+
 
   // Trainer Learning System
+
   function trainerLearningSystem() {
+
     try {
+
       if (typeof guildMembers === 'undefined' || !guildMembers) return;
+
       
+
       Object.values(guildMembers).forEach(member => {
+
         // Increase experience
+
         member.experience += 1;
+
         
+
         // Learn from recent performance (win rate)
+
         if (member.winRate > 60) {
+
           member.skillLevel = Math.min(3.0, member.skillLevel + member.learningRate);
-          member.specialty = enhanceSpecialty(member.specialty, member.skillLevel);
+
+          // 창고 자산 기반 등급 결정
+          const warehouseValue = member.nbCoins * (window.currentPrice || 160000000);
+          member.specialty = enhanceSpecialty(member.specialty, member.skillLevel, warehouseValue);
+
         } else if (member.winRate < 40) {
+
           // Learn from mistakes
+
           member.skillLevel = Math.max(0.5, member.skillLevel - member.learningRate * 0.5);
+
         }
+
         
+
         // Learn from N/B coin performance (enhanced real-time learning)
+
         const coinPerformance = member.totalNbCoinsEarned - member.totalNbCoinsLost;
+
         const currentCoinBalance = member.nbCoins;
+
         
+
         if (coinPerformance > 0.001) {
+
           // Good coin performance - boost learning
+
           member.skillLevel = Math.min(3.0, member.skillLevel + member.learningRate * 0.8);
+
           member.tradeFrequency = Math.min(0.8, member.tradeFrequency + 0.05);
+
           
+
           // Additional bonus for maintaining high coin balance
+
           if (currentCoinBalance > 0.005) {
+
             member.skillLevel = Math.min(3.0, member.skillLevel + member.learningRate * 0.3);
+
           }
+
         } else if (coinPerformance < -0.001) {
+
           // Poor coin performance - reduce confidence
+
           member.skillLevel = Math.max(0.5, member.skillLevel - member.learningRate * 0.5);
+
           member.tradeFrequency = Math.max(0.1, member.tradeFrequency - 0.05);
+
           
+
           // Additional penalty for low coin balance
+
           if (currentCoinBalance < 0.001) {
+
             member.skillLevel = Math.max(0.5, member.skillLevel - member.learningRate * 0.2);
+
           }
+
         }
+
         
+
         // Real-time coin balance impact on learning
+
         if (currentCoinBalance > 0.01) {
+
           // High coin balance = more confident and skilled
+
           member.skillLevel = Math.min(3.0, member.skillLevel + member.learningRate * 0.2);
+
           member.tradeFrequency = Math.min(0.8, member.tradeFrequency + 0.02);
+
         } else if (currentCoinBalance < 0.0005) {
+
           // Very low coin balance = more cautious
+
           member.skillLevel = Math.max(0.5, member.skillLevel - member.learningRate * 0.1);
+
           member.tradeFrequency = Math.max(0.05, member.tradeFrequency - 0.02);
+
         }
+
         
+
         // Adjust trade frequency based on total profit
+
         if (member.totalProfit > 10) {
+
           member.tradeFrequency = Math.min(0.6, member.tradeFrequency + 0.05);
+
         } else if (member.totalProfit < -5) {
+
           member.tradeFrequency = Math.max(0.1, member.tradeFrequency - 0.05);
+
         }
+
         
+
         // Strategy evolution based on coin performance
+
         if (coinPerformance > 0.002) {
+
           // High coin performance - evolve strategy
+
           evolveStrategy(member);
+
         }
+
       });
+
       
+
       console.log('Trainer Learning System completed with N/B coin performance analysis');
+
       
+
     } catch (e) {
+
       console.error('Trainer Learning System Error:', e);
+
     }
+
   }
+
+
 
   // Enhance specialty based on skill level
-  function enhanceSpecialty(specialty, skillLevel) {
-    if (skillLevel > 2.0) {
-      return `${specialty} (Master)`;
-    } else if (skillLevel > 1.5) {
-      return `${specialty} (Expert)`;
-    } else if (skillLevel > 1.2) {
-      return `${specialty} (Advanced)`;
+
+  // Enhance specialty based on warehouse assets (창고 자산 기준 등급)
+  function enhanceSpecialty(specialty, skillLevel, warehouseValue = 0) {
+    // 창고 자산 기준 등급 결정
+    if (warehouseValue >= 1500000) {
+      return `${specialty} (부자)`;
+    } else if (warehouseValue >= 1000000) {
+      return `${specialty} (돈많은이)`;
+    } else if (warehouseValue >= 500000) {
+      return `${specialty} (중산층)`;
+    } else if (warehouseValue >= 100000) {
+      return `${specialty} (서민)`;
+    } else if (warehouseValue >= 50000) {
+      return `${specialty} (가난뱅이)`;
+    } else if (warehouseValue >= 10000) {
+      return `${specialty} (거렁뱅이)`;
+    } else if (warehouseValue >= 1000) {
+      return `${specialty} (주정뱅이)`;
     }
-    return specialty;
+    return `${specialty} (거지)`;
   }
+
+
 
   // Evolve member's strategy
+
   function evolveStrategy(member) {
+
     const strategies = ['momentum', 'meanrev', 'breakout', 'scalping'];
+
     const currentStrategy = member.strategy;
+
     
+
     // 10% chance to evolve strategy
+
     if (Math.random() < 0.1) {
+
       const newStrategy = strategies[Math.floor(Math.random() * strategies.length)];
+
       if (newStrategy !== currentStrategy) {
+
         member.strategy = newStrategy;
+
         appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🧠 ${member.name} evolved strategy: ${currentStrategy} → ${newStrategy}`);
+
       }
+
     }
+
   }
+
+
 
   // Update Auto Trading Status Display (now integrated into updateGuildMembersStatus)
+
   function updateAutoTradingStatus() {
+
     // This function is now integrated into updateGuildMembersStatus
+
     // Keeping it for compatibility but it's no longer needed
+
   }
 
+
+
   // Force start auto trading for testing
+
   function forceStartAutoTrading() {
+
     try {
+
       if (typeof guildMembers === 'undefined' || !guildMembers) {
+
         console.log('Guild members not initialized yet');
+
         return;
+
       }
+
       
+
       console.log('Force starting auto trading...');
+
       
+
       // Reset all members to be able to trade
+
       Object.values(guildMembers).forEach(member => {
+
         member.lastAutoTrade = null; // Reset last trade time
+
         member.stamina = Math.max(member.stamina, 50); // Ensure minimum stamina
+
       });
+
       
+
       // Force N/B Stamina if available
+
       if (typeof nbStamina !== 'undefined' && nbStamina) {
+
         nbStamina.current = Math.max(nbStamina.current, 20);
+
       }
+
       
+
       // Run scheduler immediately
+
       autoMockTradingScheduler();
+
       
+
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🚀 Force started auto trading system`);
+
       
+
     } catch (e) {
+
       console.error('Force start auto trading error:', e);
+
     }
+
   }
+
 
   // Initialize Information Trust System
   (async () => {
@@ -6418,24 +12404,44 @@
     setupTrustSliders();
     updateTrustUI();
   })();
-  
+
+
   // Initialize demo data after a short delay
+
   setTimeout(addDemoTrades, 2000);
+
   
+
   // Force start auto trading after initialization
+
   setTimeout(forceStartAutoTrading, 3000);
+
   
+
   // 초기 구역 설정
+
   setTimeout(() => {
+
     try {
+
       const initialZone = getCurrentZone();
+
       lastKnownZone = initialZone;
+
       uiLog('초기 구역 설정', `현재 구역: ${initialZone} (신뢰도 기반)`);
     } catch (e) {
+
       console.error('초기 구역 설정 오류:', e);
+
     }
+
   }, 1000);
 
+
+
 })();
+
+
+
 
 
