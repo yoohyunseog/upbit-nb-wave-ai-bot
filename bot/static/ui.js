@@ -12093,10 +12093,17 @@
 
     try {
 
-      // Always use N/B zone for consistency with N/B ZONE STATUS
-      const nbZone = window.zoneNow || 'BLUE';
+      // Read directly from the N/B Zone Status HTML element
+      const nbZoneNowElement = document.getElementById('nbZoneNow');
+      if (nbZoneNowElement) {
+        const nbZoneText = nbZoneNowElement.textContent.trim().toUpperCase();
+        if (nbZoneText === 'BLUE' || nbZoneText === 'ORANGE') {
+          return nbZoneText;
+        }
+      }
       
-      // Simple return - no complex logging to avoid spam
+      // Fallback to window.zoneNow if HTML element is not available
+      const nbZone = window.zoneNow || 'BLUE';
       return nbZone;
     } catch (e) {
       console.error('Error in getCurrentZone:', e);
@@ -12745,8 +12752,19 @@
   // Real-time zone synchronization - Update every 1 second
   function syncCurrentZoneWithNBStatus() {
     try {
-      const nbZone = window.zoneNow || 'BLUE';
-      const currentZone = getCurrentZone();
+      // Read directly from the N/B Zone Status HTML element
+      const nbZoneNowElement = document.getElementById('nbZoneNow');
+      let nbZone = 'BLUE'; // Default fallback
+      
+      if (nbZoneNowElement) {
+        const nbZoneText = nbZoneNowElement.textContent.trim().toUpperCase();
+        if (nbZoneText === 'BLUE' || nbZoneText === 'ORANGE') {
+          nbZone = nbZoneText;
+        }
+      } else {
+        // Fallback to window.zoneNow if HTML element is not available
+        nbZone = window.zoneNow || 'BLUE';
+      }
       
       // Always update current zone to match N/B Zone Status
       updateCurrentZoneDisplay(nbZone);
