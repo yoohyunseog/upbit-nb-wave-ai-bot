@@ -4488,11 +4488,18 @@
             const currentValue = data.coins * price;
             const profit = data.entry_price > 0 ? ((price - data.entry_price) / data.entry_price) * 100 : 0;
             const profitColor = profit >= 0 ? '#4caf50' : '#f44336';
+            const ticks = data.ticks || 0;
+            
+            // 제고가 0이면 평균가 초기화 표시
+            const avgPriceDisplay = data.coins > 0 && data.entry_price > 0 ? 
+              `<br><span style="font-size: 10px; color: #666;">평균가: ${data.entry_price.toLocaleString()} KRW</span>` : 
+              data.coins <= 0 ? `<br><span style="font-size: 10px; color: #999;">평균가: 초기화됨</span>` : '';
+            
             return `
               <div style="display: flex; align-items: center; margin-bottom: 4px; font-size: 12px;">
                 <div style="flex: 1; color: #0d47a1;">
-                  <strong>${trainer}:</strong> ${data.coins.toFixed(8)} BTC (≈ ${Math.round(currentValue).toLocaleString()} KRW)
-                  ${data.entry_price > 0 ? `<br><span style="font-size: 10px; color: #666;">평균가: ${data.entry_price.toLocaleString()} KRW</span>` : ''}
+                  <strong>${trainer}:</strong> ${data.coins.toFixed(8)} BTC (≈ ${Math.round(currentValue).toLocaleString()} KRW) ${ticks}틱
+                  ${avgPriceDisplay}
                   <span style="color: ${profitColor};">${profit > 0 ? '+' : ''}${profit.toFixed(2)}%</span>
                 </div>
                 <div style="display: flex; gap: 2px;">

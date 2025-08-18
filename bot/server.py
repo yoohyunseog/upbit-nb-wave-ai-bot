@@ -155,6 +155,7 @@ _trainer_storage: dict[str, dict] = {
         'entry_price': 0.0,  # 매수 가격
         'last_update': None,  # 마지막 업데이트 시간
         'total_profit': 0.0,  # 총 수익
+        'ticks': 0,  # 거래 틱 카운터
         'trades': []  # 거래 기록
     },
     'Guardian': {
@@ -162,6 +163,7 @@ _trainer_storage: dict[str, dict] = {
         'entry_price': 0.0,
         'last_update': None,
         'total_profit': 0.0,
+        'ticks': 0,
         'trades': []
     },
     'Analyst': {
@@ -169,6 +171,7 @@ _trainer_storage: dict[str, dict] = {
         'entry_price': 0.0,
         'last_update': None,
         'total_profit': 0.0,
+        'ticks': 0,
         'trades': []
     },
     'Elder': {
@@ -176,6 +179,7 @@ _trainer_storage: dict[str, dict] = {
         'entry_price': 0.0,
         'last_update': None,
         'total_profit': 0.0,
+        'ticks': 0,
         'trades': []
     }
 }
@@ -224,8 +228,12 @@ def _load_trainer_storage() -> dict:
                             'entry_price': 0.0,
                             'last_update': None,
                             'total_profit': 0.0,
+                            'ticks': 0,
                             'trades': []
                         }
+                    # 기존 데이터에 틱 카운터가 없으면 추가
+                    if 'ticks' not in data[trainer]:
+                        data[trainer]['ticks'] = 0
                 return data
     except Exception:
         pass
@@ -266,11 +274,16 @@ def _update_trainer_storage(trainer: str, action: str, price: float, size: float
         storage = _trainer_storage[trainer]
         now = int(time.time() * 1000)
         
+        # 틱 카운터 초기화 (없으면)
+        if 'ticks' not in storage:
+            storage['ticks'] = 0
+        
         if action.upper() == 'BUY':
             # 매수: 코인 추가
             storage['coins'] += size
             storage['entry_price'] = price
             storage['last_update'] = now
+            storage['ticks'] += 1  # 거래 시 틱 증가
             storage['trades'].append({
                 'ts': now,
                 'action': 'BUY',
@@ -288,6 +301,7 @@ def _update_trainer_storage(trainer: str, action: str, price: float, size: float
                     storage['total_profit'] += profit
                 
                 storage['last_update'] = now
+                storage['ticks'] += 1  # 거래 시 틱 증가
                 storage['trades'].append({
                     'ts': now,
                     'action': 'SELL',
