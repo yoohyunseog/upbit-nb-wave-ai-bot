@@ -946,12 +946,18 @@
 
     const zoneUpper = String(nbZone).toUpperCase();
     
-    // Create zone badge with color coding
-    const zoneBadgeClass = zoneUpper === 'ORANGE' ? 'zone-orange' : 'zone-blue';
-    const zoneBadge = `<span class="zone-badge ${zoneBadgeClass}">${zoneUpper}</span>`;
+    // Create zone badge with color coding - Clean one-line design
+    const zoneEmoji = zoneUpper === 'ORANGE' ? '🟠' : '🔵';
+    const zoneColor = zoneUpper === 'ORANGE' ? '#ff6b35' : '#0ecb81';
     
     item.title = `${timeStr} | N/B Zone: ${zoneUpper} | ${currentInterval}`;
-    item.innerHTML = `<div class='meta'>${timeStr}<br>${zoneBadge} (${currentInterval})</div>`;
+    item.innerHTML = `
+      <div class='meta' style="font-size: 10px; line-height: 1.2; text-align: left;">
+        <span style="color: #666;">${timeStr}</span><br>
+        <span style="color: ${zoneColor}; font-weight: 600;">${zoneEmoji}${zoneUpper}</span> 
+        <span style="color: #999; font-size: 9px;">(${currentInterval})</span>
+      </div>
+    `;
     item.dataset.key = key;
 
     item.dataset.zone = zoneUpper;
@@ -12658,18 +12664,18 @@
       const nbZone = window.zoneNow || 'BLUE';
       const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
       
-      // Update zone consistency info
+      // Update zone consistency info - Clean one-line design
       const zoneInfoEl = document.getElementById('zoneConsistencyInfo');
       if (zoneInfoEl) {
+        const zoneEmoji = currentZone === 'ORANGE' ? '🟠' : '🔵';
+        const mlEmoji = mlZone === 'ORANGE' ? '🟠' : '🔵';
+        
         zoneInfoEl.innerHTML = `
-          <div style="font-size: 10px; color: #666; margin-bottom: 2px;">
-            🔄 구역 동기화: <span style="color: #0ecb81;">실시간 동기화</span>
-          </div>
-          <div style="font-size: 9px; color: #888;">
-            현재: ${currentZone} | N/B: ${nbZone} | ML: ${mlZone}
-          </div>
-          <div style="font-size: 8px; color: #0ecb81;">
-            N/B ZONE STATUS 실시간 동기화
+          <div style="font-size: 11px; color: #333; font-weight: 500; line-height: 1.2; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #0ecb81;">
+            🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
+            현재: ${zoneEmoji}${currentZone} | 
+            N/B: ${zoneEmoji}${nbZone} | 
+            ML: ${mlEmoji}${mlZone}
           </div>
         `;
       }
@@ -12708,18 +12714,18 @@
       console.log(`  ML Model Zone: ${mlZone}`);
       console.log(`  Status: ✅ Real-time Synchronized with N/B Zone`);
       
-      // Update UI to show zone consistency
+      // Update UI to show zone consistency - Clean one-line design
       const zoneInfoEl = document.getElementById('zoneConsistencyInfo');
       if (zoneInfoEl) {
+        const zoneEmoji = currentZone === 'ORANGE' ? '🟠' : '🔵';
+        const mlEmoji = mlZone === 'ORANGE' ? '🟠' : '🔵';
+        
         zoneInfoEl.innerHTML = `
-          <div style="font-size: 10px; color: #666; margin-bottom: 2px;">
-            🔄 구역 동기화: <span style="color: #0ecb81;">실시간 동기화</span>
-          </div>
-          <div style="font-size: 9px; color: #888;">
-            현재: ${currentZone} | N/B: ${nbZone} | ML: ${mlZone}
-          </div>
-          <div style="font-size: 8px; color: #0ecb81;">
-            N/B ZONE STATUS 실시간 동기화
+          <div style="font-size: 11px; color: #333; font-weight: 500; line-height: 1.2; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #0ecb81;">
+            🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
+            현재: ${zoneEmoji}${currentZone} | 
+            N/B: ${zoneEmoji}${nbZone} | 
+            ML: ${mlEmoji}${mlZone}
           </div>
         `;
       }
