@@ -939,9 +939,19 @@
 
     const timeStr = new Date(ts).toLocaleTimeString();
 
-    // Always use N/B Zone (window.zoneNow) for consistency with N/B ZONE STATUS
-    // Priority: window.zoneNow > zone parameter > ML prediction
-    const nbZone = window.zoneNow || zone || (window.lastInsight && window.lastInsight.zone) || 'BLUE';
+    // Always use N/B Zone from nbZoneNow HTML element for consistency
+    const nbZoneNowElement = document.getElementById('nbZoneNow');
+    let nbZone = 'BLUE'; // Default fallback
+    
+    if (nbZoneNowElement) {
+      const nbZoneText = nbZoneNowElement.textContent.trim().toUpperCase();
+      if (nbZoneText === 'BLUE' || nbZoneText === 'ORANGE') {
+        nbZone = nbZoneText;
+      }
+    } else {
+      // Fallback to window.zoneNow if HTML element is not available
+      nbZone = window.zoneNow || zone || (window.lastInsight && window.lastInsight.zone) || 'BLUE';
+    }
     const currentInterval = interval || getInterval();
 
     const zoneUpper = String(nbZone).toUpperCase();
@@ -968,7 +978,7 @@
 
     // Debug logging for zone consistency
     console.log(`Adding win item: N/B Zone=${zoneUpper}, interval=${currentInterval}, time=${timeStr}`);
-    console.log(`Zone sources: window.zoneNow=${window.zoneNow}, zone param=${zone}, ML=${window.lastInsight?.zone}`);
+    console.log(`Zone source: nbZoneNow HTML element = ${nbZoneNowElement ? nbZoneNowElement.textContent.trim() : 'not found'}`);
 
     winListEl.prepend(item);
 
