@@ -239,20 +239,26 @@
     <div class="row g-3 align-items-stretch mb-3">
       <div class="col-12 col-lg-2">
         <div id="winCard" class="card border-secondary rounded-3 p-3 h-100 d-flex flex-column win-card-orange" style="overflow-y:auto; scrollbar-width:none; max-height:920px;">
-          <div class="mb-2 d-flex justify-content-between align-items-center">
+          <div class="mb-2">
             <strong class="text-white">Win%</strong>
-            <div class="zone-display-container">
-              <div class="zone-display-item">
+          </div>
+          
+          <!-- Zone display - col-12 layout -->
+          <div class="row g-2 mb-3">
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center">
                 <span class="zone-display-label">25개 히스토리</span>
                 <span id="winMajor" class="badge bg-white text-dark zone-display-badge">-</span>
               </div>
-              <div class="zone-divider"></div>
-              <div class="zone-display-item">
+            </div>
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center">
                 <span class="zone-display-label">현재 구역</span>
                 <span id="winZoneNow" class="badge bg-white text-dark zone-display-badge">-</span>
               </div>
-              <div class="zone-divider"></div>
-              <div id="zoneConsistencyInfo" class="zone-display-item" style="font-size: 10px; color: #888;">
+            </div>
+            <div class="col-12">
+              <div id="zoneConsistencyInfo" style="font-size: 10px; color: #888;">
                 <!-- Zone consistency info will be displayed here -->
               </div>
             </div>
@@ -329,15 +335,20 @@
         <div class="card border-secondary rounded-3 p-3">
             <!-- Zone Win% mini gauge (above toolbar) -->
             <div class="card border-secondary rounded-3 p-3 mb-3">
-              <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="mb-2">
                 <strong class="text-white">구역 분석</strong>
-                <div class="zone-display-container">
-                  <div class="zone-display-item">
+              </div>
+              
+              <!-- Zone display - col-12 layout -->
+              <div class="row g-2 mb-3">
+                <div class="col-12">
+                  <div class="d-flex justify-content-between align-items-center">
                     <span class="zone-display-label">25개 히스토리</span>
                     <span id="miniWinZone" class="badge bg-white text-dark zone-display-badge">-</span>
                   </div>
-                  <div class="zone-divider"></div>
-                  <div class="zone-display-item">
+                </div>
+                <div class="col-12">
+                  <div class="d-flex justify-content-between align-items-center">
                     <span class="zone-display-label">현재 구역</span>
                     <span id="miniWinZoneCurrent" class="badge bg-white text-dark zone-display-badge">-</span>
                   </div>
