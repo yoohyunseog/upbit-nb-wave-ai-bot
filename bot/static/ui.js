@@ -2201,6 +2201,13 @@
               updateZoneConsistencyDisplay();
               updateGuildMembersZone(nbZone);
             }, 100);
+          } else {
+            // Force synchronization even if zone didn't change (for initial load)
+            setTimeout(() => {
+              updateCurrentZoneDisplay(nbZone);
+              updateZoneConsistencyDisplay();
+              updateGuildMembersZone(nbZone);
+            }, 100);
           }
         }catch(_){ }
 
@@ -12738,6 +12745,14 @@
   setTimeout(() => {
     initializeZoneSynchronization();
     displayZoneConsistency();
+    
+    // Force initial zone synchronization
+    const currentZone = window.zoneNow || 'BLUE';
+    updateCurrentZoneDisplay(currentZone);
+    updateZoneConsistencyDisplay();
+    updateGuildMembersZone(currentZone);
+    
+    console.log('🔧 Forced initial zone synchronization:', currentZone);
   }, 2000); // Start after 2 seconds
   
   // Call zone consistency check periodically
