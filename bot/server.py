@@ -57,6 +57,63 @@ def serve_ui():
 def serve_static(filename: str):
     return send_from_directory('static', filename)
 
+@app.route('/api/save-chart-data', methods=['POST'])
+def save_chart_data():
+    try:
+        data = request.get_json()
+        
+        if not data or 'filename' not in data or 'data' not in data:
+            return jsonify({'error': 'Invalid input data'}), 400
+        
+        filename = data['filename']
+        chart_data = data['data']
+        
+        # Validate filename
+        import re
+        if not re.match(r'^chart_data_[a-zA-Z0-9_-]+\.json$', filename):
+            return jsonify({'error': 'Invalid filename'}), 400
+        
+        # Create data directory structure
+        import datetime
+        base_dir = os.path.dirname(__file__)
+        data_dir = os.path.join(base_dir, '..', 'data', 'chart_data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Create subdirectories by date
+        date_str = datetime.datetime.now().strftime('%Y-%m-%d')
+        date_dir = os.path.join(data_dir, date_str)
+        os.makedirs(date_dir, exist_ok=True)
+        
+        # Create subdirectories by interval
+        interval = chart_data.get('interval', 'unknown')
+        interval_dir = os.path.join(date_dir, interval)
+        os.makedirs(interval_dir, exist_ok=True)
+        
+        # Full file path
+        filepath = os.path.join(interval_dir, filename)
+        
+        # Write JSON data with pretty formatting
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(chart_data, f, indent=2, ensure_ascii=False)
+        
+        # Get file size
+        file_size = os.path.getsize(filepath)
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'filepath': filepath,
+            'fileSize': file_size,
+            'totalCandles': chart_data.get('totalCandles', 0),
+            'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Server error',
+            'message': str(e)
+        }), 500
+
 state = {
     "price": 0.0,
     "signal": "HOLD",
@@ -84,6 +141,45 @@ _zone_reputation: dict[str, dict] = {
     'BLUE':   {'score': 0.0, 'updated_ms': None, 'notes': []},
 }
 
+# Information trust configuration
+_trust_config: dict = {
+    'ml_trust': 50.0,  # ML Model trust level (0-100)
+    'nb_trust': 50.0,  # N/B Guild trust level (0-100)
+    'last_updated': None
+}
+
+# Trainer storage warehouses (각 트레이너별 저장 창고)
+_trainer_storage: dict[str, dict] = {
+    'Scout': {
+        'coins': 0.0,  # 보유 코인 수량
+        'entry_price': 0.0,  # 매수 가격
+        'last_update': None,  # 마지막 업데이트 시간
+        'total_profit': 0.0,  # 총 수익
+        'trades': []  # 거래 기록
+    },
+    'Guardian': {
+        'coins': 0.0,
+        'entry_price': 0.0,
+        'last_update': None,
+        'total_profit': 0.0,
+        'trades': []
+    },
+    'Analyst': {
+        'coins': 0.0,
+        'entry_price': 0.0,
+        'last_update': None,
+        'total_profit': 0.0,
+        'trades': []
+    },
+    'Elder': {
+        'coins': 0.0,
+        'entry_price': 0.0,
+        'last_update': None,
+        'total_profit': 0.0,
+        'trades': []
+    }
+}
+
 def _narrative_store_path() -> str:
     try:
         base_dir = os.path.dirname(__file__)
@@ -92,6 +188,126 @@ def _narrative_store_path() -> str:
         return os.path.join(data_dir, 'narratives.jsonl')
     except Exception:
         return 'narratives.jsonl'
+
+def _trainer_storage_path() -> str:
+    """트레이너 저장 창고 데이터 파일 경로"""
+    try:
+        base_dir = os.path.dirname(__file__)
+        data_dir = os.path.join(base_dir, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, 'trainer_storage.json')
+    except Exception:
+        return 'trainer_storage.json'
+
+def _trust_config_path() -> str:
+    """신뢰도 설정 파일 경로"""
+    try:
+        base_dir = os.path.dirname(__file__)
+        data_dir = os.path.join(base_dir, 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, 'trust_config.json')
+    except Exception:
+        return 'trust_config.json'
+
+def _load_trainer_storage() -> dict:
+    """트레이너 저장 창고 데이터 로드"""
+    try:
+        path = _trainer_storage_path()
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # 기존 데이터와 새 구조 병합
+                for trainer in ['Scout', 'Guardian', 'Analyst', 'Elder']:
+                    if trainer not in data:
+                        data[trainer] = {
+                            'coins': 0.0,
+                            'entry_price': 0.0,
+                            'last_update': None,
+                            'total_profit': 0.0,
+                            'trades': []
+                        }
+                return data
+    except Exception:
+        pass
+    return _trainer_storage.copy()
+
+def _save_trainer_storage():
+    """트레이너 저장 창고 데이터 저장"""
+    try:
+        path = _trainer_storage_path()
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(_trainer_storage, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+def _load_trust_config() -> dict:
+    """신뢰도 설정 로드"""
+    try:
+        with open(_trust_config_path(), 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {'ml_trust': 50.0, 'nb_trust': 50.0, 'last_updated': None}
+
+def _save_trust_config():
+    """신뢰도 설정 저장"""
+    try:
+        _trust_config['last_updated'] = int(time.time() * 1000)
+        with open(_trust_config_path(), 'w', encoding='utf-8') as f:
+            json.dump(_trust_config, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving trust config: {e}")
+
+def _update_trainer_storage(trainer: str, action: str, price: float, size: float, profit: float = 0.0):
+    """트레이너 저장 창고 업데이트"""
+    try:
+        if trainer not in _trainer_storage:
+            return
+        
+        storage = _trainer_storage[trainer]
+        now = int(time.time() * 1000)
+        
+        if action.upper() == 'BUY':
+            # 매수: 코인 추가
+            storage['coins'] += size
+            storage['entry_price'] = price
+            storage['last_update'] = now
+            storage['trades'].append({
+                'ts': now,
+                'action': 'BUY',
+                'price': price,
+                'size': size,
+                'profit': 0.0
+            })
+            
+        elif action.upper() == 'SELL':
+            # 매도: 코인 차감 및 수익 계산
+            if storage['coins'] >= size:
+                storage['coins'] -= size
+                if storage['entry_price'] > 0:
+                    profit = (price - storage['entry_price']) * size
+                    storage['total_profit'] += profit
+                
+                storage['last_update'] = now
+                storage['trades'].append({
+                    'ts': now,
+                    'action': 'SELL',
+                    'price': price,
+                    'size': size,
+                    'profit': profit
+                })
+                
+                # 모든 코인을 매도한 경우 entry_price 초기화
+                if storage['coins'] <= 0:
+                    storage['entry_price'] = 0.0
+        
+        # 거래 기록은 최근 100개만 유지
+        if len(storage['trades']) > 100:
+            storage['trades'] = storage['trades'][-100:]
+            
+        _save_trainer_storage()
+        
+    except Exception:
+        pass
 
 def _update_zone_reputation(zone: str, delta: float, note: str | None = None) -> dict:
     try:
@@ -380,6 +596,17 @@ def _mark_nb_coin(interval: str, market: str, side: str, ts_ms: int | None = Non
         coin = _ensure_nb_coin(interval, market, b)
         # Once any order happens in the bucket, mark the side (prefer SELL over BUY if multiple; or latest wins)
         coin['side'] = str(side).upper()
+        
+        # Store position size for BUY orders
+        if str(side).upper() == 'BUY' and order_obj:
+            try:
+                size = float(order_obj.get('size') or 0.0)
+                if size > 0:
+                    coin['position_size'] = size
+                    coin['entry_price'] = float(order_obj.get('price') or 0.0)
+            except Exception:
+                pass
+        
         if order_obj:
             try:
                 coin['orders'].append({
@@ -3302,6 +3529,20 @@ def api_trade_buy():
         _record_nb_attempt(str(cfg.candle), str(cfg.market), 'BUY', ok=True, error=None, ts_ms=(bucket_ts_ms or order.get('ts')), meta={'price': order.get('price'), 'size': order.get('size')})
     except Exception:
         pass
+    
+    # Update trainer storage warehouse
+    try:
+        trainer = payload.get('trainer', 'Scout')  # 기본값은 Scout
+        if trainer in ['Scout', 'Guardian', 'Analyst', 'Elder']:
+            _update_trainer_storage(
+                trainer=trainer,
+                action='BUY',
+                price=float(order.get('price') or 0.0),
+                size=float(order.get('size') or 0.0)
+            )
+    except Exception:
+        pass
+    
     return jsonify({'ok': True, 'order': order})
 
 @app.route('/api/trade/sell', methods=['POST'])
@@ -3426,6 +3667,20 @@ def api_trade_sell():
         _record_nb_attempt(str(cfg.candle), str(cfg.market), 'SELL', ok=True, error=None, ts_ms=(bucket_ts_ms or order.get('ts')), meta={'price': order.get('price'), 'size': order.get('size')})
     except Exception:
         pass
+    
+    # Update trainer storage warehouse
+    try:
+        trainer = payload.get('trainer', 'Scout')  # 기본값은 Scout
+        if trainer in ['Scout', 'Guardian', 'Analyst', 'Elder']:
+            _update_trainer_storage(
+                trainer=trainer,
+                action='SELL',
+                price=float(order.get('price') or 0.0),
+                size=float(order.get('size') or 0.0)
+            )
+    except Exception:
+        pass
+    
     return jsonify({'ok': True, 'order': order})
 @app.route('/api/bot/config', methods=['POST'])
 def api_bot_config():
@@ -3479,6 +3734,138 @@ def api_bot_stop():
     return jsonify({'ok': True, 'running': False})
 
 
+@app.route('/api/trainer/storage', methods=['GET'])
+def api_trainer_storage():
+    """트레이너별 저장 창고 정보 조회"""
+    try:
+        trainer = request.args.get('trainer')
+        if trainer and trainer in _trainer_storage:
+            return jsonify({'ok': True, 'storage': _trainer_storage[trainer]})
+        else:
+            return jsonify({'ok': True, 'storage': _trainer_storage})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/trainer/storage/modify', methods=['POST'])
+def api_trainer_storage_modify():
+    """트레이너별 저장 창고 수정 (N/B 길드 NPC 제어)"""
+    try:
+        data = request.get_json(force=True)
+        trainer = data.get('trainer')
+        amount = float(data.get('amount', 0.0))
+        
+        if not trainer or trainer not in ['Scout', 'Guardian', 'Analyst', 'Elder']:
+            return jsonify({'ok': False, 'error': 'Invalid trainer name'}), 400
+        
+        # Get current price for entry price calculation
+        current_price = 0.0
+        try:
+            # Try to get current price from preflight API
+            cfg = _resolve_config()
+            if cfg.access_key and cfg.secret_key:
+                upbit = pyupbit.Upbit(cfg.access_key, cfg.secret_key)
+                ticker = upbit.get_ticker(cfg.market)
+                if ticker and 'trade_price' in ticker:
+                    current_price = float(ticker['trade_price'])
+            else:
+                # Fallback: try to get from market data
+                market_data = _get_market_data()
+                if market_data and 'price' in market_data:
+                    current_price = float(market_data['price'])
+        except Exception as e:
+            print(f"Warning: Could not get current price: {e}")
+            # Use a fallback price if available
+            current_price = 161000000  # fallback price
+        
+        # Update trainer storage
+        if trainer in _trainer_storage:
+            current_coins = _trainer_storage[trainer]['coins']
+            new_coins = max(0.0, current_coins + amount)  # Prevent negative coins
+            
+            # Update coins
+            _trainer_storage[trainer]['coins'] = new_coins
+            
+            # Update entry price if adding coins
+            if amount > 0 and current_price > 0:
+                if current_coins > 0:
+                    # Weighted average of existing and new coins
+                    total_value = (current_coins * _trainer_storage[trainer]['entry_price']) + (amount * current_price)
+                    _trainer_storage[trainer]['entry_price'] = total_value / new_coins
+                else:
+                    # First time adding coins
+                    _trainer_storage[trainer]['entry_price'] = current_price
+            
+            # Update last update time
+            _trainer_storage[trainer]['last_update'] = int(time.time())
+            
+            # Add to trade history
+            _trainer_storage[trainer]['trades'].append({
+                'timestamp': int(time.time()),
+                'action': 'MANUAL_MODIFY',
+                'amount': amount,
+                'price': current_price,
+                'new_balance': new_coins
+            })
+            
+            # Save to file
+            _save_trainer_storage()
+            
+            print(f"✅ Trainer storage modified: {trainer} {amount:+.8f} BTC (new balance: {new_coins:.8f} BTC)")
+            
+            return jsonify({
+                'ok': True, 
+                'trainer': trainer,
+                'amount': amount,
+                'new_balance': new_coins,
+                'entry_price': _trainer_storage[trainer]['entry_price']
+            })
+        else:
+            return jsonify({'ok': False, 'error': 'Trainer not found in storage'}), 404
+            
+    except Exception as e:
+        print(f"❌ Error modifying trainer storage: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/trust/config', methods=['GET', 'POST'])
+def api_trust_config():
+    """신뢰도 설정 조회 및 수정"""
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            ml_trust = float(data.get('ml_trust', 50.0))
+            nb_trust = float(data.get('nb_trust', 50.0))
+            
+            # 값 범위 제한 (0-100)
+            ml_trust = max(0.0, min(100.0, ml_trust))
+            nb_trust = max(0.0, min(100.0, nb_trust))
+            
+            _trust_config['ml_trust'] = ml_trust
+            _trust_config['nb_trust'] = nb_trust
+            _trust_config['last_updated'] = int(time.time() * 1000)
+            
+            _save_trust_config()
+            
+            return jsonify({
+                'ok': True,
+                'ml_trust': ml_trust,
+                'nb_trust': nb_trust,
+                'last_updated': _trust_config['last_updated']
+            })
+        else:
+            # GET: 현재 설정 반환
+            return jsonify({
+                'ok': True,
+                'ml_trust': _trust_config['ml_trust'],
+                'nb_trust': _trust_config['nb_trust'],
+                'last_updated': _trust_config['last_updated']
+            })
+            
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/bot/status')
 def api_bot_status():
     cfg = _resolve_config()
@@ -3498,6 +3885,7 @@ def api_bot_status():
         'last_signal': bot_ctrl.get('last_signal', 'HOLD'),
         'last_order': bot_ctrl.get('last_order'),
         'coin': coin,
+        'trainer_storage': _trainer_storage,  # 트레이너 저장 창고 정보 추가
         'config': {
             'paper': cfg.paper,
             'order_krw': cfg.order_krw,
@@ -3701,6 +4089,26 @@ def api_npc_generate():
 
 
 def run():
+    # Load saved trainer storage data
+    global _trainer_storage
+    try:
+        saved_data = _load_trainer_storage()
+        if saved_data:
+            _trainer_storage.update(saved_data)
+            print("✅ Trainer storage data loaded successfully")
+    except Exception as e:
+        print(f"⚠️ Failed to load trainer storage data: {e}")
+    
+    # Load trust configuration
+    global _trust_config
+    try:
+        saved_trust = _load_trust_config()
+        if saved_trust:
+            _trust_config.update(saved_trust)
+            print(f"✅ Trust config loaded: ML={_trust_config['ml_trust']}%, N/B={_trust_config['nb_trust']}%")
+    except Exception as e:
+        print(f"⚠️ Failed to load trust config: {e}")
+    
     threading.Thread(target=updater, daemon=True).start()
     threading.Thread(target=nb_auto_opt_loop, daemon=True).start()
     use_https = os.getenv("UI_HTTPS", "false").lower() == "true"

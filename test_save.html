@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>차트 저장 테스트</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>차트 저장 기능 테스트</h1>
+    
+    <div class="test-section">
+        <h3>1. Flask 서버 상태 확인</h3>
+        <button onclick="testServer()">서버 상태 확인</button>
+        <div id="serverStatus" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. 차트 저장 API 테스트</h3>
+        <button onclick="testSaveAPI()">저장 API 테스트</button>
+        <div id="saveStatus" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. 실제 차트 데이터로 테스트</h3>
+        <button onclick="testRealData()">실제 데이터 저장</button>
+        <div id="realDataStatus" class="log"></div>
+    </div>
+
+    <script>
+        function log(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `[${timestamp}] ${message}<br>`;
+        }
+
+        async function testServer() {
+            try {
+                log('serverStatus', '서버 상태 확인 중...');
+                const response = await fetch('http://127.0.0.1:5057/api/state');
+                if (response.ok) {
+                    const data = await response.json();
+                    log('serverStatus', `✅ 서버 정상 작동: ${data.candle || 'unknown'}`);
+                } else {
+                    log('serverStatus', `❌ 서버 오류: ${response.status}`);
+                }
+            } catch (error) {
+                log('serverStatus', `❌ 서버 연결 실패: ${error.message}`);
+            }
+        }
+
+        async function testSaveAPI() {
+            try {
+                log('saveStatus', '저장 API 테스트 중...');
+                const testData = {
+                    filename: 'chart_data_test_2024-08-17T15-30-45.json',
+                    data: {
+                        test: 'data',
+                        interval: 'minute1',
+                        timestamp: new Date().toISOString()
+                    }
+                };
+
+                const response = await fetch('http://127.0.0.1:5057/api/save-chart-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    log('saveStatus', `✅ 저장 성공: ${result.filename}`);
+                    log('saveStatus', `파일 크기: ${result.fileSize} bytes`);
+                } else {
+                    log('saveStatus', `❌ 저장 실패: ${response.status}`);
+                }
+            } catch (error) {
+                log('saveStatus', `❌ API 호출 실패: ${error.message}`);
+            }
+        }
+
+        async function testRealData() {
+            try {
+                log('realDataStatus', '실제 차트 데이터 저장 테스트 중...');
+                
+                // ORANGE/BLUE 구역 데이터만 생성
+                const chartData = {
+                    market: 'KRW-BTC',
+                    interval: 'minute1',
+                    timestamp: new Date().toISOString(),
+                    orangeZones: Array.from({length: 25}, (_, i) => ({
+                        time: Date.now() - (25 - i) * 60000,
+                        open: 50000000 + Math.random() * 1000000,
+                        high: 50000000 + Math.random() * 1000000,
+                        low: 50000000 + Math.random() * 1000000,
+                        close: 50000000 + Math.random() * 1000000,
+                        volume: Math.random() * 100,
+                        zone: 'ORANGE'
+                    })),
+                    blueZones: Array.from({length: 25}, (_, i) => ({
+                        time: Date.now() - (25 - i) * 60000,
+                        open: 50000000 + Math.random() * 1000000,
+                        high: 50000000 + Math.random() * 1000000,
+                        low: 50000000 + Math.random() * 1000000,
+                        close: 50000000 + Math.random() * 1000000,
+                        volume: Math.random() * 100,
+                        zone: 'BLUE'
+                    }))
+                };
+
+                const filename = `chart_data_minute1_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+
+                const response = await fetch('http://127.0.0.1:5057/api/save-chart-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: filename,
+                        data: chartData
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    log('realDataStatus', `✅ 구역 데이터 저장 성공: ${result.filename}`);
+                    log('realDataStatus', `파일 크기: ${result.fileSize} bytes`);
+                    log('realDataStatus', `ORANGE 구역 수: ${result.totalOrangeZones || 0}`);
+                    log('realDataStatus', `BLUE 구역 수: ${result.totalBlueZones || 0}`);
+                } else {
+                    log('realDataStatus', `❌ 저장 실패: ${response.status}`);
+                }
+            } catch (error) {
+                log('realDataStatus', `❌ API 호출 실패: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

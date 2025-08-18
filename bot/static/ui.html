@@ -44,12 +44,51 @@
     .win-chip.positive{background:linear-gradient(90deg,rgba(14,203,129,0.35),rgba(14,203,129,0.10));}
     .win-chip.negative{background:linear-gradient(90deg,rgba(246,70,93,0.35),rgba(246,70,93,0.10));}
     .win-chip:hover{transform:translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,0.35)}
-    .win-chip .meta{font-size:12px;color:#d9e2f3;white-space:nowrap}
+    .win-chip .meta{font-size:11px;color:#d9e2f3;line-height:1.3;text-align:left}
     .win-chip .val{font-weight:700;white-space:normal;word-break:break-word;flex:1}
     /* Zone badge on win buttons */
     .zone-badge{display:inline-block;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:700;color:#0b1220}
     .zone-blue{background:#00d1ff;color:#0b1220}
     .zone-orange{background:#ffb703;color:#0b1220}
+    
+    /* Zone display improvements */
+    .zone-display-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .zone-display-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .zone-display-label {
+      font-size: 10px;
+      color: #888888;
+      font-weight: 500;
+    }
+    
+    .zone-display-badge {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    
+    .zone-divider {
+      width: 1px;
+      height: 20px;
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .zone-stats {
+      font-size: 11px;
+      color: #ffffff;
+      font-weight: 500;
+    }
     /* Win card zone theming */
     .win-card-blue{background:linear-gradient(180deg,rgba(0,209,255,0.12),rgba(0,209,255,0.04)) !important}
     .win-card-orange{background:linear-gradient(180deg,rgba(255,183,3,0.12),rgba(255,183,3,0.04)) !important}
@@ -65,6 +104,52 @@
     .nb-bubble{ position:relative; background:#1b2437; border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:8px 10px; color:#ffffff; font-size:12px }
     .nb-bubble:after{ content:""; position:absolute; bottom:-6px; left:18px; border-width:6px 6px 0 6px; border-style:solid; border-color:rgba(255,255,255,0.15) transparent transparent transparent }
     .nb-bubble:before{ content:""; position:absolute; bottom:-5px; left:19px; border-width:5px 5px 0 5px; border-style:solid; border-color:#1b2437 transparent transparent transparent }
+    
+    /* Auto Trading Status Styles */
+    .auto-trading-status {
+      background: #0e1424;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    
+    .auto-trading-status h4 {
+      color: #ffffff;
+      font-size: 14px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    
+    .member-auto-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 12px;
+    }
+    
+    .member-auto-status:last-child {
+      border-bottom: none;
+    }
+    
+    .member-auto-status span {
+      color: #ffffff;
+    }
+    
+    .member-auto-status span:first-child {
+      font-weight: 600;
+      flex: 1;
+    }
+    
+    .member-auto-status span:nth-child(2) {
+      margin: 0 12px;
+      font-size: 11px;
+    }
+    
+    .member-auto-status span:last-child {
+      font-size: 11px;
+      color: #d9e2f3;
+    }
   </style>
 </head>
 <body class="text-white">
@@ -89,6 +174,61 @@
           <div id="autoGaugeBar" style="height:100%; width:0%; background:linear-gradient(90deg,#2bdab5,#0ecb81); transition:width .4s ease"></div>
         </div>
       </div>
+      
+      <!-- Information Trust Sliders -->
+      <div class="mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted" style="font-size:12px">Information Trust Level</span>
+          <span id="trustStatusText" class="badge bg-info">Balanced</span>
+        </div>
+        
+        <!-- ML Model Trust Slider -->
+        <div class="mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted" style="font-size:11px">🤖 ML Model Trust</span>
+            <span id="mlTrustValue" class="badge bg-primary" style="font-size:10px">50%</span>
+          </div>
+          <div style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:4px; overflow:hidden; position:relative;">
+            <div id="mlTrustBar" style="height:100%; width:50%; background:linear-gradient(90deg,#4285f4,#72a6ff); transition:width .3s ease"></div>
+            <input type="range" id="mlTrustSlider" min="0" max="100" value="50" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+          </div>
+        </div>
+        
+        <!-- N/B Guild Trust Slider -->
+        <div class="mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted" style="font-size:11px">🏛️ N/B Guild Trust</span>
+            <span id="nbTrustValue" class="badge bg-warning" style="font-size:10px">50%</span>
+          </div>
+          <div style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:4px; overflow:hidden; position:relative;">
+            <div id="nbTrustBar" style="height:100%; width:50%; background:linear-gradient(90deg,#ffb703,#ffd54f); transition:width .3s ease"></div>
+            <input type="range" id="nbTrustSlider" min="0" max="100" value="50" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+          </div>
+        </div>
+        
+        <!-- Trust Balance Indicator -->
+        <div class="mt-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted" style="font-size:10px">Trust Balance</span>
+            <span id="trustBalanceText" class="text-muted" style="font-size:10px">ML: 50% | N/B: 50%</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- N/B Zone Strip -->
+      <div class="mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted" style="font-size:12px">N/B Zone Status</span>
+            <span id="nbZoneTimeframe" class="badge bg-info" style="font-size:10px">-</span>
+          </div>
+          <span id="nbZoneNow" class="badge bg-secondary">-</span>
+        </div>
+        <div id="nbZoneStrip" style="height:12px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; display:flex; align-items:center; padding:2px">
+          <div class="text-muted" style="font-size:11px; padding-left:6px">Loading…</div>
+        </div>
+                      <div class="text-white" style="font-size:11px; margin-top:4px">Visible chart zones (left=older → right=newer)</div>
+      </div>
     </div>
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h3 class="m-0">8BIT Upbit Bot - Chart</h3>
@@ -101,9 +241,16 @@
         <div id="winCard" class="card border-secondary rounded-3 p-3 h-100 d-flex flex-column win-card-orange" style="overflow-y:auto; scrollbar-width:none; max-height:920px;">
           <div class="mb-2 d-flex justify-content-between align-items-center">
             <strong class="text-white">Win%</strong>
-            <div class="d-flex align-items-center" style="gap:6px">
-              <span id="winMajor" class="badge bg-white text-dark">-</span>
-              <span id="winZoneNow" class="badge bg-white text-dark">-</span>
+            <div class="zone-display-container">
+              <div class="zone-display-item">
+                <span class="zone-display-label">25개 히스토리</span>
+                <span id="winMajor" class="badge bg-white text-dark zone-display-badge">-</span>
+              </div>
+              <div class="zone-divider"></div>
+              <div class="zone-display-item">
+                <span class="zone-display-label">현재 구역</span>
+                <span id="winZoneNow" class="badge bg-white text-dark zone-display-badge">-</span>
+              </div>
             </div>
           </div>
           <div id="winFillTrack" style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; margin-bottom:8px;">
@@ -177,16 +324,32 @@
       <div class="col-12 mt-3">
         <div class="card border-secondary rounded-3 p-3">
             <!-- Zone Win% mini gauge (above toolbar) -->
-            <div class="card border-secondary rounded-3 p-2 mb-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <strong class="text-white">Zone Win% (mini)</strong>
-                <span id="miniWinZone" class="badge bg-white text-dark">-</span>
+            <div class="card border-secondary rounded-3 p-3 mb-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong class="text-white">구역 분석</strong>
+                <div class="zone-display-container">
+                  <div class="zone-display-item">
+                    <span class="zone-display-label">25개 히스토리</span>
+                    <span id="miniWinZone" class="badge bg-white text-dark zone-display-badge">-</span>
+                  </div>
+                  <div class="zone-divider"></div>
+                  <div class="zone-display-item">
+                    <span class="zone-display-label">현재 구역</span>
+                    <span id="miniWinZoneCurrent" class="badge bg-white text-dark zone-display-badge">-</span>
+                  </div>
+                </div>
               </div>
-              <div id="miniWinGaugeTrack" style="position:relative; height:8px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; margin-top:6px;">
-                <!-- Base: opposite zone full-width so entire area is visible -->
-                <div id="miniWinBaseBar" style="position:absolute; left:0; top:0; height:100%; width:100%; background:#ffb703;"></div>
-                <!-- Overlay: majority zone progress -->
-                <div id="miniWinOverlayBar" style="position:absolute; left:0; top:0; height:100%; width:1%; background:#00d1ff; transition:width .4s ease"></div>
+              <div class="mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="zone-display-label">구역 분포</span>
+                  <span id="miniWinZoneStats" class="zone-stats">-</span>
+                </div>
+                <div id="miniWinGaugeTrack" style="position:relative; height:8px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden;">
+                  <!-- Base: opposite zone full-width so entire area is visible -->
+                  <div id="miniWinBaseBar" style="position:absolute; left:0; top:0; height:100%; width:100%; background:#ffb703;"></div>
+                  <!-- Overlay: majority zone progress -->
+                  <div id="miniWinOverlayBar" style="position:absolute; left:0; top:0; height:100%; width:1%; background:#00d1ff; transition:width .4s ease"></div>
+                </div>
               </div>
             </div>
 
@@ -226,15 +389,55 @@
                   <div class="text-muted" style="font-size:11px">Tavern / Inn / Market / Tower / Gate</div>
                 </div>
               </div>
+              <!-- Integrated Guild Members & Auto Trading -->
               <div class="mt-2">
                 <div class="d-flex justify-content-between align-items-center">
-                  <strong class="text-white" style="font-size:12px">Trainer Grants</strong>
+                  <strong class="text-white" style="font-size:12px">🏰 Guild Members & Auto Trading</strong>
                   <div class="d-flex align-items-center" style="gap:6px">
-                    <button id="btnAutoDistributeBtc" class="btn btn-sm btn-outline-light">Auto Distribute BTC</button>
-                    <button id="btnClearGrants" class="btn btn-sm btn-outline-warning">Clear</button>
+                    <button id="btnEmergencyReset" class="btn btn-sm btn-outline-danger">Emergency Reset</button>
+                    <button id="btnRestAll" class="btn btn-sm btn-outline-info">Rest All</button>
+                    <button id="btnHealAll" class="btn btn-sm btn-outline-success">Heal All</button>
+                    <button id="btnClearMockResults" class="btn btn-sm btn-outline-secondary">Clear All Trades</button>
                   </div>
                 </div>
-                <div id="trainerGrantsBox" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px; min-height:22px">-</div>
+                <div id="integratedGuildStatus" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px; min-height:22px">
+                  <div class="text-muted" style="font-size:11px">통합 Guild 시스템 초기화 중...</div>
+                </div>
+                <div id="mockTradeBox" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px; min-height:22px; max-height:200px; overflow-y:auto">-</div>
+                
+                <!-- Trading Slide UI -->
+                <div class="mt-2">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <strong class="text-white" style="font-size:12px">📊 Individual Trade Slides</strong>
+                    <button id="btnToggleAllSlides" class="btn btn-sm btn-outline-info">Toggle All</button>
+                  </div>
+                  <div id="individualTradeSlides" class="mt-1">
+                    <!-- Individual trade slides will be dynamically generated here -->
+                  </div>
+                </div>
+                
+                <!-- Real-time Trading Status -->
+                <div class="mt-2">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <strong class="text-white" style="font-size:12px">📊 실시간 거래 상태</strong>
+                    <span id="tradingStatusIndicator" class="badge bg-secondary">대기 중</span>
+                  </div>
+                  <div id="realTimeTradingStatus" class="mt-1" style="font-size:11px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px; min-height:22px">
+                    <div class="text-muted" style="font-size:10px">거래 상태 모니터링 중...</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Trainer System Diagnostics -->
+              <div class="mt-2">
+                <div class="d-flex justify-content-between align-items-center">
+                  <strong class="text-white" style="font-size:12px">Trainer System Diagnostics</strong>
+                  <div class="d-flex align-items-center" style="gap:6px">
+                    <button id="btnTrainerDiagnostics" class="btn btn-sm btn-outline-info">System Check</button>
+                    <button id="btnClearDiagnostics" class="btn btn-sm btn-outline-secondary">Clear</button>
+                  </div>
+                </div>
+                <div id="trainerDiagnosticsBox" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px; min-height:22px; max-height:200px; overflow-y:auto">-</div>
               </div>
               <!-- Village Status with HP and N/B Stamina -->
               <div class="mt-2">
@@ -243,20 +446,6 @@
                   <span id="villageStatusMeta" class="text-muted" style="font-size:11px"></span>
                 </div>
                 <div id="villageState" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px;">-</div>
-              </div>
-              
-              <!-- Guild Members HP & Stamina -->
-              <div class="mt-2">
-                <div class="d-flex justify-content-between align-items-center">
-                  <strong class="text-white" style="font-size:12px">Guild Members Status</strong>
-                  <div class="d-flex align-items-center" style="gap:6px">
-                    <button id="btnRestAll" class="btn btn-sm btn-outline-info">Rest All</button>
-                    <button id="btnHealAll" class="btn btn-sm btn-outline-success">Heal All</button>
-                  </div>
-                </div>
-                <div id="guildMembersStatus" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px;">
-                  <div class="text-muted" style="font-size:11px">Loading guild members...</div>
-                </div>
               </div>
               
               <!-- N/B Stamina System -->
