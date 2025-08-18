@@ -321,7 +321,6 @@
       
       // Store ML prediction for getCurrentZone() function
       try{ window.mlPrediction = j; }catch(_){ }
-      
 
       // ML 모델의 실제 구역 정보 사용 (for display only)
 
@@ -472,8 +471,8 @@
   
   // Information Trust System
   let trustConfig = {
-    mlTrust: 50, // ML Model trust level (0-100)
-    nbTrust: 50, // N/B Guild trust level (0-100)
+    mlTrust: 30, // ML Model trust level (0-100) - Lower default for N/B priority
+    nbTrust: 70, // N/B Guild trust level (0-100) - Higher default for consistency
     lastSaved: 0
   };
   
@@ -940,8 +939,9 @@
 
     const timeStr = new Date(ts).toLocaleTimeString();
 
-    // Get N/B Zone information with priority: item.zone > window.zoneNow > ML prediction
-    const nbZone = zone || window.zoneNow || (window.lastInsight && window.lastInsight.zone) || 'BLUE';
+    // Always use N/B Zone (window.zoneNow) for consistency with N/B ZONE STATUS
+    // Priority: window.zoneNow > zone parameter > ML prediction
+    const nbZone = window.zoneNow || zone || (window.lastInsight && window.lastInsight.zone) || 'BLUE';
     const currentInterval = interval || getInterval();
 
     const zoneUpper = String(nbZone).toUpperCase();
@@ -960,9 +960,9 @@
 
     
 
-    // Debug logging
-
-    console.log(`Adding win item: zone=${zoneUpper}, interval=${currentInterval}, time=${timeStr}`);
+    // Debug logging for zone consistency
+    console.log(`Adding win item: N/B Zone=${zoneUpper}, interval=${currentInterval}, time=${timeStr}`);
+    console.log(`Zone sources: window.zoneNow=${window.zoneNow}, zone param=${zone}, ML=${window.lastInsight?.zone}`);
 
     winListEl.prepend(item);
 
@@ -2170,7 +2170,20 @@
 
         // expose latest chart-derived zone for other UI (e.g., Win buttons)
 
-        try{ window.zoneNow = zoneFromChartLine; }catch(_){ }
+        try{ 
+          const oldZone = window.zoneNow;
+          window.zoneNow = zoneFromChartLine;
+          
+          // Trigger real-time synchronization if zone changed
+          if (oldZone !== null && oldZone !== zoneFromChartLine) {
+            console.log(`🔄 N/B Zone Change Detected in updateNB: ${oldZone} → ${zoneFromChartLine}`);
+            setTimeout(() => {
+              updateCurrentZoneDisplay(zoneFromChartLine);
+              updateZoneConsistencyDisplay();
+              updateGuildMembersZone(zoneFromChartLine);
+            }, 100);
+          }
+        }catch(_){ }
 
         
 
@@ -3430,7 +3443,7 @@
 
   if (showIchimokuEl) showIchimokuEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
 
-  if (ichiTenkanEl) ichiTenkanEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
+  if (ichiTenkanEl && ichiTenkanEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); }))
 
   if (ichiKijunEl) ichiKijunEl.addEventListener('change', ()=>{ saveOpts(); seed(getInterval()); });
 
@@ -6712,19 +6725,33 @@
       let totalPnl = 0;
 
       
+
       // Get trainer storage data
+
       let trainerStorageData = {};
+
       try {
+
         const storageRes = await fetch('/api/trainer/storage');
+
         if (storageRes && storageRes.ok) {
+
           const result = await storageRes.json();
+
           if (result && result.storage) {
+
             trainerStorageData = result.storage;
+
           }
+
         }
+
       } catch (e) {
+
         console.error('Failed to fetch trainer storage data:', e);
+
       }
+
       
 
       Object.values(guildMembers).forEach(member => {
@@ -6744,45 +6771,75 @@
         
 
         // Check for open position using trainer storage data
+
         const trainerData = trainerStorageData[member.name];
+
         if (trainerData && trainerData.coins > 0) {
+
           const currentPrice = getCurrentPrice();
 
           const entryPrice = trainerData.entry_price || 0;
+
           const coinAmount = trainerData.coins;
+
           
+
           // Determine position side based on trade history
+
           let positionSide = 'BUY'; // default
+
           if (trainerData.trades && trainerData.trades.length > 0) {
+
             // Find the last trade that added coins (BUY or MANUAL_MODIFY with positive amount)
+
             const lastTrade = trainerData.trades[trainerData.trades.length - 1];
+
             if (lastTrade.action === 'BUY') {
+
               positionSide = 'BUY';
+
             } else if (lastTrade.action === 'SELL') {
+
               positionSide = 'SELL';
+
             } else if (lastTrade.action === 'MANUAL_MODIFY') {
+
               // For manual modifications, determine based on amount
+
               positionSide = lastTrade.amount > 0 ? 'BUY' : 'SELL';
+
             }
+
           }
+
           
 
           let currentPnl = 0;
 
           let effectiveEntryPrice = entryPrice;
+
           
+
           // If entry price is 0 or invalid, use current price (no P&L)
+
           if (entryPrice <= 0 || entryPrice > currentPrice * 10 || entryPrice < currentPrice * 0.1) {
+
             effectiveEntryPrice = currentPrice;
+
             currentPnl = 0; // No P&L for invalid entry price
+
           } else {
-          if (positionSide === 'BUY') {
+
+            if (positionSide === 'BUY') {
 
               currentPnl = ((currentPrice - effectiveEntryPrice) / effectiveEntryPrice) * 100;
-          } else {
+
+            } else {
 
               currentPnl = ((effectiveEntryPrice - currentPrice) / effectiveEntryPrice) * 100;
+
             }
+
           }
 
           
@@ -6791,28 +6848,33 @@
 
           
 
-                     const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
+          const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
 
-           let minutesHeld = 0;
+          
 
-           try {
+          let minutesHeld = 0;
+
+          try {
 
             if (trainerData.last_update) {
+
               const timeHeld = Date.now() - (trainerData.last_update * 1000);
-             minutesHeld = Math.floor(timeHeld / (1000 * 60));
 
-             if (isNaN(minutesHeld) || minutesHeld < 0) {
+              minutesHeld = Math.floor(timeHeld / (1000 * 60));
 
-               minutesHeld = 0;
+              if (isNaN(minutesHeld) || minutesHeld < 0) {
+
+                minutesHeld = 0;
 
               }
-             }
 
-           } catch (e) {
+            }
 
-             minutesHeld = 0;
+          } catch (e) {
 
-           }
+            minutesHeld = 0;
+
+          }
 
           
 
@@ -6825,6 +6887,7 @@
             coinAmount: coinAmount,
 
             entryPrice: effectiveEntryPrice,
+
             currentPrice: currentPrice,
 
             pnl: currentPnl,
@@ -6903,7 +6966,7 @@
 
         // Calculate total P&L color outside the loop
 
-          const totalPnlColor = totalPnl > 0 ? '#0ecb81' : totalPnl < 0 ? '#f6465d' : '#ffffff';
+        const totalPnlColor = totalPnl > 0 ? '#0ecb81' : totalPnl < 0 ? '#f6465d' : '#ffffff';
 
         
 
@@ -9604,12 +9667,26 @@
     const mlWeight = totalTrust > 0 ? trustConfig.mlTrust / totalTrust : 0.5;
     const nbWeight = totalTrust > 0 ? trustConfig.nbTrust / totalTrust : 0.5;
     
-    // Weighted decision (simplified - in practice, this would be more complex)
-    if (mlZone === nbZone) {
-      return mlZone; // Both agree
+    // Priority: N/B Zone should be the primary source for consistency
+    // If N/B zone is available, use it as the base
+    if (window.zoneNow) {
+      // If ML and N/B agree, use the agreed zone
+      if (mlZone === nbZone) {
+        return mlZone;
+      } else {
+        // If they disagree, use N/B zone as primary, but consider ML influence
+        // Only override N/B zone if ML trust is significantly higher (70%+)
+        if (mlWeight > 0.7 && mlZone !== nbZone) {
+          console.log(`ML trust high (${(mlWeight*100).toFixed(0)}%), overriding N/B zone: ${nbZone} → ${mlZone}`);
+          return mlZone;
+        } else {
+          console.log(`Using N/B zone (${nbZone}) over ML zone (${mlZone}) - ML trust: ${(mlWeight*100).toFixed(0)}%`);
+          return nbZone;
+        }
+      }
     } else {
-      // Return the zone with higher trust weight
-      return mlWeight > nbWeight ? mlZone : nbZone;
+      // Fallback to ML zone if N/B zone is not available
+      return mlZone;
     }
   }
 
@@ -10246,8 +10323,6 @@
 
         }
 
-        
-
       } else {
 
         // No open position, decide whether to open a new one
@@ -10466,13 +10541,13 @@
 
     
 
-    // Get current zone information from mayor's announcement
+    // Get current zone information - Always use N/B zone for consistency
 
-    const currentZone = member.currentZone || getCurrentZone();
+    const currentZone = window.zoneNow || 'BLUE'; // Direct N/B zone
 
-    const zoneBias = member.zoneBias || (currentZone === 'BLUE' ? 'BUY' : 'SELL');
+    const zoneBias = currentZone === 'BLUE' ? 'BUY' : 'SELL';
 
-    const zoneConfidence = member.zoneConfidence || 0.6;
+    const zoneConfidence = 0.8; // High confidence for N/B zone
 
     
 
@@ -10502,9 +10577,9 @@
 
       
 
-      // Use actual current zone from mayor's system
+      // Use N/B zone directly for consistency
 
-      const currentZone = getCurrentZone();
+      const currentZone = window.zoneNow || 'BLUE';
 
       
 
@@ -11263,8 +11338,6 @@
 
 
 
-
-
   // ========================================
 
   // 🌐 전역 함수 노출 (사용자 수정 가능)
@@ -11578,7 +11651,6 @@
         const lastCandle = chartData[chartData.length - 1];
 
         const currentInterval = getInterval();
-
         
 
         // Calculate the time range for the current interval
@@ -11919,23 +11991,25 @@
 
 
 
-    // Get current market zone from trust-weighted decision
+    // Get current market zone - Always synchronized with N/B ZONE STATUS
   function getCurrentZone() {
 
     try {
 
-      // Use trust-weighted zone decision
-      const trustWeightedZone = getTrustWeightedZone();
-      console.log(`Trust-Weighted Zone Decision: ${trustWeightedZone} (ML: ${trustConfig.mlTrust}%, N/B: ${trustConfig.nbTrust}%)`);
-      return trustWeightedZone;
+      // Always use N/B zone for consistency with N/B ZONE STATUS
+      const nbZone = window.zoneNow || 'BLUE';
+      
+      // Log the synchronization
+      const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
+      console.log(`🔄 Zone Synchronization: N/B Zone (${nbZone}) | ML Zone (${mlZone}) | Using N/B Zone`);
+      
+      return nbZone;
     } catch (e) {
       console.error('Error in getCurrentZone:', e);
       
-      // Fallback to N/B zone if trust system fails
-        const nbZone = window.zoneNow || 'BLUE';
-
-      console.log(`Trust System Fallback to N/B Zone: ${nbZone}`);
-      return nbZone;
+      // Fallback to BLUE if everything fails
+      console.log(`Error Fallback to BLUE Zone`);
+      return 'BLUE';
     }
 
   }
@@ -12437,7 +12511,152 @@
 
   }, 1000);
 
+  // Real-time Zone Synchronization System
+  let lastKnownNbZone = null;
+  let zoneSyncInterval = null;
 
+  function initializeZoneSynchronization() {
+    // Start monitoring N/B zone changes
+    zoneSyncInterval = setInterval(() => {
+      const currentNbZone = window.zoneNow || 'BLUE';
+      
+      // Check if N/B zone has changed
+      if (lastKnownNbZone !== null && lastKnownNbZone !== currentNbZone) {
+        console.log(`🔄 N/B Zone Change Detected: ${lastKnownNbZone} → ${currentNbZone}`);
+        
+        // Update current zone immediately
+        updateCurrentZoneDisplay(currentNbZone);
+        
+        // Update all related UI elements
+        updateZoneConsistencyDisplay();
+        
+        // Force update guild members with new zone
+        updateGuildMembersZone(currentNbZone);
+        
+        // Log the synchronization
+        console.log(`✅ Zone Synchronization Complete: Current Zone = ${currentNbZone}`);
+      }
+      
+      // Update last known zone
+      lastKnownNbZone = currentNbZone;
+    }, 1000); // Check every second
+    
+    console.log('🔄 Real-time Zone Synchronization System Started');
+  }
+
+  function updateCurrentZoneDisplay(newZone) {
+    try {
+      // Update current zone display elements
+      const currentZoneElements = [
+        document.getElementById('winZoneNow'),
+        document.getElementById('miniWinZoneCurrent')
+      ];
+      
+      currentZoneElements.forEach(el => {
+        if (el) {
+          el.textContent = newZone;
+          el.className = `badge ${newZone === 'BLUE' ? 'bg-primary' : 'bg-warning'} text-white zone-display-badge`;
+        }
+      });
+      
+      // Update any other zone-related displays
+      const zoneBadgeElements = document.querySelectorAll('.zone-badge');
+      zoneBadgeElements.forEach(el => {
+        if (el.textContent.includes('현재 구역') || el.textContent.includes('Current Zone')) {
+          el.textContent = newZone;
+          el.className = `zone-badge ${newZone === 'BLUE' ? 'zone-blue' : 'zone-orange'}`;
+        }
+      });
+      
+    } catch (e) {
+      console.error('Error updating current zone display:', e);
+    }
+  }
+
+  function updateZoneConsistencyDisplay() {
+    try {
+      const currentZone = window.zoneNow || 'BLUE';
+      const nbZone = window.zoneNow || 'BLUE';
+      const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
+      
+      // Update zone consistency info
+      const zoneInfoEl = document.getElementById('zoneConsistencyInfo');
+      if (zoneInfoEl) {
+        zoneInfoEl.innerHTML = `
+          <div style="font-size: 10px; color: #666; margin-bottom: 2px;">
+            🔄 구역 동기화: <span style="color: #0ecb81;">실시간 동기화</span>
+          </div>
+          <div style="font-size: 9px; color: #888;">
+            현재: ${currentZone} | N/B: ${nbZone} | ML: ${mlZone}
+          </div>
+          <div style="font-size: 8px; color: #0ecb81;">
+            N/B ZONE STATUS 실시간 동기화
+          </div>
+        `;
+      }
+      
+    } catch (e) {
+      console.error('Error updating zone consistency display:', e);
+    }
+  }
+
+  function updateGuildMembersZone(newZone) {
+    try {
+      if (typeof guildMembers !== 'undefined' && guildMembers) {
+        Object.values(guildMembers).forEach(member => {
+          member.currentZone = newZone;
+          member.zoneBias = newZone === 'BLUE' ? 'BUY' : 'SELL';
+          member.zoneConfidence = 0.8;
+        });
+        
+        console.log(`🏛️ Updated all guild members to zone: ${newZone}`);
+      }
+    } catch (e) {
+      console.error('Error updating guild members zone:', e);
+    }
+  }
+
+  // Display zone consistency information
+  function displayZoneConsistency() {
+    try {
+      const currentZone = window.zoneNow || 'BLUE';
+      const nbZone = window.zoneNow || 'BLUE';
+      const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
+      
+      console.log('🔍 Real-time Zone Consistency Check:');
+      console.log(`  Current Zone (Synchronized): ${currentZone}`);
+      console.log(`  N/B Zone Status: ${nbZone}`);
+      console.log(`  ML Model Zone: ${mlZone}`);
+      console.log(`  Status: ✅ Real-time Synchronized with N/B Zone`);
+      
+      // Update UI to show zone consistency
+      const zoneInfoEl = document.getElementById('zoneConsistencyInfo');
+      if (zoneInfoEl) {
+        zoneInfoEl.innerHTML = `
+          <div style="font-size: 10px; color: #666; margin-bottom: 2px;">
+            🔄 구역 동기화: <span style="color: #0ecb81;">실시간 동기화</span>
+          </div>
+          <div style="font-size: 9px; color: #888;">
+            현재: ${currentZone} | N/B: ${nbZone} | ML: ${mlZone}
+          </div>
+          <div style="font-size: 8px; color: #0ecb81;">
+            N/B ZONE STATUS 실시간 동기화
+          </div>
+        `;
+      }
+    } catch (e) {
+      console.error('Error displaying zone consistency:', e);
+    }
+  }
+
+  // Initialize real-time zone synchronization
+  setTimeout(() => {
+    initializeZoneSynchronization();
+    displayZoneConsistency();
+  }, 2000); // Start after 2 seconds
+  
+  // Call zone consistency check periodically
+  setInterval(displayZoneConsistency, 10000); // Check every 10 seconds
 
 })();
 
