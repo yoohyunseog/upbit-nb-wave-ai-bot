@@ -2179,14 +2179,15 @@
         try{ 
           const oldZone = window.zoneNow;
           
-          // Always use N/B wave series for zone determination
-          let nbZone = zoneFromChartLine;
+          // Always use N/B wave series for zone determination - No fallback to chart line
+          let nbZone = 'BLUE'; // Default fallback
           if (window.nbWaveSeries && window.nbWaveSeries.data) {
             const nbData = window.nbWaveSeries.data;
             if (Array.isArray(nbData) && nbData.length > 0) {
               const lastNbPoint = nbData[nbData.length - 1];
               const baseValue = window.nbWaveSeries.options().baseValue?.price || 0;
               nbZone = lastNbPoint.value < baseValue ? 'ORANGE' : 'BLUE';
+              console.log(`🔍 N/B Zone Calculation: lastPoint=${lastNbPoint.value.toFixed(0)}, baseValue=${baseValue.toFixed(0)} → ${nbZone}`);
             }
           }
           
@@ -12095,9 +12096,22 @@
       // Always use N/B zone for consistency with N/B ZONE STATUS
       const nbZone = window.zoneNow || 'BLUE';
       
-      // Log the synchronization
+      // Log the synchronization with detailed debugging
       const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
       console.log(`🔄 Zone Synchronization: N/B Zone (${nbZone}) | ML Zone (${mlZone}) | Using N/B Zone`);
+      
+      // Additional debugging for BLUE zone issues
+      if (nbZone === 'BLUE') {
+        console.log(`🔵 BLUE Zone Debug: window.zoneNow=${window.zoneNow}, N/B Wave Series available=${!!window.nbWaveSeries}`);
+        if (window.nbWaveSeries && window.nbWaveSeries.data) {
+          const nbData = window.nbWaveSeries.data;
+          if (nbData.length > 0) {
+            const lastPoint = nbData[nbData.length - 1];
+            const baseValue = window.nbWaveSeries.options().baseValue?.price || 0;
+            console.log(`🔵 N/B Wave Data: lastPoint=${lastPoint.value.toFixed(0)}, baseValue=${baseValue.toFixed(0)}`);
+          }
+        }
+      }
       
       return nbZone;
     } catch (e) {
