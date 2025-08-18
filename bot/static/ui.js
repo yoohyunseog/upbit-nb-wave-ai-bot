@@ -2185,6 +2185,39 @@
           }
         }catch(_){ }
 
+        // Check for chart interval change and recover energy
+        try {
+          const currentInterval = getInterval();
+          if (nbEnergy && nbEnergy.lastChartInterval !== currentInterval) {
+            const oldInterval = nbEnergy.lastChartInterval;
+            nbEnergy.lastChartInterval = currentInterval;
+            
+            if (oldInterval !== null) {
+              // Energy recovery based on chart interval change
+              let energyRecovery = 1; // Default +1 for any interval change
+              
+              if (currentInterval === 'day') {
+                energyRecovery = 2; // +2 for day interval
+              }
+              
+              nbEnergy.current = Math.min(nbEnergy.max, nbEnergy.current + energyRecovery);
+              
+              console.log(`⚡ Chart interval changed: ${oldInterval} → ${currentInterval}, Energy +${energyRecovery} (Total: ${nbEnergy.current})`);
+              
+              // Update treasury access if energy reaches 80+
+              if (nbEnergy.current >= 80 && !nbEnergy.treasuryAccess) {
+                nbEnergy.treasuryAccess = true;
+                console.log(`🎉 Treasury access UNLOCKED! Energy reached 80+ (${nbEnergy.current})`);
+              }
+              
+              // Update energy display
+              updateStaminaSystem();
+            }
+          }
+        } catch (e) {
+          console.error('Error in energy recovery system:', e);
+        }
+
         
 
         // Log the zone determination for debugging
@@ -5093,7 +5126,7 @@
 
                   <span>Guild Status:</span>
 
-                  <span style='color: ${guildStatus.nbStaminaColor};'>N/B Stamina: ${guildStatus.nbStamina}%</span>
+                  <span style='color: ${guildStatus.nbEnergyColor};'>마을의 이동 에너지: ${guildStatus.nbEnergy}%</span>
 
                 </div>
 
@@ -6669,9 +6702,9 @@
 
 
 
-  // N/B Stamina System
+  // N/B 마을의 이동 에너지 시스템
 
-  let nbStamina = {
+  let nbEnergy = {
 
     current: 0, // Start from 0
 
@@ -6681,7 +6714,9 @@
 
     lastRecovery: Date.now(),
 
-    treasuryAccess: false
+    treasuryAccess: false,
+
+    lastChartInterval: null
 
   };
 
@@ -7065,13 +7100,13 @@
 
       // System status header
 
-      const nbStaminaStatus = typeof nbStamina !== 'undefined' ? 
+      const nbEnergyStatus = typeof nbEnergy !== 'undefined' ? 
 
-        `N/B Stamina: ${nbStamina.current}/${nbStamina.max}` : 'N/B Stamina: 초기화 중';
+        `마을의 이동 에너지: ${nbEnergy.current}/${nbEnergy.max}` : '마을의 이동 에너지: 초기화 중';
 
       
 
-      let html = `<div style="font-size: 11px; color: #d9e2f3; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">${nbStaminaStatus}</div>`;
+      let html = `<div style="font-size: 11px; color: #d9e2f3; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">${nbEnergyStatus}</div>`;
 
       
 
@@ -7828,15 +7863,15 @@
 
 
 
-      const staminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+      const energyPercent = Math.round((nbEnergy.current / nbEnergy.max) * 100);
 
-      const staminaColor = staminaPercent > 70 ? '#4285f4' : staminaPercent > 40 ? '#ffb703' : '#f6465d';
+      const energyColor = energyPercent > 70 ? '#4285f4' : energyPercent > 40 ? '#ffb703' : '#f6465d';
 
       
 
-      const treasuryStatus = nbStamina.treasuryAccess ? 'Unlocked' : 'Locked';
+      const treasuryStatus = nbEnergy.treasuryAccess ? 'Unlocked' : 'Locked';
 
-      const treasuryColor = nbStamina.treasuryAccess ? '#0ecb81' : '#f6465d';
+      const treasuryColor = nbEnergy.treasuryAccess ? '#0ecb81' : '#f6465d';
 
       
 
@@ -7846,15 +7881,15 @@
 
           <div>
 
-            <span style="font-weight: 600;">N/B Stamina:</span>
+            <span style="font-weight: 600;">마을의 이동 에너지:</span>
 
-            <span style="color: ${staminaColor}; margin-left: 8px;">${nbStamina.current}/${nbStamina.max}</span>
+            <span style="color: ${energyColor}; margin-left: 8px;">${nbEnergy.current}/${nbEnergy.max}</span>
 
           </div>
 
           <div style="width: 120px; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden;">
 
-            <div style="width: ${staminaPercent}%; height: 100%; background: ${staminaColor};"></div>
+            <div style="width: ${energyPercent}%; height: 100%; background: ${energyColor};"></div>
 
           </div>
 
@@ -7872,7 +7907,7 @@
 
           <div>
 
-            <span style="font-size: 11px; color: #ffffff;">Recovery: Profitable Mock Tests Only</span>
+            <span style="font-size: 11px; color: #ffffff;">Recovery: Chart Interval Changes</span>
 
           </div>
 
@@ -7880,7 +7915,7 @@
 
         <div style="margin-top: 8px; font-size: 11px; color: #ffffff;">
 
-          Mock Tests: ${mockTestResults.profitableTests}/${mockTestResults.totalTests} profitable
+          Chart Changes: ${mockTestResults.profitableTests}/${mockTestResults.totalTests} profitable
 
           ${mockTestResults.totalProfit > 0 ? `(+${mockTestResults.totalProfit.toFixed(2)}% avg)` : ''}
 
@@ -7982,25 +8017,25 @@
 
         // Only profitable mock tests recover stamina
 
-        const staminaRecovery = Math.min(15, Math.round(profitPercent * 3)); // Max 15 stamina per test, higher multiplier
+        const energyRecovery = Math.min(15, Math.round(profitPercent * 3)); // Max 15 energy per test, higher multiplier
 
-        nbStamina.current = Math.min(nbStamina.max, nbStamina.current + staminaRecovery);
+        nbEnergy.current = Math.min(nbEnergy.max, nbEnergy.current + energyRecovery);
 
         
 
         // Check if treasury access should be unlocked
 
-        if (nbStamina.current >= 80 && !nbStamina.treasuryAccess) {
+        if (nbEnergy.current >= 80 && !nbEnergy.treasuryAccess) {
 
-          nbStamina.treasuryAccess = true;
+          nbEnergy.treasuryAccess = true;
 
-          pushOrderLogLine(`[${new Date().toLocaleString()}] 🎉 Treasury access UNLOCKED! N/B Stamina reached 80+ (${nbStamina.current})`);
+          pushOrderLogLine(`[${new Date().toLocaleString()}] 🎉 Treasury access UNLOCKED! N/B Energy reached 80+ (${nbEnergy.current})`);
 
         }
 
         
 
-        pushOrderLogLine(`[${new Date().toLocaleString()}] ✅ Mock test profitable (+${profitPercent.toFixed(2)}%). Stamina +${staminaRecovery} (Total: ${nbStamina.current})`);
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ✅ Mock test profitable (+${profitPercent.toFixed(2)}%). Energy +${energyRecovery} (Total: ${nbEnergy.current})`);
 
       } else {
 
@@ -8010,7 +8045,7 @@
 
         
 
-        pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ Mock test unprofitable (${profitPercent.toFixed(2)}%). No stamina recovery.`);
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ Mock test unprofitable (${profitPercent.toFixed(2)}%). No energy recovery.`);
 
       }
 
@@ -8482,23 +8517,23 @@
 
       
 
-      // Calculate N/B Stamina percentage
+      // Calculate N/B Energy percentage
 
-      const nbStaminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+      const nbEnergyPercent = Math.round((nbEnergy.current / nbEnergy.max) * 100);
 
       
 
-      // Determine N/B Stamina color
+      // Determine N/B Energy color
 
-      let nbStaminaColor = '#f6465d'; // red
+      let nbEnergyColor = '#f6465d'; // red
 
-      if (nbStaminaPercent > 70) {
+      if (nbEnergyPercent > 70) {
 
-        nbStaminaColor = '#4285f4'; // blue
+        nbEnergyColor = '#4285f4'; // blue
 
-      } else if (nbStaminaPercent > 40) {
+      } else if (nbEnergyPercent > 40) {
 
-        nbStaminaColor = '#ffb703'; // yellow
+        nbEnergyColor = '#ffb703'; // yellow
 
       }
 
@@ -8508,29 +8543,29 @@
 
       const intervalModifiers = {
 
-        'minute1': { staminaBonus: 5, activeBonus: 1 },
+        'minute1': { energyBonus: 5, activeBonus: 1 },
 
-        'minute3': { staminaBonus: 3, activeBonus: 1 },
+        'minute3': { energyBonus: 3, activeBonus: 1 },
 
-        'minute5': { staminaBonus: 2, activeBonus: 0 },
+        'minute5': { energyBonus: 2, activeBonus: 0 },
 
-        'minute10': { staminaBonus: 0, activeBonus: 0 },
+        'minute10': { energyBonus: 0, activeBonus: 0 },
 
-        'minute15': { staminaBonus: -2, activeBonus: -1 },
+        'minute15': { energyBonus: -2, activeBonus: -1 },
 
-        'minute30': { staminaBonus: -3, activeBonus: -1 },
+        'minute30': { energyBonus: -3, activeBonus: -1 },
 
-        'minute60': { staminaBonus: -5, activeBonus: -2 },
+        'minute60': { energyBonus: -5, activeBonus: -2 },
 
-        'day': { staminaBonus: -10, activeBonus: -3 }
+        'day': { energyBonus: -10, activeBonus: -3 }
 
       };
 
       
 
-      const modifier = intervalModifiers[interval] || { staminaBonus: 0, activeBonus: 0 };
+      const modifier = intervalModifiers[interval] || { energyBonus: 0, activeBonus: 0 };
 
-      const adjustedStamina = Math.max(0, Math.min(100, nbStaminaPercent + modifier.staminaBonus));
+      const adjustedEnergy = Math.max(0, Math.min(100, nbEnergyPercent + modifier.energyBonus));
 
       const adjustedActive = Math.max(0, Math.min(4, activeMembers + modifier.activeBonus));
 
@@ -8538,13 +8573,13 @@
 
       return {
 
-        nbStamina: adjustedStamina,
+        nbEnergy: adjustedEnergy,
 
-        nbStaminaColor: adjustedStamina > 70 ? '#4285f4' : adjustedStamina > 40 ? '#ffb703' : '#f6465d',
+        nbEnergyColor: adjustedEnergy > 70 ? '#4285f4' : adjustedEnergy > 40 ? '#ffb703' : '#f6465d',
 
         activeMembers: adjustedActive,
 
-        treasuryAccess: adjustedStamina >= 80
+        treasuryAccess: adjustedEnergy >= 80
 
       };
 
@@ -8554,9 +8589,9 @@
 
       return {
 
-        nbStamina: 0,
+        nbEnergy: 0,
 
-        nbStaminaColor: '#f6465d',
+        nbEnergyColor: '#f6465d',
 
         activeMembers: 0,
 
@@ -8576,11 +8611,11 @@
 
     try {
 
-      // Check if we have enough N/B Stamina
+      // Check if we have enough N/B Energy
 
-      if (nbStamina.current < 10) {
+      if (nbEnergy.current < 10) {
 
-        appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ❌ Insufficient N/B Stamina (${nbStamina.current}/100). Need at least 10 to trade.`);
+        appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ❌ Insufficient N/B Energy (${nbEnergy.current}/100). Need at least 10 to trade.`);
 
         return;
 
@@ -8588,15 +8623,15 @@
 
 
 
-      // Consume stamina for mock trading
+      // Consume energy for mock trading (Scout's energy cost: 5)
 
-      const staminaCost = 10;
+      const energyCost = 5;
 
-      nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+      nbEnergy.current = Math.max(0, nbEnergy.current - energyCost);
 
       
 
-      appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🔄 Starting Real Market Mock Trade (Stamina -${staminaCost}, Remaining: ${nbStamina.current})`);
+      appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🔄 Starting Real Market Mock Trade (Energy -${energyCost}, Remaining: ${nbEnergy.current})`);
 
       
 
@@ -9114,15 +9149,15 @@
 
       try {
 
-        if (typeof nbStamina !== 'undefined' && nbStamina) {
+              if (typeof nbEnergy !== 'undefined' && nbEnergy) {
 
-          const staminaPercent = Math.round((nbStamina.current / nbStamina.max) * 100);
+        const energyPercent = Math.round((nbEnergy.current / nbEnergy.max) * 100);
 
-          appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Stamina: ${nbStamina.current}/${nbStamina.max} (${staminaPercent}%)`);
+        appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Energy: ${nbEnergy.current}/${nbEnergy.max} (${energyPercent}%)`);
 
-        } else {
+              } else {
 
-          appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Stamina: Not initialized yet`);
+          appendDiagnosticsLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Energy: Not initialized yet`);
 
         }
 
@@ -9214,11 +9249,11 @@
 
     try {
 
-      // Only allow reset if stamina is critically low (less than 10)
+      // Only allow reset if energy is critically low (less than 10)
 
-      if (nbStamina.current >= 10) {
+      if (nbEnergy.current >= 10) {
 
-        appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚠️ Emergency Reset not needed. Current stamina: ${nbStamina.current}/100`);
+        appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚠️ Emergency Reset not needed. Current energy: ${nbEnergy.current}/100`);
 
         return;
 
@@ -9226,11 +9261,11 @@
 
 
 
-      // Reset stamina to 30 (enough for 3 mock trades)
+      // Reset energy to 30 (enough for 3 mock trades)
 
-      const oldStamina = nbStamina.current;
+      const oldEnergy = nbEnergy.current;
 
-      nbStamina.current = 30;
+      nbEnergy.current = 30;
 
       
 
@@ -9248,7 +9283,7 @@
 
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🚨 EMERGENCY RESET ACTIVATED!`);
 
-      appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Stamina: ${oldStamina} → ${nbStamina.current}/100`);
+      appendMockTradeLine(`[${new Date().toLocaleTimeString()}] ⚡ N/B Energy: ${oldEnergy} → ${nbEnergy.current}/100`);
 
       appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 👥 Guild Members: Restored to active state`);
 
@@ -9267,7 +9302,7 @@
 
       // Log the emergency reset
 
-      pushOrderLogLine(`[${new Date().toLocaleString()}] 🚨 Emergency Stamina Reset activated. Stamina: ${oldStamina} → ${nbStamina.current}`);
+      pushOrderLogLine(`[${new Date().toLocaleString()}] 🚨 Emergency Energy Reset activated. Energy: ${oldEnergy} → ${nbEnergy.current}`);
 
       
 
@@ -9705,7 +9740,7 @@
 
       console.log('Auto Mock Trading Scheduler running...');
 
-      console.log('N/B Stamina:', typeof nbStamina !== 'undefined' ? nbStamina.current : 'undefined');
+      console.log('N/B Energy:', typeof nbEnergy !== 'undefined' ? nbEnergy.current : 'undefined');
 
       
 
@@ -9779,25 +9814,25 @@
 
     try {
 
-      // Check if we have enough N/B Stamina
+      // Check if we have enough N/B Energy
 
-      if (typeof nbStamina !== 'undefined' && nbStamina && nbStamina.current < 10) {
+      if (typeof nbEnergy !== 'undefined' && nbEnergy && nbEnergy.current < 10) {
 
-        console.log(`Not enough N/B Stamina: ${nbStamina.current}/100`);
+        console.log(`Not enough N/B Energy: ${nbEnergy.current}/100`);
 
-        return; // Not enough stamina
+        return; // Not enough energy
 
       }
 
 
 
-      // Consume stamina for real trading
+      // Consume energy for real trading
 
-      if (typeof nbStamina !== 'undefined' && nbStamina) {
+      if (typeof nbEnergy !== 'undefined' && nbEnergy) {
 
-        const staminaCost = 15; // Higher cost for real trades
+        const energyCost = 15; // Higher cost for real trades
 
-        nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+        nbEnergy.current = Math.max(0, nbEnergy.current - energyCost);
 
       }
 
@@ -10109,25 +10144,25 @@
 
     try {
 
-      // Check if we have enough N/B Stamina
+      // Check if we have enough N/B Energy
 
-      if (typeof nbStamina !== 'undefined' && nbStamina && nbStamina.current < 10) {
+      if (typeof nbEnergy !== 'undefined' && nbEnergy && nbEnergy.current < 10) {
 
-        console.log(`Not enough N/B Stamina: ${nbStamina.current}/100`);
+        console.log(`Not enough N/B Energy: ${nbEnergy.current}/100`);
 
-        return; // Not enough stamina
+        return; // Not enough energy
 
       }
 
 
 
-      // Consume stamina for mock trading
+      // Consume energy for mock trading
 
-      if (typeof nbStamina !== 'undefined' && nbStamina) {
+      if (typeof nbEnergy !== 'undefined' && nbEnergy) {
 
-        const staminaCost = 10;
+        const energyCost = 10;
 
-        nbStamina.current = Math.max(0, nbStamina.current - staminaCost);
+        nbEnergy.current = Math.max(0, nbEnergy.current - energyCost);
 
       }
 
@@ -10697,6 +10732,37 @@
     console.log(`${member.name} (${role}) - Market: ${sentimentText}, Decision: ${decision}`);
 
     
+
+    // Consume energy based on bitcar type when decision is made
+    if (decision !== 'HOLD' && nbEnergy && nbEnergy.current >= 10) {
+      let energyCost = 5; // Default Scout energy cost
+      
+      // Bitcar-specific energy costs
+      switch (role) {
+        case 'Scout':
+          energyCost = 5; // Speed Bitcar
+          break;
+        case 'Guardian':
+          energyCost = 8; // Command Vehicle Bitcar
+          break;
+        case 'Analyst':
+          energyCost = 10; // Combat Bitcar
+          break;
+        case 'Elder':
+          energyCost = 12; // Warehouse Bitcar
+          break;
+        default:
+          energyCost = 5;
+      }
+      
+      if (nbEnergy.current >= energyCost) {
+        nbEnergy.current = Math.max(0, nbEnergy.current - energyCost);
+        console.log(`⚡ ${member.name} (${role}) consumed ${energyCost} energy for ${decision}. Remaining: ${nbEnergy.current}`);
+      } else {
+        console.log(`❌ ${member.name} (${role}) insufficient energy (${nbEnergy.current}/${energyCost}) for ${decision}`);
+        decision = 'HOLD'; // Force HOLD if not enough energy
+      }
+    }
 
     return decision;
 
@@ -12443,11 +12509,11 @@
 
       
 
-      // Force N/B Stamina if available
+      // Force N/B Energy if available
 
-      if (typeof nbStamina !== 'undefined' && nbStamina) {
+      if (typeof nbEnergy !== 'undefined' && nbEnergy) {
 
-        nbStamina.current = Math.max(nbStamina.current, 20);
+        nbEnergy.current = Math.max(nbEnergy.current, 20);
 
       }
 
