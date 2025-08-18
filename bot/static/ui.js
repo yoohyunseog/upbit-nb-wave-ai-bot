@@ -12646,23 +12646,23 @@
 
   function updateCurrentZoneDisplay(newZone) {
     try {
-      // Update current zone display elements
+      // Update current zone display elements only if content changed
       const currentZoneElements = [
         document.getElementById('winZoneNow'),
         document.getElementById('miniWinZoneCurrent')
       ];
       
       currentZoneElements.forEach(el => {
-        if (el) {
+        if (el && el.textContent !== newZone) {
           el.textContent = newZone;
           el.className = `badge ${newZone === 'BLUE' ? 'bg-primary' : 'bg-warning'} text-white zone-display-badge`;
         }
       });
       
-      // Update any other zone-related displays
+      // Update any other zone-related displays only if changed
       const zoneBadgeElements = document.querySelectorAll('.zone-badge');
       zoneBadgeElements.forEach(el => {
-        if (el.textContent.includes('현재 구역') || el.textContent.includes('Current Zone')) {
+        if (el && (el.textContent.includes('현재 구역') || el.textContent.includes('Current Zone')) && el.textContent !== newZone) {
           el.textContent = newZone;
           el.className = `zone-badge ${newZone === 'BLUE' ? 'zone-blue' : 'zone-orange'}`;
         }
@@ -12750,6 +12750,8 @@
   }
 
   // Real-time zone synchronization - Update every 1 second
+  let lastSyncedZone = null; // Track last synced zone to prevent unnecessary updates
+  
   function syncCurrentZoneWithNBStatus() {
     try {
       // Read directly from the N/B Zone Status HTML element
@@ -12766,13 +12768,17 @@
         nbZone = window.zoneNow || 'BLUE';
       }
       
-      // Always update current zone to match N/B Zone Status
-      updateCurrentZoneDisplay(nbZone);
-      updateZoneConsistencyDisplay();
-      updateGuildMembersZone(nbZone);
-      
-      // Log synchronization status
-      console.log(`🔄 1초 동기화: N/B Zone Status (${nbZone}) → 현재 구역 (${nbZone})`);
+      // Only update if zone has actually changed
+      if (nbZone !== lastSyncedZone) {
+        updateCurrentZoneDisplay(nbZone);
+        updateZoneConsistencyDisplay();
+        updateGuildMembersZone(nbZone);
+        
+        // Log synchronization status only when changed
+        console.log(`🔄 구역 변경 감지: ${lastSyncedZone || 'NONE'} → ${nbZone}`);
+        
+        lastSyncedZone = nbZone;
+      }
       
     } catch (e) {
       console.error('Error in real-time zone synchronization:', e);
