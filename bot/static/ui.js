@@ -376,15 +376,15 @@
 
         
 
-        // Use N/B zone for UI elements instead of ML model
+        // Use getCurrentZone() for UI elements to ensure consistency
 
-        const nbZone = window.zoneNow || 'BLUE';
+        const currentZone = getCurrentZone();
 
         if (winZoneNow){ 
 
-          winZoneNow.textContent = String(nbZone||'-'); 
+          winZoneNow.textContent = String(currentZone||'-'); 
 
-          winZoneNow.className = 'badge bg-white text-dark';
+          winZoneNow.className = `badge ${currentZone === 'BLUE' ? 'bg-primary' : 'bg-warning'} text-white`;
 
           // Add tooltip with zone duration info (only if duration >= 1 minute)
 
@@ -398,9 +398,9 @@
 
           winCard.classList.remove('win-card-blue','win-card-orange');
 
-          if (nbZone === 'ORANGE'){ winCard.classList.add('win-card-orange'); }
+          if (currentZone === 'ORANGE'){ winCard.classList.add('win-card-orange'); }
 
-          else if (nbZone === 'BLUE'){ winCard.classList.add('win-card-blue'); }
+          else if (currentZone === 'BLUE'){ winCard.classList.add('win-card-blue'); }
 
         }
 
@@ -434,11 +434,11 @@
 
         }catch(_){ }
 
-        const nbZone = window.zoneNow || 'BLUE';
+        const currentZone = getCurrentZone();
 
         const durationText = nbZoneDuration >= 60 ? ` (${nbZoneDuration}초)` : '';
 
-        miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | ML_zone=${String(ins.zone||'-')} | N/B_zone=${String(nbZone||'-')}${durationText} | conf=${(ins.zone_conf||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)} | w=${(ins.w||0).toFixed(3)}${slopeLine}<br/>`+
+        miText.innerHTML = `r=${(ins.r||0).toFixed(3)} | BLUE(raw)=${Number(blueRaw).toFixed(1)}% | ORANGE(raw)=${Number(orangeRaw).toFixed(1)}% | BLUE=${Number(blueAdj).toFixed(1)}% | ORANGE=${Number(orangeAdj).toFixed(1)}% | ML_zone=${String(ins.zone||'-')} | N/B_zone=${String(currentZone||'-')}${durationText} | conf=${(ins.zone_conf||0).toFixed(3)} | age=${Number(ins.zone_extreme_age||0)} | w=${(ins.w||0).toFixed(3)}${slopeLine}<br/>`+
 
           `dist_high=${(ins.dist_high||0).toFixed(3)} | dist_low=${(ins.dist_low||0).toFixed(3)} | gap=${(ins.extreme_gap||0).toFixed(3)} | ema_diff=${(ins.ema_diff||0).toFixed(1)}<br/>`+
 
@@ -5744,13 +5744,17 @@
 
       
 
-      // Update current zone display
+      // Update current zone display - Always use getCurrentZone() for consistency
 
       const miniWinZoneCurrent = document.getElementById('miniWinZoneCurrent');
 
-      if (miniWinZoneCurrent && winZoneNowEl) {
+      if (miniWinZoneCurrent) {
 
-        miniWinZoneCurrent.textContent = winZoneNowEl.textContent;
+        const currentZone = getCurrentZone();
+
+        miniWinZoneCurrent.textContent = currentZone;
+
+        miniWinZoneCurrent.className = `badge ${currentZone === 'BLUE' ? 'bg-primary' : 'bg-warning'} text-white`;
 
       }
 
