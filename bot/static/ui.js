@@ -1435,6 +1435,12 @@
 
   }
 
+  // Check if LightweightCharts is loaded before creating chart
+  if (typeof LightweightCharts === 'undefined') {
+    console.error('❌ LightweightCharts library not loaded. Please wait for the page to fully load.');
+    return;
+  }
+
   const chart = LightweightCharts.createChart(container, {
 
     layout: { background: { type: 'solid', color: '#0b1220' }, textColor: '#e6eefc' },
@@ -1456,6 +1462,12 @@
   });
 
 
+
+  // Check if chart is properly created
+  if (!chart) {
+    console.error('❌ Chart creation failed. Cannot add series.');
+    return;
+  }
 
   // Oscillator chart removed
 
@@ -3224,7 +3236,13 @@
 
       const cs = rows.map(r=>({ time: msToSec(r.time), open:r.open, high:r.high, low:r.low, close:r.close }));
 
-      candle.setData(cs);
+      // Check if candle series exists before setting data
+      if (candle && typeof candle.setData === 'function') {
+        candle.setData(cs);
+      } else {
+        console.error('❌ Candle series not available for data update');
+        return;
+      }
 
       
 
@@ -3244,9 +3262,13 @@
 
       const ef = Number(emaFastEl?.value||10), es = Number(emaSlowEl?.value||30);
 
-      emaF.setData(ema(closes,ef).map((y,i)=>({ time: times[i], value:y })));
-
-      emaS.setData(ema(closes,es).map((y,i)=>({ time: times[i], value:y })));
+      // Check if EMA series exist before setting data
+      if (emaF && typeof emaF.setData === 'function') {
+        emaF.setData(ema(closes,ef).map((y,i)=>({ time: times[i], value:y })));
+      }
+      if (emaS && typeof emaS.setData === 'function') {
+        emaS.setData(ema(closes,es).map((y,i)=>({ time: times[i], value:y })));
+      }
 
       // SMA
 
@@ -3258,9 +3280,16 @@
 
       const sma200 = sma(closes, Number(sma200El?.value||200)).map((v,i)=>({ time: times[i], value:v }));
 
-      if (showSMAEl && showSMAEl.checked){ sma50Series.setData(sma50); sma100Series.setData(sma100); sma200Series.setData(sma200); }
-
-      else { sma50Series.setData([]); sma100Series.setData([]); sma200Series.setData([]); }
+      // Check if SMA series exist before setting data
+      if (showSMAEl && showSMAEl.checked){
+        if (sma50Series && typeof sma50Series.setData === 'function') sma50Series.setData(sma50);
+        if (sma100Series && typeof sma100Series.setData === 'function') sma100Series.setData(sma100);
+        if (sma200Series && typeof sma200Series.setData === 'function') sma200Series.setData(sma200);
+      } else {
+        if (sma50Series && typeof sma50Series.setData === 'function') sma50Series.setData([]);
+        if (sma100Series && typeof sma100Series.setData === 'function') sma100Series.setData([]);
+        if (sma200Series && typeof sma200Series.setData === 'function') sma200Series.setData([]);
+      }
 
       // EMA 9/12/26
 
@@ -3270,9 +3299,16 @@
 
       const e26 = ema(closes,26).map((v,i)=>({ time: times[i], value:v }));
 
-      if (showEMA9El && showEMA9El.checked){ ema9Series.setData(e9); ema12Series.setData(e12); ema26Series.setData(e26); }
-
-      else { ema9Series.setData([]); ema12Series.setData([]); ema26Series.setData([]); }
+      // Check if EMA 9/12/26 series exist before setting data
+      if (showEMA9El && showEMA9El.checked){
+        if (ema9Series && typeof ema9Series.setData === 'function') ema9Series.setData(e9);
+        if (ema12Series && typeof ema12Series.setData === 'function') ema12Series.setData(e12);
+        if (ema26Series && typeof ema26Series.setData === 'function') ema26Series.setData(e26);
+      } else {
+        if (ema9Series && typeof ema9Series.setData === 'function') ema9Series.setData([]);
+        if (ema12Series && typeof ema12Series.setData === 'function') ema12Series.setData([]);
+        if (ema26Series && typeof ema26Series.setData === 'function') ema26Series.setData([]);
+      }
 
       // Ichimoku Tenkan/Kijun (simple high-low average)
 
@@ -3286,11 +3322,19 @@
 
         const kijun = highLowAvg(rows, kijunN).map((v,i)=>({ time: times[i], value:v }));
 
-        if (showIchimokuEl && showIchimokuEl.checked){ ichiTenkanSeries.setData(tenkan); ichiKijunSeries.setData(kijun); }
+        // Check if Ichimoku series exist before setting data
+        if (showIchimokuEl && showIchimokuEl.checked){
+          if (ichiTenkanSeries && typeof ichiTenkanSeries.setData === 'function') ichiTenkanSeries.setData(tenkan);
+          if (ichiKijunSeries && typeof ichiKijunSeries.setData === 'function') ichiKijunSeries.setData(kijun);
+        } else {
+          if (ichiTenkanSeries && typeof ichiTenkanSeries.setData === 'function') ichiTenkanSeries.setData([]);
+          if (ichiKijunSeries && typeof ichiKijunSeries.setData === 'function') ichiKijunSeries.setData([]);
+        }
 
-        else { ichiTenkanSeries.setData([]); ichiKijunSeries.setData([]); }
-
-      } catch(_){ ichiTenkanSeries.setData([]); ichiKijunSeries.setData([]); }
+      } catch(_){
+        if (ichiTenkanSeries && typeof ichiTenkanSeries.setData === 'function') ichiTenkanSeries.setData([]);
+        if (ichiKijunSeries && typeof ichiKijunSeries.setData === 'function') ichiKijunSeries.setData([]);
+      }
 
       updateNB();
 
