@@ -58,8 +58,77 @@
     }
   }
 
-  // Make function globally accessible
+  // Function to reset trainer storage average price
+  async function resetTrainerStoragePrice(trainer) {
+    try {
+      console.log(`🔄 Resetting average price for: ${trainer}`);
+      
+      const response = await fetch('/api/trainer/storage/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          trainer: trainer
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.ok) {
+        console.log(`✅ Average price reset for: ${trainer}`);
+        // Refresh the display
+        setTimeout(() => {
+          refreshTradeReady();
+          updateRealTimeTradingStatus();
+          updateGuildMembersStatus();
+        }, 500);
+      } else {
+        console.error('❌ Failed to reset average price:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error resetting average price:', error);
+    }
+  }
+
+  // Function to modify trainer storage ticks
+  async function modifyTrainerTicks(trainer, delta) {
+    try {
+      console.log(`🔄 Modifying ticks for: ${trainer} ${delta > 0 ? '+' : ''}${delta}`);
+      
+      const response = await fetch('/api/trainer/storage/tick', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          trainer: trainer,
+          delta: delta
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.ok) {
+        console.log(`✅ Ticks modified for: ${trainer} ${delta > 0 ? '+' : ''}${delta} (new total: ${result.new_ticks})`);
+        // Refresh the display
+        setTimeout(() => {
+          refreshTradeReady();
+          updateRealTimeTradingStatus();
+          updateGuildMembersStatus();
+        }, 500);
+      } else {
+        console.error('❌ Failed to modify ticks:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error modifying ticks:', error);
+    }
+  }
+
+  // Make functions globally accessible
   window.modifyTrainerStorage = modifyTrainerStorage;
+  window.resetTrainerStoragePrice = resetTrainerStoragePrice;
+  window.modifyTrainerTicks = modifyTrainerTicks;
 
 
   // Function to get chart zone data for N/B Zone Status
@@ -4508,6 +4577,11 @@
                   <button onclick="modifyTrainerStorage('${trainer}', 0.0001)" style="background: #4caf50; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="Add 5,000 KRW worth">+</button>
                   <button onclick="modifyTrainerStorage('${trainer}', 0.001)" style="background: #2e7d32; color: white; border: none; border-radius: 2px; width: 24px; height: 20px; font-size: 10px; cursor: pointer;" title="Add 5,000 KRW worth">++</button>
                 </div>
+              </div>
+              <div style="display: flex; gap: 2px; margin-left: 20px; margin-bottom: 4px;">
+                <button onclick="resetTrainerStoragePrice('${trainer}')" style="background: #ff9800; color: white; border: none; border-radius: 2px; width: 60px; height: 20px; font-size: 9px; cursor: pointer;" title="평균가 초기화">초기화</button>
+                <button onclick="modifyTrainerTicks('${trainer}', -1)" style="background: #9c27b0; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="틱 -1">-1</button>
+                <button onclick="modifyTrainerTicks('${trainer}', 1)" style="background: #673ab7; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="틱 +1">+1</button>
               </div>
             `;
           }).join('');

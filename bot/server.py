@@ -3842,6 +3842,94 @@ def api_trainer_storage_modify():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/trainer/storage/reset', methods=['POST'])
+def api_trainer_storage_reset():
+    """트레이너별 저장 창고 평균가 초기화"""
+    try:
+        data = request.get_json(force=True)
+        trainer = data.get('trainer')
+        
+        if not trainer or trainer not in ['Scout', 'Guardian', 'Analyst', 'Elder']:
+            return jsonify({'ok': False, 'error': 'Invalid trainer name'}), 400
+        
+        if trainer in _trainer_storage:
+            # 평균가 초기화
+            _trainer_storage[trainer]['entry_price'] = 0.0
+            _trainer_storage[trainer]['last_update'] = int(time.time())
+            
+            # 거래 기록에 추가
+            _trainer_storage[trainer]['trades'].append({
+                'timestamp': int(time.time()),
+                'action': 'RESET_AVG_PRICE',
+                'amount': 0.0,
+                'price': 0.0,
+                'new_balance': _trainer_storage[trainer]['coins']
+            })
+            
+            # Save to file
+            _save_trainer_storage()
+            
+            print(f"✅ Trainer storage average price reset: {trainer}")
+            
+            return jsonify({
+                'ok': True, 
+                'trainer': trainer,
+                'entry_price': 0.0
+            })
+        else:
+            return jsonify({'ok': False, 'error': 'Trainer not found in storage'}), 404
+            
+    except Exception as e:
+        print(f"❌ Error resetting trainer storage average price: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/trainer/storage/tick', methods=['POST'])
+def api_trainer_storage_tick():
+    """트레이너별 저장 창고 틱 조작"""
+    try:
+        data = request.get_json(force=True)
+        trainer = data.get('trainer')
+        delta = int(data.get('delta', 0))  # +1 or -1
+        
+        if not trainer or trainer not in ['Scout', 'Guardian', 'Analyst', 'Elder']:
+            return jsonify({'ok': False, 'error': 'Invalid trainer name'}), 400
+        
+        if trainer in _trainer_storage:
+            # 틱 카운터 조작
+            current_ticks = _trainer_storage[trainer].get('ticks', 0)
+            new_ticks = max(0, current_ticks + delta)  # Prevent negative ticks
+            _trainer_storage[trainer]['ticks'] = new_ticks
+            _trainer_storage[trainer]['last_update'] = int(time.time())
+            
+            # 거래 기록에 추가
+            _trainer_storage[trainer]['trades'].append({
+                'timestamp': int(time.time()),
+                'action': 'MANUAL_TICK',
+                'delta': delta,
+                'old_ticks': current_ticks,
+                'new_ticks': new_ticks
+            })
+            
+            # Save to file
+            _save_trainer_storage()
+            
+            print(f"✅ Trainer storage tick modified: {trainer} {delta:+d} (new ticks: {new_ticks})")
+            
+            return jsonify({
+                'ok': True, 
+                'trainer': trainer,
+                'delta': delta,
+                'new_ticks': new_ticks
+            })
+        else:
+            return jsonify({'ok': False, 'error': 'Trainer not found in storage'}), 404
+            
+    except Exception as e:
+        print(f"❌ Error modifying trainer storage ticks: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/trust/config', methods=['GET', 'POST'])
 def api_trust_config():
     """신뢰도 설정 조회 및 수정"""
