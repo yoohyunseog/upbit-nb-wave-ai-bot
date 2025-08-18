@@ -12096,29 +12096,12 @@
       // Always use N/B zone for consistency with N/B ZONE STATUS
       const nbZone = window.zoneNow || 'BLUE';
       
-      // Log the synchronization with detailed debugging
-      const mlZone = window.mlPrediction?.insight?.zone || 'BLUE';
-      console.log(`🔄 Zone Synchronization: N/B Zone (${nbZone}) | ML Zone (${mlZone}) | Using N/B Zone`);
-      
-      // Additional debugging for BLUE zone issues
-      if (nbZone === 'BLUE') {
-        console.log(`🔵 BLUE Zone Debug: window.zoneNow=${window.zoneNow}, N/B Wave Series available=${!!window.nbWaveSeries}`);
-        if (window.nbWaveSeries && window.nbWaveSeries.data) {
-          const nbData = window.nbWaveSeries.data;
-          if (nbData.length > 0) {
-            const lastPoint = nbData[nbData.length - 1];
-            const baseValue = window.nbWaveSeries.options().baseValue?.price || 0;
-            console.log(`🔵 N/B Wave Data: lastPoint=${lastPoint.value.toFixed(0)}, baseValue=${baseValue.toFixed(0)}`);
-          }
-        }
-      }
-      
+      // Simple return - no complex logging to avoid spam
       return nbZone;
     } catch (e) {
       console.error('Error in getCurrentZone:', e);
       
       // Fallback to BLUE if everything fails
-      console.log(`Error Fallback to BLUE Zone`);
       return 'BLUE';
     }
 
@@ -12759,6 +12742,25 @@
     }
   }
 
+  // Real-time zone synchronization - Update every 1 second
+  function syncCurrentZoneWithNBStatus() {
+    try {
+      const nbZone = window.zoneNow || 'BLUE';
+      const currentZone = getCurrentZone();
+      
+      // Always update current zone to match N/B Zone Status
+      updateCurrentZoneDisplay(nbZone);
+      updateZoneConsistencyDisplay();
+      updateGuildMembersZone(nbZone);
+      
+      // Log synchronization status
+      console.log(`🔄 1초 동기화: N/B Zone Status (${nbZone}) → 현재 구역 (${nbZone})`);
+      
+    } catch (e) {
+      console.error('Error in real-time zone synchronization:', e);
+    }
+  }
+
   // Initialize real-time zone synchronization
   setTimeout(() => {
     initializeZoneSynchronization();
@@ -12773,8 +12775,8 @@
     console.log('🔧 Forced initial zone synchronization:', currentZone);
   }, 2000); // Start after 2 seconds
   
-  // Call zone consistency check periodically
-  setInterval(displayZoneConsistency, 10000); // Check every 10 seconds
+  // Real-time zone synchronization - Update every 1 second
+  setInterval(syncCurrentZoneWithNBStatus, 1000); // Check every 1 second
 
 })();
 
