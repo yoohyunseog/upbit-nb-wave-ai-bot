@@ -2187,14 +2187,13 @@
           window.zoneNow = nbZone;
           
           // Trigger real-time synchronization if zone changed
-          if (oldZone !== null && oldZone !== zoneFromChartLine) {
-            console.log(`🔄 N/B Zone Change Detected in updateNB: ${oldZone} → ${zoneFromChartLine}`);
+          if (oldZone !== null && oldZone !== nbZone) {
+            console.log(`🔄 N/B Zone Change Detected in updateNB: ${oldZone} → ${nbZone}`);
             setTimeout(() => {
               // Always use window.zoneNow (N/B Zone) for consistency
-              const currentNbZone = window.zoneNow || zoneFromChartLine;
-              updateCurrentZoneDisplay(currentNbZone);
+              updateCurrentZoneDisplay(nbZone);
               updateZoneConsistencyDisplay();
-              updateGuildMembersZone(currentNbZone);
+              updateGuildMembersZone(nbZone);
             }, 100);
           }
         }catch(_){ }
@@ -11052,7 +11051,7 @@
 
         const lastWave = nbWaveData[nbWaveData.length - 1];
 
-        currentZone = lastWave.value >= baseValue ? 'ORANGE' : 'BLUE';
+        currentZone = lastWave.value < baseValue ? 'ORANGE' : 'BLUE';
 
       }
 
