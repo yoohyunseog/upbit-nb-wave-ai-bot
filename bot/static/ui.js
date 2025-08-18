@@ -2172,15 +2172,29 @@
 
         try{ 
           const oldZone = window.zoneNow;
-          window.zoneNow = zoneFromChartLine;
+          
+          // Always use N/B wave series for zone determination
+          let nbZone = zoneFromChartLine;
+          if (window.nbWaveSeries && window.nbWaveSeries.data) {
+            const nbData = window.nbWaveSeries.data;
+            if (Array.isArray(nbData) && nbData.length > 0) {
+              const lastNbPoint = nbData[nbData.length - 1];
+              const baseValue = window.nbWaveSeries.options().baseValue?.price || 0;
+              nbZone = lastNbPoint.value < baseValue ? 'ORANGE' : 'BLUE';
+            }
+          }
+          
+          window.zoneNow = nbZone;
           
           // Trigger real-time synchronization if zone changed
           if (oldZone !== null && oldZone !== zoneFromChartLine) {
             console.log(`🔄 N/B Zone Change Detected in updateNB: ${oldZone} → ${zoneFromChartLine}`);
             setTimeout(() => {
-              updateCurrentZoneDisplay(zoneFromChartLine);
+              // Always use window.zoneNow (N/B Zone) for consistency
+              const currentNbZone = window.zoneNow || zoneFromChartLine;
+              updateCurrentZoneDisplay(currentNbZone);
               updateZoneConsistencyDisplay();
-              updateGuildMembersZone(zoneFromChartLine);
+              updateGuildMembersZone(currentNbZone);
             }, 100);
           }
         }catch(_){ }
@@ -3598,9 +3612,9 @@
 
               const wr = pnl>0 ? 100 : 0;
 
-              // Get current zone from ML insight
+              // Get current zone - Always use N/B zone for consistency
 
-              const currentZone = (window.lastInsight && window.lastInsight.zone) || getCurrentZone();
+              const currentZone = getCurrentZone();
 
               pushWinItem({ ts: Number(j.order.ts)||Date.now(), pnl, winRate: wr, interval: getInterval(), zone: currentZone });
 
@@ -3824,7 +3838,7 @@
 
             // 현재 학습된 모델의 성능을 히스토리에 추가
 
-            const currentZone = (window.lastInsight && window.lastInsight.zone) || getCurrentZone();
+            const currentZone = getCurrentZone();
 
             const currentInterval = getInterval();
 
