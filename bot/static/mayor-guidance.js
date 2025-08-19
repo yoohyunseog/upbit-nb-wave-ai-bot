@@ -380,9 +380,9 @@ function restoreRealtimeMayorGuidance() {
           // 실시간 동기화 상태 복원 (jQuery 사용) - N/B Zone Status와 동일한 값 사용
     $('#zoneConsistencyInfo').each(function() {
       // N/B Zone Status와 동일하게 window.zoneNow 사용
-      const nbZone = window.zoneNow || 'BLUE';
-      const nbColor = nbZone === 'BLUE' ? '🔵' : '🟠';
-      const mlColor = nbZone === 'BLUE' ? '🔵' : '🟠'; // ML도 N/B와 동일하게 설정
+      const nbZone = window.zoneNow || '';
+      const nbColor = nbZone === '' ? '🔵' : '🟠';
+      const mlColor = nbZone === '' ? '🔵' : '🟠'; // ML도 N/B와 동일하게 설정
       $(this).html(`
         <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
           🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
