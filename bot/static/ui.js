@@ -7545,7 +7545,7 @@
       Object.values(guildMembers).forEach(member => {
         // 먼저 저장된 상태 복원 시도
         const guidanceRestored = restoreMayorGuidanceStatus(member.name);
-        const autoLearningRestored = restoreAutoLearningStatus(member.name);
+        // const autoLearningRestored = restoreAutoLearningStatus(member.name); // moved to village-learning-system.js
         const aiExplanationRestored = restoreAIExplanation(member.name);
 
         // 실시간 업데이트 (복원되지 않은 경우에만)
@@ -7558,9 +7558,10 @@
           }).catch(e => console.error('Error updating mayor guidance status:', e));
         }
 
-        if (!autoLearningRestored) {
-          updateAutoLearningStatus(member.name).catch(e => console.error('Error updating auto learning status:', e));
-        }
+        // if (!autoLearningRestored) {
+        //   updateAutoLearningStatus(member.name).catch(e => console.error('Error updating auto learning status:', e));
+        // }
+        // moved to village-learning-system.js
 
         if (!aiExplanationRestored) {
           getAIExplanation(member.name).catch(e => console.error('Error updating AI explanation:', e));
@@ -8680,7 +8681,7 @@
 
   setInterval(autoMockTradingScheduler, 30 * 1000); // Every 30 seconds for more frequent trading
 
-  setInterval(trainerLearningSystem, 5 * 60 * 1000); // Every 5 minutes
+  // Trainer Learning System - moved to village-learning-system.js
 
   
 
@@ -11081,89 +11082,9 @@
 
   }
 
-  // 자동 학습 토글
-  async function toggleAutoLearning() {
-    try {
-      const response = await fetch('/api/village/auto-learning/toggle', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('🤖 자동 학습 토글:', result);
-        
-        const status = result.auto_learning_enabled ? '활성화' : '비활성화';
-        pushOrderLogLine(`[${new Date().toLocaleString()}] 🤖 자동 촌장 지침 학습 ${status}`);
-        
-        // 모든 길드 멤버의 자동 학습 상태 업데이트
-        Object.values(guildMembers).forEach(member => {
-          const statusElement = document.getElementById(`auto-learning-status-${member.name}`);
-          if (statusElement) {
-            const color = result.auto_learning_enabled ? '#0ecb81' : '#f6465d';
-            statusElement.innerHTML = `🤖 자동 학습: <span style="color: ${color};">${status}</span>`;
-          }
-        });
-        
-        // Guild Members Status 업데이트
-        updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
-        
-      } else {
-        const error = await response.json();
-        console.error('❌ 자동 학습 토글 실패:', error);
-        pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 자동 학습 토글 실패: ${error.error}`);
-      }
-      
-    } catch (e) {
-      console.error('❌ 자동 학습 토글 오류:', e);
-      pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 자동 학습 토글 오류: ${e.message}`);
-    }
-  }
+  // 자동 학습 토글 - moved to village-learning-system.js
 
-  // 촌장 지침 학습 모델 훈련
-  async function trainMayorGuidanceModel() {
-    try {
-      console.log('🏛️ 촌장 지침 학습 모델 훈련 시작...');
-      
-      const response = await fetch('/api/ml/train-mayor-guidance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          window: 50,
-          ema_fast: 10,
-          ema_slow: 30,
-          horizon: 5,
-          count: 1800,
-          interval: getInterval()
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ 촌장 지침 학습 완료:', result);
-        
-        // 성공 메시지 표시
-        pushOrderLogLine(`[${new Date().toLocaleString()}] 🏛️ 촌장 지침 학습 모델 훈련 완료`);
-        pushOrderLogLine(`[${new Date().toLocaleString()}] 📊 클래스 분포: BUY(${result.classes['1']}) / HOLD(${result.classes['0']}) / SELL(${result.classes['-1']})`);
-        
-        // Guild Members Status 업데이트
-        updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
-        
-      } else {
-        const error = await response.json();
-        console.error('❌ 촌장 지침 학습 실패:', error);
-        pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 촌장 지침 학습 실패: ${error.error}`);
-      }
-      
-    } catch (e) {
-      console.error('❌ 촌장 지침 학습 오류:', e);
-      pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 촌장 지침 학습 오류: ${e.message}`);
-    }
-  }
+  // 촌장 지침 학습 모델 훈련 - moved to village-learning-system.js
 
   // 자동 학습 상태 업데이트
   async function updateAutoLearningStatus(memberName) {
@@ -11196,26 +11117,7 @@
     }
   }
 
-  // 저장된 자동 학습 상태 복원
-  function restoreAutoLearningStatus(memberName) {
-    try {
-      const savedStatus = localStorage.getItem('auto_learning_status');
-      if (savedStatus) {
-        const status = JSON.parse(savedStatus);
-        const statusElement = document.getElementById(`auto-learning-status-${memberName}`);
-        if (statusElement && status.memberName === memberName) {
-          const autoLearningEnabled = status.enabled;
-          const statusText = autoLearningEnabled ? '활성화' : '비활성화';
-          const color = autoLearningEnabled ? '#0ecb81' : '#f6465d';
-          statusElement.innerHTML = `🤖 자동 학습: <span style="color: ${color};">${statusText}</span>`;
-          return true;
-        }
-      }
-    } catch (e) {
-      console.error('저장된 자동 학습 상태 복원 실패:', e);
-    }
-    return false;
-  }
+  // 저장된 자동 학습 상태 복원 - moved to village-learning-system.js
 
   // 저장된 촌장 지침 상태 복원
   function restoreMayorGuidanceStatus(memberName) {
@@ -11268,7 +11170,7 @@
     // 모든 길드 멤버의 저장된 상태 복원
     Object.values(guildMembers).forEach(member => {
       restoreMayorGuidanceStatus(member.name);
-      restoreAutoLearningStatus(member.name);
+      // restoreAutoLearningStatus(member.name); // moved to village-learning-system.js
       restoreAIExplanation(member.name);
     });
     
@@ -13870,5 +13772,15 @@
       console.log('⚠️ 트레이너 시스템 초기화 함수를 찾을 수 없습니다');
     }
   }, 4000); // 4초 후 트레이너 시스템 초기화
+
+  // 마을 학습 시스템 초기화
+  setTimeout(() => {
+    if (typeof window.initializeVillageLearningSystem === 'function') {
+      window.initializeVillageLearningSystem();
+      console.log('✅ 마을 학습 시스템 초기화 완료');
+    } else {
+      console.log('⚠️ 마을 학습 시스템 초기화 함수를 찾을 수 없습니다');
+    }
+  }, 5000); // 5초 후 마을 학습 시스템 초기화
 
 })();

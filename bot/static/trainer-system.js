@@ -175,12 +175,7 @@ async function runTrainerDiagnostics() {
   }
 }
 
-// Trainer Learning System
-function trainerLearningSystem() {
-  // This function handles the trainer learning system
-  // Implementation details would go here
-  console.log('Trainer Learning System initialized');
-}
+// Trainer Learning System - moved to village-learning-system.js
 
 // Trainer Grants: simulate random BTC distribution among trainers
 function distributeTrainerGrants() {
@@ -299,7 +294,7 @@ function initializeTrainerSystem() {
   window.modifyTrainerTicks = modifyTrainerTicks;
   window.buildTrainerMessage = buildTrainerMessage;
   window.runTrainerDiagnostics = runTrainerDiagnostics;
-  window.trainerLearningSystem = trainerLearningSystem;
+  // window.trainerLearningSystem = trainerLearningSystem; // moved to village-learning-system.js
   window.distributeTrainerGrants = distributeTrainerGrants;
   window.getTrainerStorageData = getTrainerStorageData;
   window.checkTrainerPosition = checkTrainerPosition;
@@ -316,7 +311,7 @@ if (typeof module !== 'undefined' && module.exports) {
     modifyTrainerTicks,
     buildTrainerMessage,
     runTrainerDiagnostics,
-    trainerLearningSystem,
+         // trainerLearningSystem, // moved to village-learning-system.js
     distributeTrainerGrants,
     getTrainerStorageData,
     checkTrainerPosition,
