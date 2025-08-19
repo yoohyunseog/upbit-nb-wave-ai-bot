@@ -1,5 +1,5 @@
 // ========================================
-// 🏛️ 촌장의 실시간 지침 시스템
+// 촌장의 실시간 지침 시스템
 // ========================================
 
 // 현재 차트 간격을 표시 형식으로 변환하는 함수
@@ -70,9 +70,9 @@ function getMayorGuidanceData() {
   });
 }
 
-// 🎯 구역 변경 시 주민들의 학습 모델 매매 전략 프로세스
+// 구역 변경 시 주민들의 학습 모델 매매 전략 프로세스
 function executeVillageTradingProcess(member, currentZone, previousZone) {
-  console.log(`🏰 ${member.name}의 매매 전략 프로세스 시작 - 구역 변경: ${previousZone} → ${currentZone}`);
+  console.log(`${member.name}의 매매 전략 프로세스 시작 - 구역 변경: ${previousZone} → ${currentZone}`);
   
   // 1단계: 현재 구역에서 SELL/BUY 시 손실 예상
   const profitLossPrediction = predictProfitLoss(member, currentZone);
@@ -270,7 +270,7 @@ function saveTradingProcessResult(member, result) {
   }
   
   localStorage.setItem(warehouseKey, JSON.stringify(processHistory));
-  console.log(`🏪 ${member.name}의 거래 프로세스 결과 저장됨`);
+  console.log(`${member.name}의 거래 프로세스 결과 저장됨`);
 }
 
 // jQuery를 사용한 실시간 촌장 지침 업데이트
@@ -390,7 +390,7 @@ function updateRealtimeMayorGuidance() {
           <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span>
         </div>
         <div style="margin-bottom: 4px;">
-          <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
+          <span style="color: #ffb703;">N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
         </div>
         <div style="margin-bottom: 4px;">
           <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
@@ -501,7 +501,7 @@ function restoreRealtimeMayorGuidance() {
             <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span>
           </div>
           <div style="margin-bottom: 4px;">
-            <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
+            <span style="color: #ffb703;">N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
           </div>
           <div style="margin-bottom: 4px;">
             <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
@@ -647,7 +647,7 @@ function getMayorGuidanceStatus(member) {
         <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span>
       </div>
       <div style="margin-bottom: 2px;">
-        <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbGuildTrust}%</span> (${nbGuildTrust}개 히스토리)
+                 <span style="color: #ffb703;">N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbGuildTrust}%</span> (${nbGuildTrust}개 히스토리)
       </div>
       <div style="margin-bottom: 2px;">
         <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbGuildTrust}%</span>
@@ -675,7 +675,7 @@ function getMayorGuidanceStatus(member) {
 
     return `
       <div style="color: ${guidanceColor}; font-weight: 600; margin-bottom: 4px;">
-        🏛️ ${guidanceStatus}
+        ${guidanceStatus}
       </div>
       <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
         ${trustInfo}
@@ -704,7 +704,7 @@ function restoreMayorGuidanceStatus(memberName) {
       $(`#mayor-guidance-${memberName}`).each(function() {
         $(this).html(`
           <div style="color: ${guidance.guidanceColor}; font-weight: 600; margin-bottom: 4px;">
-            🏛️ ${guidance.guidanceStatus}
+                         ${guidance.guidanceStatus}
           </div>
           <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
             ${guidance.trustInfo}
@@ -730,7 +730,7 @@ function restoreMayorGuidanceStatus(memberName) {
 // 촌장 지침 학습 모델 훈련
 async function trainMayorGuidanceModel() {
   try {
-    console.log('🏛️ 촌장 지침 학습 모델 훈련 시작...');
+         console.log('촌장 지침 학습 모델 훈련 시작...');
     
     const response = await fetch('/api/ml/train-mayor-guidance', {
       method: 'POST',
@@ -749,14 +749,14 @@ async function trainMayorGuidanceModel() {
     
     if (response.ok) {
       const result = await response.json();
-      console.log('🏛️ 촌장 지침 학습 모델 훈련 완료:', result);
+             console.log('촌장 지침 학습 모델 훈련 완료:', result);
       return result;
     } else {
-      console.error('🏛️ 촌장 지침 학습 모델 훈련 실패');
+             console.error('촌장 지침 학습 모델 훈련 실패');
       return null;
     }
   } catch (e) {
-    console.error('🏛️ 촌장 지침 학습 모델 훈련 오류:', e);
+         console.error('촌장 지침 학습 모델 훈련 오류:', e);
     return null;
   }
 }
