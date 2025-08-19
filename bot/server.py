@@ -1276,102 +1276,135 @@ def get_current_zone():
         current_candle_data = {}
         
         try:
+            print(f"📊 분봉 데이터 조회 시작 - 마켓: {cfg.market}")
+            
             # 1분봉 데이터 (최근 10개)
-            df_1m = get_candles(cfg.market, 'minute1', count=10)
-            if not df_1m.empty:
-                current_candle_data['minute1'] = {
-                    'latest': {
-                        'timestamp': int(df_1m.index[-1].timestamp() * 1000),
-                        'open': float(df_1m['open'].iloc[-1]),
-                        'high': float(df_1m['high'].iloc[-1]),
-                        'low': float(df_1m['low'].iloc[-1]),
-                        'close': float(df_1m['close'].iloc[-1]),
-                        'volume': float(df_1m['volume'].iloc[-1])
-                    },
-                    'previous': {
-                        'timestamp': int(df_1m.index[-2].timestamp() * 1000),
-                        'open': float(df_1m['open'].iloc[-2]),
-                        'high': float(df_1m['high'].iloc[-2]),
-                        'low': float(df_1m['low'].iloc[-2]),
-                        'close': float(df_1m['close'].iloc[-2]),
-                        'volume': float(df_1m['volume'].iloc[-2])
-                    } if len(df_1m) > 1 else None,
-                    'count': len(df_1m)
-                }
+            try:
+                df_1m = get_candles(cfg.market, 'minute1', count=10)
+                print(f"1분봉 데이터 조회 완료 - 데이터 개수: {len(df_1m) if not df_1m.empty else 0}")
+                if not df_1m.empty:
+                    current_candle_data['minute1'] = {
+                        'latest': {
+                            'timestamp': int(df_1m.index[-1].timestamp() * 1000),
+                            'open': float(df_1m['open'].iloc[-1]),
+                            'high': float(df_1m['high'].iloc[-1]),
+                            'low': float(df_1m['low'].iloc[-1]),
+                            'close': float(df_1m['close'].iloc[-1]),
+                            'volume': float(df_1m['volume'].iloc[-1])
+                        },
+                        'previous': {
+                            'timestamp': int(df_1m.index[-2].timestamp() * 1000),
+                            'open': float(df_1m['open'].iloc[-2]),
+                            'high': float(df_1m['high'].iloc[-2]),
+                            'low': float(df_1m['low'].iloc[-2]),
+                            'close': float(df_1m['close'].iloc[-2]),
+                            'volume': float(df_1m['volume'].iloc[-2])
+                        } if len(df_1m) > 1 else None,
+                        'count': len(df_1m)
+                    }
+                else:
+                    current_candle_data['minute1'] = {'error': '1분봉 데이터가 비어있습니다'}
+            except Exception as e1:
+                print(f"1분봉 데이터 조회 실패: {e1}")
+                current_candle_data['minute1'] = {'error': f'1분봉 조회 실패: {str(e1)}'}
             
             # 5분봉 데이터 (최근 10개)
-            df_5m = get_candles(cfg.market, 'minute5', count=10)
-            if not df_5m.empty:
-                current_candle_data['minute5'] = {
-                    'latest': {
-                        'timestamp': int(df_5m.index[-1].timestamp() * 1000),
-                        'open': float(df_5m['open'].iloc[-1]),
-                        'high': float(df_5m['high'].iloc[-1]),
-                        'low': float(df_5m['low'].iloc[-1]),
-                        'close': float(df_5m['close'].iloc[-1]),
-                        'volume': float(df_5m['volume'].iloc[-1])
-                    },
-                    'previous': {
-                        'timestamp': int(df_5m.index[-2].timestamp() * 1000),
-                        'open': float(df_5m['open'].iloc[-2]),
-                        'high': float(df_5m['high'].iloc[-2]),
-                        'low': float(df_5m['low'].iloc[-2]),
-                        'close': float(df_5m['close'].iloc[-2]),
-                        'volume': float(df_5m['volume'].iloc[-2])
-                    } if len(df_5m) > 1 else None,
-                    'count': len(df_5m)
-                }
+            try:
+                df_5m = get_candles(cfg.market, 'minute5', count=10)
+                print(f"5분봉 데이터 조회 완료 - 데이터 개수: {len(df_5m) if not df_5m.empty else 0}")
+                if not df_5m.empty:
+                    current_candle_data['minute5'] = {
+                        'latest': {
+                            'timestamp': int(df_5m.index[-1].timestamp() * 1000),
+                            'open': float(df_5m['open'].iloc[-1]),
+                            'high': float(df_5m['high'].iloc[-1]),
+                            'low': float(df_5m['low'].iloc[-1]),
+                            'close': float(df_5m['close'].iloc[-1]),
+                            'volume': float(df_5m['volume'].iloc[-1])
+                        },
+                        'previous': {
+                            'timestamp': int(df_5m.index[-2].timestamp() * 1000),
+                            'open': float(df_5m['open'].iloc[-2]),
+                            'high': float(df_5m['high'].iloc[-2]),
+                            'low': float(df_5m['low'].iloc[-2]),
+                            'close': float(df_5m['close'].iloc[-2]),
+                            'volume': float(df_5m['volume'].iloc[-2])
+                        } if len(df_5m) > 1 else None,
+                        'count': len(df_5m)
+                    }
+                else:
+                    current_candle_data['minute5'] = {'error': '5분봉 데이터가 비어있습니다'}
+            except Exception as e5:
+                print(f"5분봉 데이터 조회 실패: {e5}")
+                current_candle_data['minute5'] = {'error': f'5분봉 조회 실패: {str(e5)}'}
             
             # 10분봉 데이터 (최근 10개)
-            df_10m = get_candles(cfg.market, 'minute10', count=10)
-            if not df_10m.empty:
-                current_candle_data['minute10'] = {
-                    'latest': {
-                        'timestamp': int(df_10m.index[-1].timestamp() * 1000),
-                        'open': float(df_10m['open'].iloc[-1]),
-                        'high': float(df_10m['high'].iloc[-1]),
-                        'low': float(df_10m['low'].iloc[-1]),
-                        'close': float(df_10m['close'].iloc[-1]),
-                        'volume': float(df_10m['volume'].iloc[-1])
-                    },
-                    'previous': {
-                        'timestamp': int(df_10m.index[-2].timestamp() * 1000),
-                        'open': float(df_10m['open'].iloc[-2]),
-                        'high': float(df_10m['high'].iloc[-2]),
-                        'low': float(df_10m['low'].iloc[-2]),
-                        'close': float(df_10m['close'].iloc[-2]),
-                        'volume': float(df_10m['volume'].iloc[-2])
-                    } if len(df_10m) > 1 else None,
-                    'count': len(df_10m)
-                }
+            try:
+                df_10m = get_candles(cfg.market, 'minute10', count=10)
+                print(f"10분봉 데이터 조회 완료 - 데이터 개수: {len(df_10m) if not df_10m.empty else 0}")
+                if not df_10m.empty:
+                    current_candle_data['minute10'] = {
+                        'latest': {
+                            'timestamp': int(df_10m.index[-1].timestamp() * 1000),
+                            'open': float(df_10m['open'].iloc[-1]),
+                            'high': float(df_10m['high'].iloc[-1]),
+                            'low': float(df_10m['low'].iloc[-1]),
+                            'close': float(df_10m['close'].iloc[-1]),
+                            'volume': float(df_10m['volume'].iloc[-1])
+                        },
+                        'previous': {
+                            'timestamp': int(df_10m.index[-2].timestamp() * 1000),
+                            'open': float(df_10m['open'].iloc[-2]),
+                            'high': float(df_10m['high'].iloc[-2]),
+                            'low': float(df_10m['low'].iloc[-2]),
+                            'close': float(df_10m['close'].iloc[-2]),
+                            'volume': float(df_10m['volume'].iloc[-2])
+                        } if len(df_10m) > 1 else None,
+                        'count': len(df_10m)
+                    }
+                else:
+                    current_candle_data['minute10'] = {'error': '10분봉 데이터가 비어있습니다'}
+            except Exception as e10:
+                print(f"10분봉 데이터 조회 실패: {e10}")
+                current_candle_data['minute10'] = {'error': f'10분봉 조회 실패: {str(e10)}'}
             
             # 현재 설정된 캔들 간격 데이터
-            current_interval = cfg.candle
-            df_current = get_candles(cfg.market, current_interval, count=10)
-            if not df_current.empty:
-                current_candle_data['current_interval'] = {
-                    'interval': current_interval,
-                    'latest': {
-                        'timestamp': int(df_current.index[-1].timestamp() * 1000),
-                        'open': float(df_current['open'].iloc[-1]),
-                        'high': float(df_current['high'].iloc[-1]),
-                        'low': float(df_current['low'].iloc[-1]),
-                        'close': float(df_current['close'].iloc[-1]),
-                        'volume': float(df_current['volume'].iloc[-1])
-                    },
-                    'previous': {
-                        'timestamp': int(df_current.index[-2].timestamp() * 1000),
-                        'open': float(df_current['open'].iloc[-2]),
-                        'high': float(df_current['high'].iloc[-2]),
-                        'low': float(df_current['low'].iloc[-2]),
-                        'close': float(df_current['close'].iloc[-2]),
-                        'volume': float(df_current['volume'].iloc[-2])
-                    } if len(df_current) > 1 else None,
-                    'count': len(df_current)
-                }
+            try:
+                current_interval = cfg.candle
+                print(f"현재 설정 간격: {current_interval}")
+                df_current = get_candles(cfg.market, current_interval, count=10)
+                print(f"현재 간격 데이터 조회 완료 - 데이터 개수: {len(df_current) if not df_current.empty else 0}")
+                if not df_current.empty:
+                    current_candle_data['current_interval'] = {
+                        'interval': current_interval,
+                        'latest': {
+                            'timestamp': int(df_current.index[-1].timestamp() * 1000),
+                            'open': float(df_current['open'].iloc[-1]),
+                            'high': float(df_current['high'].iloc[-1]),
+                            'low': float(df_current['low'].iloc[-1]),
+                            'close': float(df_current['close'].iloc[-1]),
+                            'volume': float(df_current['volume'].iloc[-1])
+                        },
+                        'previous': {
+                            'timestamp': int(df_current.index[-2].timestamp() * 1000),
+                            'open': float(df_current['open'].iloc[-2]),
+                            'high': float(df_current['high'].iloc[-2]),
+                            'low': float(df_current['low'].iloc[-2]),
+                            'close': float(df_current['close'].iloc[-2]),
+                            'volume': float(df_current['volume'].iloc[-2])
+                        } if len(df_current) > 1 else None,
+                        'count': len(df_current)
+                    }
+                else:
+                    current_candle_data['current_interval'] = {'error': f'현재 간격({current_interval}) 데이터가 비어있습니다'}
+            except Exception as e_curr:
+                print(f"현재 간격 데이터 조회 실패: {e_curr}")
+                current_candle_data['current_interval'] = {'error': f'현재 간격 조회 실패: {str(e_curr)}'}
+                
+            print(f"📊 분봉 데이터 조회 완료 - 총 {len(current_candle_data)}개 간격")
                 
         except Exception as candle_error:
-            print(f"분봉 데이터 조회 실패: {candle_error}")
+            print(f"분봉 데이터 조회 중 전체 오류: {candle_error}")
             current_candle_data = {'error': f'분봉 데이터 조회 실패: {str(candle_error)}'}
         
         return jsonify({
