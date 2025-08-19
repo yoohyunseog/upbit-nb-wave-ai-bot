@@ -232,8 +232,11 @@ function getGuildMembersStatusForInterval(interval) {
     // Calculate active members (those with stamina > 30)
     const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30).length;
     
-    // Calculate N/B Energy percentage
-    const nbEnergyPercent = Math.round((nbEnergy.current / nbEnergy.max) * 100);
+    // Calculate N/B Energy percentage - check if nbEnergy is available
+    let nbEnergyPercent = 50; // default value
+    if (typeof window.nbEnergy !== 'undefined' && window.nbEnergy) {
+      nbEnergyPercent = Math.round((window.nbEnergy.current / window.nbEnergy.max) * 100);
+    }
     
     // Determine N/B Energy color
     let nbEnergyColor = '#f6465d'; // red

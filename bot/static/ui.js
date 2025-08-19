@@ -6766,6 +6766,9 @@
 
   };
 
+  // Expose nbEnergy globally for other modules
+  window.nbEnergy = nbEnergy;
+
 
 
   // Mock Test Results for Stamina Recovery
