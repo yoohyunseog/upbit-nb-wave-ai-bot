@@ -324,6 +324,13 @@ def generate_ai_trading_explanation(trainer_name, current_action, current_zone, 
     
     base_explanation = explanations.get(current_action, {}).get(current_zone, {})
     
+    # 기본값 설정으로 "알 수 없음" 방지
+    default_reason = f"현재 {current_zone} 구역에서 {current_action} 판단"
+    default_timing = "적절한 시점 모니터링 중"
+    default_confidence = f"🤖 ML 모델 신뢰도: {confidence}%"
+    default_zone_status = f"📊 현재 r값: {r_value:.3f} ({current_zone} 구역)"
+    default_strategy = f"기본 {current_action} 전략"
+    
     return {
         "trainer": trainer_name,
         "current_action": current_action,
@@ -332,11 +339,11 @@ def generate_ai_trading_explanation(trainer_name, current_action, current_zone, 
         "confidence": confidence,
         "position_status": position_status,
         "explanation": {
-            "reason": base_explanation.get("reason", "알 수 없음"),
-            "timing": base_explanation.get("timing", "알 수 없음"),
-            "confidence": base_explanation.get("confidence", "알 수 없음"),
-            "zone_status": base_explanation.get("zone_status", "알 수 없음"),
-            "strategy": base_explanation.get("strategy", "알 수 없음"),
+            "reason": base_explanation.get("reason", default_reason),
+            "timing": base_explanation.get("timing", default_timing),
+            "confidence": base_explanation.get("confidence", default_confidence),
+            "zone_status": base_explanation.get("zone_status", default_zone_status),
+            "strategy": base_explanation.get("strategy", default_strategy),
             "position": position_explanation
         },
         "timestamp": datetime.now().isoformat()

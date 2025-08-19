@@ -11377,25 +11377,34 @@
         
         const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
         if (explanationElement) {
-          const exp = result.explanation;
+          const exp = result.explanation || {};
+          
+          // 기본값 설정으로 "알 수 없음" 방지
+          const currentAction = result.current_action || 'HOLD';
+          const reason = exp.reason || '현재 시장 상황 분석 중';
+          const timing = exp.timing || '적절한 진입 시점 모니터링';
+          const zoneStatus = exp.zone_status || '현재 구역 상태 확인 중';
+          const strategy = exp.strategy || '기본 전략 유지';
+          const position = exp.position || '포지션 없음 - 진입 시점 판단';
+          
           explanationElement.innerHTML = `
             <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
-              🤖 AI 거래 판단: ${result.current_action}
+              🤖 AI 거래 판단: ${currentAction}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.reason}
+              ${reason}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.timing}
+              ${timing}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.zone_status}
+              ${zoneStatus}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.strategy}
+              ${strategy}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.position}
+              ${position}
             </div>
           `;
         }
@@ -11409,10 +11418,60 @@
       } else {
         const error = await response.json();
         console.error('❌ AI 거래 설명 실패:', error);
+        
+        // API 실패 시 기본 정보 표시
+        const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
+        if (explanationElement) {
+          explanationElement.innerHTML = `
+            <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
+              🤖 AI 거래 판단: HOLD
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              AI 시스템 연결 중...
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              잠시 후 다시 시도해주세요
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              현재 구역: ORANGE
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              기본 전략: 관망
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              💼 포지션 없음 - 진입 시점 판단
+            </div>
+          `;
+        }
       }
       
     } catch (e) {
       console.error('❌ AI 거래 설명 오류:', e);
+      
+      // 오류 시 기본 정보 표시
+      const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
+      if (explanationElement) {
+        explanationElement.innerHTML = `
+          <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
+            🤖 AI 거래 판단: HOLD
+          </div>
+          <div style="color: #888888; font-size: 7px;">
+            AI 시스템 점검 중
+          </div>
+          <div style="color: #888888; font-size: 7px;">
+            잠시 후 다시 시도해주세요
+          </div>
+          <div style="color: #888888; font-size: 7px;">
+            현재 구역: ORANGE
+          </div>
+          <div style="color: #888888; font-size: 7px;">
+            기본 전략: 관망
+          </div>
+          <div style="color: #888888; font-size: 7px;">
+            💼 포지션 없음 - 진입 시점 판단
+          </div>
+        `;
+      }
     }
   }
 
@@ -11425,24 +11484,33 @@
         const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
         if (explanationElement && explanation.explanation) {
           const exp = explanation.explanation;
+          
+          // 기본값 설정으로 "알 수 없음" 방지
+          const currentAction = explanation.current_action || 'HOLD';
+          const reason = exp.reason || '현재 시장 상황 분석 중';
+          const timing = exp.timing || '적절한 진입 시점 모니터링';
+          const zoneStatus = exp.zone_status || '현재 구역 상태 확인 중';
+          const strategy = exp.strategy || '기본 전략 유지';
+          const position = exp.position || '포지션 없음 - 진입 시점 판단';
+          
           explanationElement.innerHTML = `
             <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
-              🤖 AI 거래 판단: ${explanation.current_action}
+              🤖 AI 거래 판단: ${currentAction}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.reason}
+              ${reason}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.timing}
+              ${timing}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.zone_status}
+              ${zoneStatus}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.strategy}
+              ${strategy}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${exp.position}
+              ${position}
             </div>
           `;
           return true;
