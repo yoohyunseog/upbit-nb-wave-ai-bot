@@ -4493,10 +4493,12 @@
             const profitColor = profit >= 0 ? '#4caf50' : '#f44336';
             const ticks = data.ticks || 0;
             
-            // Get last trade info with Upbit matching (safe handling)
-            const lastTrade = data.trades && data.trades.length > 0 ? data.trades[data.trades.length - 1] : null;
+            // Get last REAL trade info (filter out manual modifications)
+            const realTrades = data.trades ? data.trades.filter(trade => trade.action === 'REAL_TRADE') : [];
+            const lastTrade = realTrades.length > 0 ? realTrades[realTrades.length - 1] : null;
             const lastTradeInfo = lastTrade ? 
-              `<br><span style="font-size: 9px; color: #666;">마지막 거래: ${lastTrade.action || 'UNKNOWN'} ${(lastTrade.size || 0).toFixed(8)} BTC @ ${Math.round(lastTrade.price || 0).toLocaleString()} KRW (${lastTrade.ts ? new Date(lastTrade.ts).toLocaleString() : 'Unknown Date'})${lastTrade.new_balance ? `<br><span style="font-size: 8px; color: #999;">잔액: ${lastTrade.new_balance.toFixed(8)} BTC</span>` : ''}${lastTrade.trade_match ? `<br><span style="font-size: 8px; color: #999;">업비트 매칭: ${lastTrade.trade_match.upbit_trade_id}</span>` : ''}</span>` : '';
+              `<br><span style="font-size: 9px; color: #666;">마지막 실제 거래: ${lastTrade.action || 'UNKNOWN'} ${(lastTrade.size || 0).toFixed(8)} BTC @ ${Math.round(lastTrade.price || 0).toLocaleString()} KRW (${lastTrade.ts ? new Date(lastTrade.ts).toLocaleString() : 'Unknown Date'})${lastTrade.new_balance ? `<br><span style="font-size: 8px; color: #999;">잔액: ${lastTrade.new_balance.toFixed(8)} BTC</span>` : ''}${lastTrade.trade_match ? `<br><span style="font-size: 8px; color: #999;">업비트 매칭: ${lastTrade.trade_match.upbit_trade_id}</span>` : ''}</span>` : 
+              `<br><span style="font-size: 9px; color: #999;">실제 거래 기록 없음</span>`;
             
             // 제고가 0이면 평균가 초기화 표시
             const avgPriceDisplay = data.coins > 0 && data.entry_price > 0 ? 

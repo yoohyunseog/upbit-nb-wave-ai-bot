@@ -5441,21 +5441,23 @@ def api_trainer_storage_modify():
             # Update last update time
             _trainer_storage[trainer]['last_update'] = int(time.time())
             
-            # Add to trade history with consistent structure
-            trade_record = {
-                'ts': int(time.time() * 1000),  # milliseconds timestamp
-                'action': 'MANUAL_MODIFY',
-                'price': current_price,
-                'size': abs(amount),  # Use 'size' instead of 'amount'
-                'profit': 0.0,
-                'new_balance': new_coins  # Add new balance for reference
-            }
-            
-            # Include trade matching info if provided
-            if data.get('trade_match'):
-                trade_record['trade_match'] = data.get('trade_match')
-            
-            _trainer_storage[trainer]['trades'].append(trade_record)
+            # Only save to trade history if it's a real trade (not manual modification)
+            if data.get('trade_match') and data.get('trade_match').get('upbit_trade_id'):
+                # This is a real trade from Upbit
+                trade_record = {
+                    'ts': int(time.time() * 1000),  # milliseconds timestamp
+                    'action': 'REAL_TRADE',
+                    'price': current_price,
+                    'size': abs(amount),  # Use 'size' instead of 'amount'
+                    'profit': 0.0,
+                    'new_balance': new_coins,  # Add new balance for reference
+                    'trade_match': data.get('trade_match')
+                }
+                _trainer_storage[trainer]['trades'].append(trade_record)
+                print(f"✅ Real trade saved: {trainer} {abs(amount):.8f} BTC")
+            else:
+                # This is a manual modification (temporary, not saved to history)
+                print(f"⚠️ Manual modification (not saved to history): {trainer} {abs(amount):.8f} BTC")
             
             # Save to file
             _save_trainer_storage()
@@ -5492,14 +5494,8 @@ def api_trainer_storage_reset():
             _trainer_storage[trainer]['entry_price'] = 0.0
             _trainer_storage[trainer]['last_update'] = int(time.time())
             
-            # 거래 기록에 추가
-            _trainer_storage[trainer]['trades'].append({
-                'ts': int(time.time() * 1000),  # milliseconds timestamp
-                'action': 'RESET_AVG_PRICE',
-                'price': 0.0,
-                'size': 0.0,
-                'profit': 0.0
-            })
+            # Manual price reset is not saved to trade history (temporary only)
+            print(f"⚠️ Manual price reset (not saved to history): {trainer}")
             
             # Save to file
             _save_trainer_storage()
@@ -5537,17 +5533,8 @@ def api_trainer_storage_tick():
             _trainer_storage[trainer]['ticks'] = new_ticks
             _trainer_storage[trainer]['last_update'] = int(time.time())
             
-            # 거래 기록에 추가
-            _trainer_storage[trainer]['trades'].append({
-                'ts': int(time.time() * 1000),  # milliseconds timestamp
-                'action': 'MANUAL_TICK',
-                'price': 0.0,
-                'size': _trainer_storage[trainer]['coins'],  # Use current coin balance
-                'profit': 0.0,
-                'tick_delta': delta,
-                'old_ticks': current_ticks,
-                'new_ticks': new_ticks
-            })
+            # Manual tick modifications are not saved to trade history (temporary only)
+            print(f"⚠️ Manual tick modification (not saved to history): {trainer} {delta:+d} ticks")
             
             # Save to file
             _save_trainer_storage()
