@@ -13934,9 +13934,32 @@
     }
   }
   
+  // 🎯 자동 차트 변경 감지 및 서버 동기화
+  let lastKnownInterval = null;
+  
+  function checkAndUpdateInterval() {
+    const currentInterval = getInterval();
+    
+    // 간격이 변경되었는지 확인
+    if (lastKnownInterval !== currentInterval) {
+      console.log(`🔄 자동 차트 변경 감지: ${lastKnownInterval} → ${currentInterval}`);
+      lastKnownInterval = currentInterval;
+      
+      // 서버에 업데이트 전송
+      updateServerCurrentInterval();
+    }
+  }
+  
   // 페이지 로드 시 초기 간격 전송
   setTimeout(() => {
+    lastKnownInterval = getInterval();
     updateServerCurrentInterval();
   }, 2000); // 2초 후 초기 전송
+  
+  // 자동 차트 변경 감지 시작 (1초마다 체크)
+  setTimeout(() => {
+    setInterval(checkAndUpdateInterval, 1000); // 1초마다 체크
+    console.log('🎯 자동 차트 변경 감지 시작됨');
+  }, 3000); // 3초 후 시작
 
 })();
