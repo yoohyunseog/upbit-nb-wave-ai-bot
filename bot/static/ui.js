@@ -51,6 +51,7 @@
 
 
 
+
       // Get N/B wave data from chart
 
       const nbWaveData = window.nbWaveSeries?.data || [];
@@ -10183,8 +10184,29 @@
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 ${positionSide === 'BUY' ? 'SELL' : 'BUY'} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()} | 진입가: ${Number(entryPrice).toLocaleString()}`);
 
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 실제 수익: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}% (${profitValue > 0 ? '+' : ''}${Number(profitValue).toLocaleString()} KRW)`);
-
           
+          // Update server trainer storage for SELL transaction
+          try {
+            const response = await fetch('/api/trainer/storage/modify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                trainer: member.name,
+                amount: -coinAmount  // Negative for SELL
+              })
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log(`✅ Server trainer storage updated: ${member.name} -${coinAmount} BTC (SELL)`);
+            } else {
+              console.error(`❌ Failed to update server trainer storage: ${member.name}`);
+            }
+          } catch (error) {
+            console.error('Error updating server trainer storage:', error);
+          }
 
           if (profitPercent > 0) {
 
@@ -10321,6 +10343,29 @@
             
 
             appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 사용: -${coinAmount.toFixed(6)} | 잔액: ${member.nbCoins.toFixed(6)}`);
+            
+            // Update server trainer storage
+            try {
+              const response = await fetch('/api/trainer/storage/modify', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  trainer: member.name,
+                  amount: coinAmount
+                })
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                console.log(`✅ Server trainer storage updated: ${member.name} +${coinAmount} BTC`);
+              } else {
+                console.error(`❌ Failed to update server trainer storage: ${member.name}`);
+              }
+            } catch (error) {
+              console.error('Error updating server trainer storage:', error);
+            }
 
           } else {
 
