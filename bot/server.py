@@ -1322,6 +1322,21 @@ def get_current_zone():
         ml_trust = MAYOR_TRUST_SYSTEM.get("ML_Model_Trust", 40)
         nb_trust = MAYOR_TRUST_SYSTEM.get("NB_Guild_Trust", 82)  # 82개 히스토리로 업데이트
         
+        # Win% 정보 추가 (실제 거래 데이터에서 계산)
+        try:
+            # 최근 25개 거래에서 Win% 계산
+            recent_trades = _nb_coin_store.get('recent_trades', [])
+            if len(recent_trades) >= 25:
+                win_trades = [trade for trade in recent_trades[-25:] if trade.get('profit', 0) > 0]
+                win_rate = len(win_trades) / 25 * 100
+                history_count = 25
+            else:
+                win_rate = 0
+                history_count = len(recent_trades)
+        except:
+            win_rate = 0
+            history_count = 0
+        
         # 현재 차트의 분봉 데이터 추가
         cfg = load_config()
         current_candle_data = {}
@@ -1410,6 +1425,8 @@ def get_current_zone():
             'r_value': r_value,
             'ml_trust': ml_trust,
             'nb_trust': nb_trust,
+            'win_rate': win_rate,
+            'history_count': history_count,
             'candle_data': current_candle_data,
             'timestamp': int(time.time() * 1000)
         })

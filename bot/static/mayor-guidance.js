@@ -46,6 +46,8 @@ function getMayorGuidanceData() {
       rValue: result.r_value || 0.5,
       mlTrust: result.ml_trust || 40,
       nbTrust: result.nb_trust || 82,
+      winRate: result.win_rate || 0,
+      historyCount: result.history_count || 0,
       timestamp: result.timestamp || Date.now()
     };
   }).fail(function(xhr, status, error) {
@@ -60,6 +62,8 @@ function getMayorGuidanceData() {
       rValue: 0.5,
       mlTrust: 40,
       nbTrust: 82,
+      winRate: 0,
+      historyCount: 0,
       timestamp: Date.now()
     };
   });
@@ -299,6 +303,8 @@ function updateRealtimeMayorGuidance() {
       // API에서 받은 신뢰도 값 사용
       const mlTrust = data.mlTrust || 40;
       const nbTrust = data.nbTrust || 82;
+      const winRate = data.winRate || 0;
+      const historyCount = data.historyCount || 0;
       
       // 현재 시간과 분봉 정보 계산
       const now = new Date();
@@ -320,6 +326,9 @@ function updateRealtimeMayorGuidance() {
         </div>
         <div style="margin-bottom: 4px;">
           <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span style="color: #e74c3c;">📈 Win%: </span><span style="color: #e74c3c; font-weight: 600; background: rgba(231,76,60,0.1); padding: 1px 3px; border-radius: 2px;">${winRate.toFixed(1)}%</span> (${historyCount}개 히스토리)
         </div>
         <div style="margin-bottom: 4px;">
           <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${getCurrentTimeframeDisplay()} ${data.nbZone}</span>
