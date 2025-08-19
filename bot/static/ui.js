@@ -7637,9 +7637,10 @@
       }
       
       // 실시간 촌장 지침 주기적 업데이트 시작 (mayor-guidance.js에서 관리됨)
-      if (typeof startRealtimeMayorGuidanceUpdates === 'function') {
-        startRealtimeMayorGuidanceUpdates();
-      }
+      // 중복 실행 방지를 위해 주석 처리
+      // if (typeof startRealtimeMayorGuidanceUpdates === 'function') {
+      //   startRealtimeMayorGuidanceUpdates();
+      // }
 
       // Update individual trade slides
 
