@@ -252,10 +252,10 @@ function createTrainerStorageHTML(trainerStorageData, currentPrice) {
       const profit = data.avg_price ? ((currentPrice - data.avg_price) / data.avg_price) * 100 : 0;
       const ticks = data.ticks || 0;
       
-             // Get last trade info with Upbit matching
+             // Get last trade info with Upbit matching (safe handling)
        const lastTrade = data.trades && data.trades.length > 0 ? data.trades[data.trades.length - 1] : null;
        const lastTradeInfo = lastTrade ? 
-         `<br><span style="font-size: 9px; color: #666;">마지막 거래: ${lastTrade.action} ${lastTrade.size} BTC @ ${Math.round(lastTrade.price).toLocaleString()} KRW (${new Date(lastTrade.ts).toLocaleString()})${lastTrade.trade_match ? `<br><span style="font-size: 8px; color: #999;">업비트 매칭: ${lastTrade.trade_match.upbit_trade_id}</span>` : ''}</span>` : '';
+         `<br><span style="font-size: 9px; color: #666;">마지막 거래: ${lastTrade.action || 'UNKNOWN'} ${(lastTrade.size || 0).toFixed(8)} BTC @ ${Math.round(lastTrade.price || 0).toLocaleString()} KRW (${lastTrade.ts ? new Date(lastTrade.ts).toLocaleString() : 'Unknown Date'})${lastTrade.trade_match ? `<br><span style="font-size: 8px; color: #999;">업비트 매칭: ${lastTrade.trade_match.upbit_trade_id}</span>` : ''}</span>` : '';
       
       return `
         <div style="margin-bottom: 8px; padding: 4px; background: rgba(25,118,210,0.05); border-radius: 3px;">

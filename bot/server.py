@@ -5442,14 +5442,19 @@ def api_trainer_storage_modify():
             _trainer_storage[trainer]['last_update'] = int(time.time())
             
             # Add to trade history with consistent structure
-            _trainer_storage[trainer]['trades'].append({
+            trade_record = {
                 'ts': int(time.time() * 1000),  # milliseconds timestamp
                 'action': 'MANUAL_MODIFY',
                 'price': current_price,
                 'size': abs(amount),  # Use 'size' instead of 'amount'
-                'profit': 0.0,
-                'trade_match': data.get('trade_match')  # Include trade matching info if provided
-            })
+                'profit': 0.0
+            }
+            
+            # Include trade matching info if provided
+            if data.get('trade_match'):
+                trade_record['trade_match'] = data.get('trade_match')
+            
+            _trainer_storage[trainer]['trades'].append(trade_record)
             
             # Save to file
             _save_trainer_storage()
