@@ -4493,10 +4493,10 @@
             const profitColor = profit >= 0 ? '#4caf50' : '#f44336';
             const ticks = data.ticks || 0;
             
-            // Get last trade info
+            // Get last trade info with Upbit matching
             const lastTrade = data.trades && data.trades.length > 0 ? data.trades[data.trades.length - 1] : null;
             const lastTradeInfo = lastTrade ? 
-              `<br><span style="font-size: 9px; color: #666;">마지막 거래: ${lastTrade.action} ${lastTrade.size} BTC @ ${Math.round(lastTrade.price).toLocaleString()} KRW (${new Date(lastTrade.ts).toLocaleString()})</span>` : '';
+              `<br><span style="font-size: 9px; color: #666;">마지막 거래: ${lastTrade.action} ${lastTrade.size} BTC @ ${Math.round(lastTrade.price).toLocaleString()} KRW (${new Date(lastTrade.ts).toLocaleString()})${lastTrade.trade_match ? `<br><span style="font-size: 8px; color: #999;">업비트 매칭: ${lastTrade.trade_match.upbit_trade_id}</span>` : ''}</span>` : '';
             
             // 제고가 0이면 평균가 초기화 표시
             const avgPriceDisplay = data.coins > 0 && data.entry_price > 0 ? 
@@ -10189,30 +10189,40 @@
 
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 ${positionSide === 'BUY' ? 'SELL' : 'BUY'} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()} | 진입가: ${Number(entryPrice).toLocaleString()}`);
 
-          appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 실제 수익: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}% (${profitValue > 0 ? '+' : ''}${Number(profitValue).toLocaleString()} KRW)`);
-          
-          // Update server trainer storage for SELL transaction
-          try {
-            const response = await fetch('/api/trainer/storage/modify', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                trainer: member.name,
-                amount: -coinAmount  // Negative for SELL
-              })
-            });
-            
-            if (response.ok) {
-              const result = await response.json();
-              console.log(`✅ Server trainer storage updated: ${member.name} -${coinAmount} BTC (SELL)`);
-            } else {
-              console.error(`❌ Failed to update server trainer storage: ${member.name}`);
-            }
-          } catch (error) {
-            console.error('Error updating server trainer storage:', error);
-          }
+                            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 실제 수익: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}% (${profitValue > 0 ? '+' : ''}${Number(profitValue).toLocaleString()} KRW)`);
+                
+                  // Update server trainer storage for SELL transaction with trade matching
+                  try {
+                    const response = await fetch('/api/trainer/storage/modify', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        trainer: member.name,
+                        amount: -coinAmount,  // Negative for SELL
+                        trade_match: {
+                          upbit_trade_id: `SELL_${Date.now()}`, // 임시 ID
+                          upbit_size: coinAmount,
+                          upbit_price: currentPrice,
+                          upbit_time: new Date().toISOString(),
+                          system_trainer: member.name,
+                          system_action: 'SELL',
+                          profit_percent: profitPercent,
+                          profit_value: profitValue
+                        }
+                      })
+                    });
+                    
+                    if (response.ok) {
+                      const result = await response.json();
+                      console.log(`✅ Server trainer storage updated: ${member.name} -${coinAmount} BTC (SELL, 업비트 거래 매칭)`);
+                    } else {
+                      console.error(`❌ Failed to update server trainer storage: ${member.name}`);
+                    }
+                  } catch (error) {
+                    console.error('Error updating server trainer storage:', error);
+                  }
 
           if (profitPercent > 0) {
 
@@ -10348,30 +10358,38 @@
 
             
 
-            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 사용: -${coinAmount.toFixed(6)} | 잔액: ${member.nbCoins.toFixed(6)}`);
-            
-            // Update server trainer storage
-            try {
-              const response = await fetch('/api/trainer/storage/modify', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  trainer: member.name,
-                  amount: coinAmount
-                })
-              });
-              
-              if (response.ok) {
-                const result = await response.json();
-                console.log(`✅ Server trainer storage updated: ${member.name} +${coinAmount} BTC`);
-              } else {
-                console.error(`❌ Failed to update server trainer storage: ${member.name}`);
-              }
-            } catch (error) {
-              console.error('Error updating server trainer storage:', error);
-            }
+                              appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 사용: -${coinAmount.toFixed(6)} | 잔액: ${member.nbCoins.toFixed(6)}`);
+                
+                  // Update server trainer storage with trade matching info
+                  try {
+                    const response = await fetch('/api/trainer/storage/modify', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        trainer: member.name,
+                        amount: coinAmount,
+                        trade_match: {
+                          upbit_trade_id: `BUY_${Date.now()}`, // 임시 ID
+                          upbit_size: coinAmount,
+                          upbit_price: currentPrice,
+                          upbit_time: new Date().toISOString(),
+                          system_trainer: member.name,
+                          system_action: 'BUY'
+                        }
+                      })
+                    });
+                    
+                    if (response.ok) {
+                      const result = await response.json();
+                      console.log(`✅ Server trainer storage updated: ${member.name} +${coinAmount} BTC (업비트 거래 매칭)`);
+                    } else {
+                      console.error(`❌ Failed to update server trainer storage: ${member.name}`);
+                    }
+                  } catch (error) {
+                    console.error('Error updating server trainer storage:', error);
+                  }
 
           } else {
 
