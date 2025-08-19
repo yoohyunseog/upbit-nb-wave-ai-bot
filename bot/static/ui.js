@@ -13371,4 +13371,14 @@
   // Real-time zone synchronization - Update every 1 second
   setInterval(syncCurrentZoneWithNBStatus, 1000); // Check every 1 second
 
+  // 🏰 8BIT Village 거래 프로세스 모니터링 시작
+  setTimeout(() => {
+    if (typeof startVillageTradingProcessMonitoring === 'function') {
+      startVillageTradingProcessMonitoring();
+      console.log('🏰 8BIT Village 거래 프로세스 모니터링 시작됨');
+    } else {
+      console.log('⚠️ startVillageTradingProcessMonitoring 함수를 찾을 수 없습니다');
+    }
+  }, 3000); // 3초 후 시작
+
 })();

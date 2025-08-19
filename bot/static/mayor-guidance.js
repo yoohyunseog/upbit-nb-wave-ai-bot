@@ -16,9 +16,9 @@ function getMayorGuidanceData() {
       position: result.position || '',
       nbZone: result.nb_zone || '',
       mlZone: result.ml_zone || '',
-             rValue: result.r_value || 0.5,
-       mlTrust: result.ml_trust || 40,
-       nbTrust: result.nb_trust || 82,
+      rValue: result.r_value || 0.5,
+      mlTrust: result.ml_trust || 40,
+      nbTrust: result.nb_trust || 82,
       timestamp: result.timestamp || Date.now()
     };
   }).fail(function(xhr, status, error) {
@@ -36,6 +36,209 @@ function getMayorGuidanceData() {
       timestamp: Date.now()
     };
   });
+}
+
+// 🎯 구역 변경 시 주민들의 학습 모델 매매 전략 프로세스
+function executeVillageTradingProcess(member, currentZone, previousZone) {
+  console.log(`🏰 ${member.name}의 매매 전략 프로세스 시작 - 구역 변경: ${previousZone} → ${currentZone}`);
+  
+  // 1단계: 현재 구역에서 SELL/BUY 시 손실 예상
+  const profitLossPrediction = predictProfitLoss(member, currentZone);
+  
+  // 2단계: 촌장 지침 준수 여부 판단
+  const mayorGuidanceDecision = evaluateMayorGuidance(member, currentZone, profitLossPrediction);
+  
+  // 3단계: 실제/모의 거래 판단
+  const tradeTypeDecision = decideTradeType(member, mayorGuidanceDecision);
+  
+  // 4단계: 실행
+  const executionResult = executeTradeDecision(member, tradeTypeDecision);
+  
+  // 결과를 창고에 저장
+  saveTradingProcessResult(member, {
+    zoneChange: `${previousZone} → ${currentZone}`,
+    profitLossPrediction,
+    mayorGuidanceDecision,
+    tradeTypeDecision,
+    executionResult,
+    timestamp: Date.now()
+  });
+  
+  return {
+    process: 'Village Trading Process',
+    member: member.name,
+    zoneChange: `${previousZone} → ${currentZone}`,
+    steps: {
+      step1: profitLossPrediction,
+      step2: mayorGuidanceDecision,
+      step3: tradeTypeDecision,
+      step4: executionResult
+    }
+  };
+}
+
+// 1단계: 손실 예상
+function predictProfitLoss(member, currentZone) {
+  const currentPrice = member.currentPrice || 160000000;
+  const entryPrice = member.entryPrice || currentPrice;
+  const position = member.position || 'FLAT';
+  
+  // 현재 포지션에 따른 손익 계산
+  let currentPnl = 0;
+  if (position === 'LONG') {
+    currentPnl = ((currentPrice - entryPrice) / entryPrice) * 100;
+  } else if (position === 'SHORT') {
+    currentPnl = ((entryPrice - currentPrice) / entryPrice) * 100;
+  }
+  
+  // SELL 시 예상 손익 (현재 포지션 청산)
+  const sellPrediction = {
+    action: 'SELL',
+    expectedPnl: currentPnl,
+    risk: currentPnl < 0 ? '손실 위험' : '수익 기대',
+    confidence: Math.abs(currentPnl) > 2 ? '높음' : '보통'
+  };
+  
+  // BUY 시 예상 손익 (새로운 포지션 진입)
+  const buyPrediction = {
+    action: 'BUY',
+    expectedPnl: currentZone === 'BLUE' ? 1.5 : -0.8, // 구역별 예상 수익률
+    risk: currentZone === 'BLUE' ? '낮음' : '높음',
+    confidence: currentZone === 'BLUE' ? '높음' : '낮음'
+  };
+  
+  return {
+    currentPnl: currentPnl,
+    sellPrediction: sellPrediction,
+    buyPrediction: buyPrediction,
+    recommendation: currentPnl > 1 ? 'SELL 권장' : (currentZone === 'BLUE' ? 'BUY 권장' : 'HOLD 권장')
+  };
+}
+
+// 2단계: 촌장 지침 준수 여부 판단
+function evaluateMayorGuidance(member, currentZone, profitLossPrediction) {
+  const mayorGuidance = currentZone === 'BLUE' ? 'BUY만 허용' : 'SELL만 허용';
+  const currentPosition = member.position || 'FLAT';
+  
+  let guidanceCompliance = '';
+  let decision = '';
+  let reason = '';
+  
+  if (currentZone === 'ORANGE') {
+    if (currentPosition === 'LONG') {
+      guidanceCompliance = '✅ 촌장 지침 준수';
+      decision = 'SELL 실행';
+      reason = 'ORANGE 구역에서 LONG 포지션 청산';
+    } else if (currentPosition === 'FLAT') {
+      guidanceCompliance = '✅ 촌장 지침 준수';
+      decision = 'HOLD 유지';
+      reason = 'ORANGE 구역에서 BUY 금지, SELL 기회 대기';
+    }
+  } else if (currentZone === 'BLUE') {
+    if (currentPosition === 'FLAT') {
+      guidanceCompliance = '✅ 촌장 지침 준수';
+      decision = 'BUY 실행';
+      reason = 'BLUE 구역에서 BUY 기회 포착';
+    } else if (currentPosition === 'LONG') {
+      guidanceCompliance = '✅ 촌장 지침 준수';
+      decision = 'HOLD 유지';
+      reason = 'BLUE 구역에서 LONG 포지션 유지';
+    }
+  }
+  
+  return {
+    guidance: mayorGuidance,
+    compliance: guidanceCompliance,
+    decision: decision,
+    reason: reason,
+    confidence: Math.random() * 40 + 60 // 60-100%
+  };
+}
+
+// 3단계: 실제/모의 거래 판단
+function decideTradeType(member, mayorGuidanceDecision) {
+  const confidence = mayorGuidanceDecision.confidence;
+  const currentZone = member.currentZone || 'ORANGE';
+  
+  // 신뢰도에 따른 거래 타입 결정
+  let tradeType = '';
+  let reason = '';
+  
+  if (confidence >= 80) {
+    tradeType = '실제 거래';
+    reason = '높은 신뢰도로 실제 거래 실행';
+  } else if (confidence >= 60) {
+    tradeType = '모의 거래';
+    reason = '보통 신뢰도로 모의 거래 실행';
+  } else {
+    tradeType = '관망';
+    reason = '낮은 신뢰도로 거래 보류';
+  }
+  
+  return {
+    tradeType: tradeType,
+    reason: reason,
+    confidence: confidence,
+    riskLevel: confidence >= 80 ? '높음' : (confidence >= 60 ? '보통' : '낮음')
+  };
+}
+
+// 4단계: 실행
+function executeTradeDecision(member, tradeTypeDecision) {
+  const tradeType = tradeTypeDecision.tradeType;
+  const confidence = tradeTypeDecision.confidence;
+  
+  let executionResult = {
+    status: '대기 중',
+    action: 'NONE',
+    result: 'N/A',
+    timestamp: Date.now()
+  };
+  
+  if (tradeType === '실제 거래') {
+    executionResult = {
+      status: '실행 중',
+      action: member.currentZone === 'BLUE' ? 'BUY' : 'SELL',
+      result: '실제 거래 실행',
+      timestamp: Date.now()
+    };
+  } else if (tradeType === '모의 거래') {
+    executionResult = {
+      status: '모의 실행',
+      action: member.currentZone === 'BLUE' ? 'BUY' : 'SELL',
+      result: '모의 거래 실행',
+      timestamp: Date.now()
+    };
+  } else {
+    executionResult = {
+      status: '관망',
+      action: 'HOLD',
+      result: '거래 보류',
+      timestamp: Date.now()
+    };
+  }
+  
+  return executionResult;
+}
+
+// 거래 프로세스 결과를 창고에 저장
+function saveTradingProcessResult(member, result) {
+  const warehouseKey = `trading_process_${member.name}`;
+  const existingData = localStorage.getItem(warehouseKey);
+  let processHistory = [];
+  
+  if (existingData) {
+    processHistory = JSON.parse(existingData);
+  }
+  
+  // 최근 10개만 유지
+  processHistory.push(result);
+  if (processHistory.length > 10) {
+    processHistory = processHistory.slice(-10);
+  }
+  
+  localStorage.setItem(warehouseKey, JSON.stringify(processHistory));
+  console.log(`🏪 ${member.name}의 거래 프로세스 결과 저장됨`);
 }
 
 // jQuery를 사용한 실시간 촌장 지침 업데이트
@@ -64,57 +267,57 @@ function updateRealtimeMayorGuidance() {
       `);
     });
     
-         // 신뢰도 정보 업데이트 (jQuery 사용) - API에서 받은 실제 신뢰도 값 사용
-     $('#mayor-trust-display').each(function() {
-       // API에서 받은 신뢰도 값 사용
-       const mlTrust = data.mlTrust || 40;
-       const nbTrust = data.nbTrust || 82;
-       
-       // 현재 시간과 분봉 정보 계산
-       const now = new Date();
-       const currentTime = now.toLocaleTimeString('ko-KR', { 
-         hour: '2-digit', 
-         minute: '2-digit', 
-         second: '2-digit',
-         hour12: false 
-       });
-       const currentMinute = now.getMinutes();
-       const candleTime = `${currentMinute.toString().padStart(2, '0')}분봉`;
-       
-       $(this).html(`
-         <div style="margin-bottom: 4px;">
-           <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span>
-         </div>
-         <div style="margin-bottom: 4px;">
-           <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
-         </div>
-         <div style="margin-bottom: 4px;">
-           <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
-         </div>
-         <div style="margin-bottom: 4px;">
-           <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">1h ${data.nbZone}</span>
-         </div>
-         <div style="margin-bottom: 4px;">
-           <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
-         </div>
-         <div style="margin-bottom: 4px;">
-           <span style="color: #ff9800;">📊 분봉 정보: </span><span style="color: #ff9800; font-weight: 600; background: rgba(255,152,0,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime}</span>
-         </div>
-       `);
-     });
+    // 신뢰도 정보 업데이트 (jQuery 사용) - API에서 받은 실제 신뢰도 값 사용
+    $('#mayor-trust-display').each(function() {
+      // API에서 받은 신뢰도 값 사용
+      const mlTrust = data.mlTrust || 40;
+      const nbTrust = data.nbTrust || 82;
+      
+      // 현재 시간과 분봉 정보 계산
+      const now = new Date();
+      const currentTime = now.toLocaleTimeString('ko-KR', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false 
+      });
+      const currentMinute = now.getMinutes();
+      const candleTime = `${currentMinute.toString().padStart(2, '0')}분봉`;
+      
+      $(this).html(`
+        <div style="margin-bottom: 4px;">
+          <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">1h ${data.nbZone}</span>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span style="color: #ff9800;">📊 분봉 정보: </span><span style="color: #ff9800; font-weight: 600; background: rgba(255,152,0,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime}</span>
+        </div>
+      `);
+    });
     
-         // localStorage에 저장 - API 응답의 실제 값 사용
-     localStorage.setItem('realtime_mayor_guidance', JSON.stringify({
-       current_zone: data.nbZone,
-       nb_zone: data.nbZone,
-       ml_zone: data.mlZone,
-       last_signal: data.lastSignal,
-       position: data.position,
-       ml_trust: data.mlTrust,
-       nb_trust: data.nbTrust,
-       r_value: data.rValue,
-       timestamp: data.timestamp
-     }));
+    // localStorage에 저장 - API 응답의 실제 값 사용
+    localStorage.setItem('realtime_mayor_guidance', JSON.stringify({
+      current_zone: data.nbZone,
+      nb_zone: data.nbZone,
+      ml_zone: data.mlZone,
+      last_signal: data.lastSignal,
+      position: data.position,
+      ml_trust: data.mlTrust,
+      nb_trust: data.nbTrust,
+      r_value: data.rValue,
+      timestamp: data.timestamp
+    }));
     
     console.log('촌장 지침 실시간 업데이트 완료:', data);
   });
@@ -286,13 +489,13 @@ function getMayorGuidanceStatus(member) {
     const currentMinute = now.getMinutes();
     const candleTime = `${currentMinute.toString().padStart(2, '0')}분봉`;
     
-         const trustInfo = `
-       <div style="margin-bottom: 2px;">
-         <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span>
-       </div>
-       <div style="margin-bottom: 2px;">
-         <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbGuildTrust}%</span> (${nbGuildTrust}개 히스토리)
-       </div>
+    const trustInfo = `
+      <div style="margin-bottom: 2px;">
+        <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span>
+      </div>
+      <div style="margin-bottom: 2px;">
+        <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbGuildTrust}%</span> (${nbGuildTrust}개 히스토리)
+      </div>
       <div style="margin-bottom: 2px;">
         <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbGuildTrust}%</span>
       </div>
@@ -307,33 +510,33 @@ function getMayorGuidanceStatus(member) {
       </div>
     `;
     
-         const guidanceData = {
-       guidanceStatus: guidanceStatus,
-       guidanceColor: guidanceColor,
-       trustInfo: trustInfo,
-       currentZone: currentZone,
-       mlZone: data.mlZone,
-       timestamp: Date.now(),
-       memberName: member.name
-     };
+    const guidanceData = {
+      guidanceStatus: guidanceStatus,
+      guidanceColor: guidanceColor,
+      trustInfo: trustInfo,
+      currentZone: currentZone,
+      mlZone: data.mlZone,
+      timestamp: Date.now(),
+      memberName: member.name
+    };
 
     // 촌장 지침 상태를 localStorage에 저장
     localStorage.setItem(`mayor_guidance_${member.name}`, JSON.stringify(guidanceData));
 
-         return `
-       <div style="color: ${guidanceColor}; font-weight: 600; margin-bottom: 4px;">
-         🏛️ ${guidanceStatus}
-       </div>
-       <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
-         ${trustInfo}
-       </div>
-       <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
-         🔄 실시간 동기화 | N/B: ${data.nbZone === 'BLUE' ? '🔵' : '🟠'}${data.nbZone} | ML: ${data.mlZone === 'BLUE' ? '🔵' : '🟠'}${data.mlZone}
-       </div>
-       <div style="color: #888888; font-size: 8px;">
-         Zone-Side Only: BUY@BLUE / SELL@ORANGE
-       </div>
-     `;
+    return `
+      <div style="color: ${guidanceColor}; font-weight: 600; margin-bottom: 4px;">
+        🏛️ ${guidanceStatus}
+      </div>
+      <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
+        ${trustInfo}
+      </div>
+      <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
+        🔄 실시간 동기화 | N/B: ${data.nbZone === 'BLUE' ? '🔵' : '🟠'}${data.nbZone} | ML: ${data.mlZone === 'BLUE' ? '🔵' : '🟠'}${data.mlZone}
+      </div>
+      <div style="color: #888888; font-size: 8px;">
+        Zone-Side Only: BUY@BLUE / SELL@ORANGE
+      </div>
+    `;
   }).fail(function(xhr, status, error) {
     console.error('Error generating mayor guidance status:', error);
     return '<div style="color: #888888;">촌장 지침 상태 확인 중...</div>';
@@ -349,20 +552,20 @@ function restoreMayorGuidanceStatus(memberName) {
       
       // jQuery를 사용하여 요소 업데이트
       $(`#mayor-guidance-${memberName}`).each(function() {
-                 $(this).html(`
-           <div style="color: ${guidance.guidanceColor}; font-weight: 600; margin-bottom: 4px;">
-             🏛️ ${guidance.guidanceStatus}
-           </div>
-           <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
-             ${guidance.trustInfo}
-           </div>
-           <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
-             🔄 실시간 동기화 | N/B: ${guidance.currentZone === 'BLUE' ? '🔵' : '🟠'}${guidance.currentZone} | ML: ${guidance.mlZone === 'BLUE' ? '🔵' : '🟠'}${guidance.mlZone}
-           </div>
-           <div style="color: #888888; font-size: 8px;">
-             Zone-Side Only: BUY@BLUE / SELL@ORANGE
-           </div>
-         `);
+        $(this).html(`
+          <div style="color: ${guidance.guidanceColor}; font-weight: 600; margin-bottom: 4px;">
+            🏛️ ${guidance.guidanceStatus}
+          </div>
+          <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
+            ${guidance.trustInfo}
+          </div>
+          <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
+            🔄 실시간 동기화 | N/B: ${guidance.currentZone === 'BLUE' ? '🔵' : '🟠'}${guidance.currentZone} | ML: ${guidance.mlZone === 'BLUE' ? '🔵' : '🟠'}${guidance.mlZone}
+          </div>
+          <div style="color: #888888; font-size: 8px;">
+            Zone-Side Only: BUY@BLUE / SELL@ORANGE
+          </div>
+        `);
       });
       
       console.log('촌장 지침 상태 복원 완료:', memberName);
@@ -573,6 +776,12 @@ if (typeof module !== 'undefined' && module.exports) {
     updateAutoLearningStatus,
     restoreAutoLearningStatus,
     toggleAutoLearning,
-    restoreAllSavedStates
+    restoreAllSavedStates,
+    executeVillageTradingProcess,
+    predictProfitLoss,
+    evaluateMayorGuidance,
+    decideTradeType,
+    executeTradeDecision,
+    saveTradingProcessResult
   };
 }
