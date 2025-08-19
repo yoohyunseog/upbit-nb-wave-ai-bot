@@ -464,16 +464,40 @@ function restoreRealtimeMayorGuidance() {
         const nbTrust = guidance.nb_trust || 82;  // 기본값을 82로 수정
         const nbZone = guidance.nb_zone || 'ORANGE';
         
-        // 현재 시간과 분봉 정보 계산
-        const now = new Date();
-        const currentTime = now.toLocaleTimeString('ko-KR', { 
-          hour: '2-digit', 
-          minute: '2-digit', 
-          second: '2-digit',
-          hour12: false 
-        });
-        const currentMinute = now.getMinutes();
-        const candleTime = `${currentMinute.toString().padStart(2, '0')}분봉`;
+                 // 현재 시간과 분봉 정보 계산
+         const now = new Date();
+         const currentTime = now.toLocaleTimeString('ko-KR', { 
+           hour: '2-digit', 
+           minute: '2-digit', 
+           second: '2-digit',
+           hour12: false 
+         });
+         
+         // 분봉 정보를 현재 차트에서 직접 가져오기
+         let candleTime = '차트 분봉';
+         try {
+           const tfEl = document.getElementById('timeframe');
+           if (tfEl && tfEl.value) {
+             const interval = tfEl.value;
+             switch (interval) {
+               case 'minute1': candleTime = '1분봉'; break;
+               case 'minute3': candleTime = '3분봉'; break;
+               case 'minute5': candleTime = '5분봉'; break;
+               case 'minute10': candleTime = '10분봉'; break;
+               case 'minute15': candleTime = '15분봉'; break;
+               case 'minute30': candleTime = '30분봉'; break;
+               case 'minute60': candleTime = '60분봉'; break;
+               case 'minute240': candleTime = '240분봉'; break;
+               case 'day': candleTime = '1일봉'; break;
+               case 'week': candleTime = '1주봉'; break;
+               case 'month': candleTime = '1월봉'; break;
+               default: candleTime = `${interval}봉`;
+             }
+           }
+         } catch (e) {
+           console.error('차트 간격 가져오기 오류:', e);
+           candleTime = '차트 분봉';
+         }
         
         $(this).html(`
           <div style="margin-bottom: 4px;">
@@ -485,9 +509,9 @@ function restoreRealtimeMayorGuidance() {
           <div style="margin-bottom: 4px;">
             <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
           </div>
-          <div style="margin-bottom: 4px;">
-            <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${getCurrentTimeframeDisplay()} ${nbZone}</span>
-          </div>
+                     <div style="margin-bottom: 4px;">
+             <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime} ${nbZone}</span>
+           </div>
           <div style="margin-bottom: 4px;">
             <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
           </div>
@@ -634,9 +658,9 @@ function getMayorGuidanceStatus(member) {
       <div style="margin-bottom: 2px;">
         <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbGuildTrust}%</span>
       </div>
-      <div style="margin-bottom: 2px;">
-        <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${getCurrentTimeframeDisplay()} ${currentZone}</span>
-      </div>
+             <div style="margin-bottom: 2px;">
+         <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime} ${currentZone}</span>
+       </div>
       <div style="margin-bottom: 2px;">
         <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
       </div>
