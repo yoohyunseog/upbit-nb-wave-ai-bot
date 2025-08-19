@@ -7580,6 +7580,7 @@
         // moved to village-learning-system.js
 
         if (!aiExplanationRestored) {
+          // getAIExplanation 함수는 이미 HTML을 생성하므로 직접 호출
           getAIExplanation(member.name).catch(e => console.error('Error updating AI explanation:', e));
         }
       });
