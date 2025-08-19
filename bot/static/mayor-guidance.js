@@ -320,15 +320,39 @@ function updateRealtimeMayorGuidance() {
       
       // 분봉 정보 추출 (API에서 받은 candle_data 사용)
       let candleTime = '--분봉';
-      if (data.candle_data && data.candle_data.ui_current_interval && data.candle_data.ui_current_interval.interval) {
-        const interval = data.candle_data.ui_current_interval.interval;
-        if (interval.minute) {
-          candleTime = `${interval.minute}분봉`;
-        } else if (interval.hour) {
-          candleTime = `${interval.hour}시간봉`;
-        } else if (interval.day) {
-          candleTime = `${interval.day}일봉`;
-        } else {
+      console.log('분봉 데이터 확인:', data.candle_data);
+      
+      if (data.candle_data) {
+        // ui_current_interval에서 분봉 정보 추출
+        if (data.candle_data.ui_current_interval && data.candle_data.ui_current_interval.interval) {
+          const interval = data.candle_data.ui_current_interval.interval;
+          console.log('UI 현재 간격:', interval);
+          if (interval.minute) {
+            candleTime = `${interval.minute}분봉`;
+          } else if (interval.hour) {
+            candleTime = `${interval.hour}시간봉`;
+          } else if (interval.day) {
+            candleTime = `${interval.day}일봉`;
+          } else {
+            candleTime = 'API 분봉';
+          }
+        }
+        // server_current_interval에서 분봉 정보 추출 (백업)
+        else if (data.candle_data.server_current_interval && data.candle_data.server_current_interval.interval) {
+          const interval = data.candle_data.server_current_interval.interval;
+          console.log('서버 현재 간격:', interval);
+          if (interval.minute) {
+            candleTime = `${interval.minute}분봉`;
+          } else if (interval.hour) {
+            candleTime = `${interval.hour}시간봉`;
+          } else if (interval.day) {
+            candleTime = `${interval.day}일봉`;
+          } else {
+            candleTime = 'API 분봉';
+          }
+        }
+        // candle_data가 있지만 interval 정보가 없는 경우
+        else {
           candleTime = 'API 분봉';
         }
       }
