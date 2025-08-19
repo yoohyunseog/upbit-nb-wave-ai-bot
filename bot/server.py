@@ -5447,7 +5447,8 @@ def api_trainer_storage_modify():
                 'action': 'MANUAL_MODIFY',
                 'price': current_price,
                 'size': abs(amount),  # Use 'size' instead of 'amount'
-                'profit': 0.0
+                'profit': 0.0,
+                'new_balance': new_coins  # Add new balance for reference
             }
             
             # Include trade matching info if provided
@@ -5541,7 +5542,7 @@ def api_trainer_storage_tick():
                 'ts': int(time.time() * 1000),  # milliseconds timestamp
                 'action': 'MANUAL_TICK',
                 'price': 0.0,
-                'size': 0.0,
+                'size': _trainer_storage[trainer]['coins'],  # Use current coin balance
                 'profit': 0.0,
                 'tick_delta': delta,
                 'old_ticks': current_ticks,
