@@ -48,7 +48,8 @@ function getMayorGuidanceData() {
       nbTrust: result.nb_trust || 82,
       winRate: result.win_rate || 0,
       historyCount: result.history_count || 0,
-      timestamp: result.timestamp || Date.now()
+      timestamp: result.timestamp || Date.now(),
+      candle_data: result.candle_data || null
     };
   }).fail(function(xhr, status, error) {
     console.error('촌장 지침 데이터 가져오기 실패:', error);
@@ -316,7 +317,21 @@ function updateRealtimeMayorGuidance() {
         second: '2-digit',
         hour12: false 
       }) : '--:--:--';
-      const candleTime = data.candle_data ? 'API 분봉' : '--분봉';
+      
+      // 분봉 정보 추출 (API에서 받은 candle_data 사용)
+      let candleTime = '--분봉';
+      if (data.candle_data && data.candle_data.ui_current_interval && data.candle_data.ui_current_interval.interval) {
+        const interval = data.candle_data.ui_current_interval.interval;
+        if (interval.minute) {
+          candleTime = `${interval.minute}분봉`;
+        } else if (interval.hour) {
+          candleTime = `${interval.hour}시간봉`;
+        } else if (interval.day) {
+          candleTime = `${interval.day}일봉`;
+        } else {
+          candleTime = 'API 분봉';
+        }
+      }
       
       $(this).html(`
         <div style="margin-bottom: 4px;">
