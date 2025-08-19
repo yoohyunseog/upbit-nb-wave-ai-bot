@@ -189,7 +189,7 @@ function generateMemberStatusHTML(member) {
     
     <!-- AI 거래 설명 -->
     <div style="font-size: 9px; color: #888888; margin-top: 4px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 3px;" id="ai-explanation-${member.name}">
-      🤖 AI 트레이딩 설명: ${member.strategy || 'momentum'} 전략 기반 분석
+      🤖 AI 트레이딩 설명: 로딩 중...
     </div>
     
     <!-- 촌장 지침 학습 모델 훈련 버튼 -->
