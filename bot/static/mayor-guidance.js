@@ -404,9 +404,6 @@ function updateRealtimeMayorGuidance() {
         <div style="margin-bottom: 4px;">
           <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
         </div>
-        <div style="margin-bottom: 4px;">
-          <span style="color: #ff9800;">📊 분봉 정보: </span><span style="color: #ff9800; font-weight: 600; background: rgba(255,152,0,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime}</span>
-        </div>
       `);
     });
     
@@ -514,9 +511,6 @@ function restoreRealtimeMayorGuidance() {
            </div>
           <div style="margin-bottom: 4px;">
             <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
-          </div>
-          <div style="margin-bottom: 4px;">
-            <span style="color: #ff9800;">📊 분봉 정보: </span><span style="color: #ff9800; font-weight: 600; background: rgba(255,152,0,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime}</span>
           </div>
         `);
       });
@@ -663,9 +657,6 @@ function getMayorGuidanceStatus(member) {
        </div>
       <div style="margin-bottom: 2px;">
         <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
-      </div>
-      <div style="margin-bottom: 2px;">
-        <span style="color: #ff9800;">📊 분봉 정보: </span><span style="color: #ff9800; font-weight: 600; background: rgba(255,152,0,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime}</span>
       </div>
     `;
     
