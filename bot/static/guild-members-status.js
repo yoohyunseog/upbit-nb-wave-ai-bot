@@ -62,7 +62,21 @@ async function updateGuildMembersStatus() {
       }
 
       if (!aiExplanationRestored && typeof window.getAIExplanation === 'function') {
-        window.getAIExplanation(member.name).catch(e => console.error('Error updating AI explanation:', e));
+        window.getAIExplanation(member.name).then(explanation => {
+          const aiElement = document.getElementById(`ai-explanation-${member.name}`);
+          if (aiElement) {
+            // Handle both string and object responses
+            const explanationText = typeof explanation === 'string' ? explanation : 
+              (explanation && explanation.text ? explanation.text : 'AI 분석 중...');
+            aiElement.innerHTML = `🤖 AI 트레이딩 설명: ${explanationText}`;
+          }
+        }).catch(e => {
+          console.error('Error updating AI explanation:', e);
+          const aiElement = document.getElementById(`ai-explanation-${member.name}`);
+          if (aiElement) {
+            aiElement.innerHTML = '🤖 AI 트레이딩 설명: 분석 오류';
+          }
+        });
       }
     });
 
@@ -124,7 +138,7 @@ function generateMemberInfoHTML(member) {
         N/B 코인: ${member.nbCoins.toFixed(8)} (≈ ${Math.round(warehouseValue).toLocaleString()} KRW)
       </div>
       <div style="font-size: 10px; color: #888888;">
-        승률: ${member.winRate.toFixed(1)}% (${member.totalTrades}회)
+        승률: ${member.winRate.toFixed(1)}% (${member.totalTrades || 0}회)
       </div>
     </div>
   `;
@@ -196,17 +210,17 @@ function generateMemberStatusHTML(member) {
   return `
     <!-- 촌장 지침 상태 -->
     <div style="font-size: 9px; color: #888888; margin-top: 8px;" id="mayor-guidance-${member.name}">
-      🏛️ 촌장 지침: 로딩 중...
+      🏛️ 촌장 지침: ${member.role} 역할 - ${member.specialty || '전략 분석 중'}
     </div>
     
     <!-- 자동 학습 상태 표시 -->
     <div style="font-size: 8px; color: #888888; margin-top: 2px;" id="auto-learning-status-${member.name}">
-      자동 학습: 로딩 중...
+      자동 학습: ${member.autoTradingEnabled ? '활성화' : '비활성화'}
     </div>
     
     <!-- AI 거래 설명 -->
     <div style="font-size: 9px; color: #888888; margin-top: 4px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 3px;" id="ai-explanation-${member.name}">
-      AI 거래 판단: 로딩 중...
+      🤖 AI 트레이딩 설명: ${member.strategy || 'momentum'} 전략 기반 분석
     </div>
     
     <!-- 촌장 지침 학습 모델 훈련 버튼 -->
