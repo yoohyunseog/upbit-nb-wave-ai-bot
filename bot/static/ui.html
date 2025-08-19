@@ -451,14 +451,21 @@
                 <div id="villageState" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px;">-</div>
               </div>
               
-              <!-- N/B Stamina System -->
+              <!-- 마을의 이동 에너지 시스템 -->
               <div class="mt-2">
                 <div class="d-flex justify-content-between align-items-center">
-                  <strong class="text-white" style="font-size:12px">N/B Stamina System</strong>
+                  <strong class="text-white" style="font-size:12px">마을의 이동 에너지</strong>
                   <span id="staminaMeta" class="text-muted" style="font-size:11px"></span>
                 </div>
                 <div id="staminaSystem" class="mt-1" style="font-size:12px; color:#ffffff; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:8px;">
-                  <div class="text-muted" style="font-size:11px">Stamina: 0/100 | Treasury Access: Locked</div>
+                  <div class="text-muted" style="font-size:11px">에너지: 0/99999 | Treasury Access: Unlocked</div>
+                  <div class="text-muted" style="font-size:11px">Recovery: Chart Interval Changes</div>
+                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                    <div style="width: 120px; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden;">
+                      <div id="energyBar" style="width: 0%; height: 100%; background: #4caf50; transition: width 0.3s ease;"></div>
+                    </div>
+                    <button onclick="fillVillageEnergy()" style="background: #4caf50; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer;" title="마을 에너지 99999 채우기">99999</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -644,10 +651,12 @@
     </div>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://unpkg.com/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"></script>
+  <script src="/static/mayor-guidance.js?v=dev"></script>
   <script src="/static/ui.js?v=dev"></script>
 </body>
 </html>

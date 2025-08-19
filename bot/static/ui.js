@@ -797,7 +797,6 @@
   const sPrice = document.getElementById('s_price');
 
   const sSignal = document.getElementById('s_signal');
-
   const sEma = document.getElementById('s_ema');
 
   const sBot = document.getElementById('s_bot');
@@ -1598,7 +1597,6 @@
     };
 
   }
-
   function calculateBit(nb, bit=5.5, reverse=false){
 
     if (!nb || nb.length < 2) return bit/100;
@@ -1920,7 +1918,6 @@
       nbMinSeries.setData([]);
 
       // Simulated wave using baseline around dynamic middle
-
       const lastWin = data.slice(Math.max(0, data.length - n), data.length);
 
       if (lastWin.length){
@@ -2687,7 +2684,6 @@
   // Predicted path series
 
   const predSeries = chart.addLineSeries({ color:'#ffffff', lineStyle: 0, lineWidth: 2 });
-
   const predMarkerSeries = chart.addLineSeries({ color:'rgba(0,0,0,0)', lineWidth: 0, priceLineVisible:false });
 
   function updateForecast(){
@@ -3487,7 +3483,6 @@
     updateTitleWithZone();
 
     refreshNbZoneStrip(); // Initial N/B Zone strip update (분봉 표시 포함)
-
   }, 1000);
 
   
@@ -4279,9 +4274,6 @@
     }catch(e){ uiLog('ML Metrics error', String(e)); }
 
   });
-
-
-
   // -------- Backtest using NB signals on current chart data --------
 
   function runBacktest(){
@@ -5013,9 +5005,6 @@
      }
 
    }
-
-
-
   // N/B COIN strip renderer
 
   async function refreshNbCoinStrip(){
@@ -5286,7 +5275,7 @@
 
                   <span>Guild Status:</span>
 
-                  <span style='color: ${guildStatus.nbEnergyColor};'>마을의 이동 에너지: ${guildStatus.nbEnergy}%</span>
+                  <span style='color: ${guildStatus.nbEnergyColor};'>Guild Members: ${guildStatus.activeMembers} active</span>
 
                 </div>
 
@@ -5627,9 +5616,6 @@
     }catch(_){ return ''; }
 
   }
-
-
-
   // NPC message generation button
 
   try{
@@ -6429,7 +6415,6 @@
     }catch(e){ const box = document.getElementById('balanceBox'); if (box) box.textContent = String(e); }
 
   });
-
   // --- Top assets auto loader ---
 
   async function refreshAssets(){
@@ -6872,7 +6857,7 @@
 
     current: 0, // Start from 0
 
-    max: 100,
+    max: 99999,
 
     recoveryRate: 0, // No automatic recovery
 
@@ -6897,9 +6882,6 @@
     totalProfit: 0
 
   };
-
-
-
     // Update real-time trading status
 
   async function updateRealTimeTradingStatus() {
@@ -7262,15 +7244,38 @@
       }
 
 
-      // System status header
+      // System status header - Removed duplicate energy display
 
-      const nbEnergyStatus = typeof nbEnergy !== 'undefined' ? 
-
-        `마을의 이동 에너지: ${nbEnergy.current}/${nbEnergy.max}` : '마을의 이동 에너지: 초기화 중';
-
-      
-
-      let html = `<div style="font-size: 11px; color: #d9e2f3; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">${nbEnergyStatus}</div>`;
+      let html = `
+        <!-- 촌장의 실시간 지침 및 현재 구역 정보 -->
+        <div style="font-size: 11px; color: #d9e2f3; margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 3px solid #ffb703;">
+          <div style="font-weight: 600; margin-bottom: 4px;">🏛️ 촌장의 실시간 지침</div>
+          <div style="font-size: 9px; color: #888888; margin-bottom: 2px;" id="mayor-realtime-guidance">
+            <span style="color: #ffb703;">⚡ 현재 구역: </span><span id="current-zone-display">🟠 ORANGE</span>
+          </div>
+          <div style="font-size: 9px; color: #888888; margin-bottom: 2px;">
+            <span style="color: #0ecb81;">✅ BLUE 구역: </span>BUY만 허용 (SELL 금지)
+          </div>
+          <div style="font-size: 9px; color: #888888; margin-bottom: 2px;">
+            <span style="color: #f6465d;">⚠️ ORANGE 구역: </span>SELL만 허용 (BUY 금지)
+          </div>
+          <div style="font-size: 9px; color: #888888; margin-bottom: 2px;" id="mayor-trust-display">
+            <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">40%</span> | <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">86%</span> (86개 히스토리)
+          </div>
+          <div style="font-size: 9px; color: #888888;">
+            <span style="color: #ffb703;">🔄 실시간 동기화: </span>
+            <div id="zoneConsistencyInfo" style="font-size: 8px; color: #888; margin-top: 2px;">
+              <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
+                🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
+                N/B: 🟠ORANGE | 
+                ML: 🔵BLUE
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="font-size: 11px; color: #d9e2f3; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">Guild Members Status</div>
+      `;
 
       
 
@@ -7542,6 +7547,34 @@
               <div style="font-size: 9px; color: #888888; margin-top: 2px;">
 
                 <span>Strategy: ${member.strategy}</span>
+                
+                <!-- 촌장 지침 준수 여부 및 개인 판단 정보 추가 -->
+                <div style="font-size: 9px; color: #888888; margin-top: 4px; padding: 4px; background: rgba(255,255,255,0.05); border-radius: 3px;" id="mayor-guidance-${member.name}">
+                  촌장 지침 상태 로딩 중...
+                </div>
+                
+                <!-- 자동 학습 상태 표시 -->
+                <div style="font-size: 8px; color: #888888; margin-top: 2px;" id="auto-learning-status-${member.name}">
+                  🤖 자동 학습: 로딩 중...
+                </div>
+                
+                <!-- AI 거래 설명 표시 -->
+                <div style="font-size: 8px; color: #888888; margin-top: 2px;" id="ai-explanation-${member.name}">
+                  🤖 AI 거래 설명: 로딩 중...
+                </div>
+                
+                <!-- 촌장 지침 학습 모델 훈련 버튼 -->
+                <div style="margin-top: 4px;">
+                  <button class="btn btn-sm btn-outline-warning" onclick="trainMayorGuidanceModel()" style="font-size: 8px; padding: 2px 4px;">
+                    🏛️ 촌장 지침 학습
+                  </button>
+                  <button class="btn btn-sm btn-outline-success" onclick="toggleAutoLearning()" style="font-size: 8px; padding: 2px 4px; margin-left: 2px;">
+                    🤖 자동 학습
+                  </button>
+                  <button class="btn btn-sm btn-outline-info" onclick="getAIExplanation('${member.name}')" style="font-size: 8px; padding: 2px 4px; margin-left: 2px;">
+                    🤖 AI 설명
+                  </button>
+                </div>
 
                 <span style="margin-left: 8px;">Confidence: ${calculateMemberConfidence(member).toFixed(0)}%</span>
 
@@ -7591,13 +7624,45 @@
 
       integratedGuildStatus.innerHTML = html;
 
+      // 실시간 촌장 지침 업데이트
+      const realtimeGuidanceRestored = restoreRealtimeMayorGuidance();
+      if (!realtimeGuidanceRestored) {
+        updateRealtimeMayorGuidance().catch(e => console.error('Error updating realtime mayor guidance:', e));
+      }
       
+      // 실시간 촌장 지침 주기적 업데이트 시작
+      startRealtimeMayorGuidanceUpdates();
 
       // Update individual trade slides
 
       updateIndividualTradeSlides();
 
       
+      // 모든 길드 멤버의 촌장 지침 상태와 자동 학습 상태 업데이트
+      Object.values(guildMembers).forEach(member => {
+        // 먼저 저장된 상태 복원 시도
+        const guidanceRestored = restoreMayorGuidanceStatus(member.name);
+        const autoLearningRestored = restoreAutoLearningStatus(member.name);
+        const aiExplanationRestored = restoreAIExplanation(member.name);
+
+        // 실시간 업데이트 (복원되지 않은 경우에만)
+        if (!guidanceRestored) {
+          getMayorGuidanceStatus(member).then(guidanceHtml => {
+            const guidanceElement = document.getElementById(`mayor-guidance-${member.name}`);
+            if (guidanceElement) {
+              guidanceElement.innerHTML = guidanceHtml;
+            }
+          }).catch(e => console.error('Error updating mayor guidance status:', e));
+        }
+
+        if (!autoLearningRestored) {
+          updateAutoLearningStatus(member.name).catch(e => console.error('Error updating auto learning status:', e));
+        }
+
+        if (!aiExplanationRestored) {
+          getAIExplanation(member.name).catch(e => console.error('Error updating AI explanation:', e));
+        }
+      });
 
     } catch (e) {
 
@@ -7606,9 +7671,6 @@
     }
 
   }
-
-
-
   // Generate Trade Slide HTML for individual member
 
   function generateTradeSlideHTML(member) {
@@ -8051,9 +8113,15 @@
 
           </div>
 
-          <div style="width: 120px; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 8px;">
 
-            <div style="width: ${energyPercent}%; height: 100%; background: ${energyColor};"></div>
+            <div style="width: 120px; height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden;">
+
+              <div style="width: ${energyPercent}%; height: 100%; background: ${energyColor};"></div>
+
+            </div>
+
+            <button onclick="fillVillageEnergy()" style="background: #4caf50; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer;" title="마을 에너지 100% 채우기">100%</button>
 
           </div>
 
@@ -8100,6 +8168,67 @@
   }
 
 
+
+  // Fill Village Energy to 100%
+
+  async function fillVillageEnergy() {
+
+    try {
+
+      const response = await fetch('/api/village/energy/fill', {
+
+        method: 'POST',
+
+        headers: {
+
+          'Content-Type': 'application/json'
+
+        }
+
+      });
+
+      
+
+      const data = await response.json();
+
+      if (data.ok) {
+
+        console.log(`✅ Village energy filled: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
+
+        pushOrderLogLine(`[${new Date().toLocaleString()}] 마을 에너지 100% 채움: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
+
+        // Sync local state and update UI immediately
+        if (typeof nbEnergy !== 'undefined' && nbEnergy) {
+          nbEnergy.current = Math.min(nbEnergy.max, 99999);
+          if (nbEnergy.current >= 80) nbEnergy.treasuryAccess = true;
+        }
+        await updateStaminaSystem();
+
+      } else {
+
+        console.error('❌ Failed to fill village energy:', data.error);
+
+        pushOrderLogLine(`[${new Date().toLocaleString()}] 마을 에너지 채우기 실패: ${data.error}`);
+
+      }
+
+    } catch (e) {
+
+      console.error('❌ Error filling village energy:', e);
+
+      pushOrderLogLine(`[${new Date().toLocaleString()}] 마을 에너지 채우기 오류: ${e.message}`);
+
+    }
+
+  }
+
+  
+
+  // Make function globally accessible
+
+  window.fillVillageEnergy = fillVillageEnergy;
+
+  
 
   // Rest All Guild Members
 
@@ -8302,9 +8431,6 @@
     }
 
   }
-
-
-
   // Record Real Trade for Guild Members
 
   function recordRealTrade(side, price, size, profit = 0) {
@@ -9100,9 +9226,6 @@
     }
 
   }
-
-
-
   // Trainer System Diagnostics Function
 
   async function runTrainerDiagnostics() {
@@ -9888,8 +10011,6 @@
       return mlZone;
     }
   }
-
-
   // Auto Mock Trading Scheduler
 
   function autoMockTradingScheduler() {
@@ -10299,9 +10420,6 @@
     }
 
   }
-
-
-
   // Execute Auto Mock Trade for specific member
 
   async function executeAutoMockTrade(member) {
@@ -11060,8 +11178,366 @@
 
   }
 
+  // 자동 학습 토글
+  async function toggleAutoLearning() {
+    try {
+      const response = await fetch('/api/village/auto-learning/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🤖 자동 학습 토글:', result);
+        
+        const status = result.auto_learning_enabled ? '활성화' : '비활성화';
+        pushOrderLogLine(`[${new Date().toLocaleString()}] 🤖 자동 촌장 지침 학습 ${status}`);
+        
+        // 모든 길드 멤버의 자동 학습 상태 업데이트
+        Object.values(guildMembers).forEach(member => {
+          const statusElement = document.getElementById(`auto-learning-status-${member.name}`);
+          if (statusElement) {
+            const color = result.auto_learning_enabled ? '#0ecb81' : '#f6465d';
+            statusElement.innerHTML = `🤖 자동 학습: <span style="color: ${color};">${status}</span>`;
+          }
+        });
+        
+        // Guild Members Status 업데이트
+        updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+        
+      } else {
+        const error = await response.json();
+        console.error('❌ 자동 학습 토글 실패:', error);
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 자동 학습 토글 실패: ${error.error}`);
+      }
+      
+    } catch (e) {
+      console.error('❌ 자동 학습 토글 오류:', e);
+      pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 자동 학습 토글 오류: ${e.message}`);
+    }
+  }
 
+  // 촌장 지침 학습 모델 훈련
+  async function trainMayorGuidanceModel() {
+    try {
+      console.log('🏛️ 촌장 지침 학습 모델 훈련 시작...');
+      
+      const response = await fetch('/api/ml/train-mayor-guidance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          window: 50,
+          ema_fast: 10,
+          ema_slow: 30,
+          horizon: 5,
+          count: 1800,
+          interval: getInterval()
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ 촌장 지침 학습 완료:', result);
+        
+        // 성공 메시지 표시
+        pushOrderLogLine(`[${new Date().toLocaleString()}] 🏛️ 촌장 지침 학습 모델 훈련 완료`);
+        pushOrderLogLine(`[${new Date().toLocaleString()}] 📊 클래스 분포: BUY(${result.classes['1']}) / HOLD(${result.classes['0']}) / SELL(${result.classes['-1']})`);
+        
+        // Guild Members Status 업데이트
+        updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+        
+      } else {
+        const error = await response.json();
+        console.error('❌ 촌장 지침 학습 실패:', error);
+        pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 촌장 지침 학습 실패: ${error.error}`);
+      }
+      
+    } catch (e) {
+      console.error('❌ 촌장 지침 학습 오류:', e);
+      pushOrderLogLine(`[${new Date().toLocaleString()}] ❌ 촌장 지침 학습 오류: ${e.message}`);
+    }
+  }
 
+  // 자동 학습 상태 업데이트
+  async function updateAutoLearningStatus(memberName) {
+    try {
+      const response = await fetch('/api/village/system/overview');
+      
+      if (response.ok) {
+        const result = await response.json();
+        const statusElement = document.getElementById(`auto-learning-status-${memberName}`);
+        if (statusElement) {
+          const autoLearningEnabled = result.current_status?.auto_learning_enabled;
+          const status = autoLearningEnabled ? '활성화' : '비활성화';
+          const color = autoLearningEnabled ? '#0ecb81' : '#f6465d';
+          statusElement.innerHTML = `🤖 자동 학습: <span style="color: ${color};">${status}</span>`;
+          
+          // 상태를 localStorage에 저장
+          localStorage.setItem('auto_learning_status', JSON.stringify({
+            enabled: autoLearningEnabled,
+            timestamp: Date.now(),
+            memberName: memberName
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('자동 학습 상태 업데이트 실패:', e);
+      const statusElement = document.getElementById(`auto-learning-status-${memberName}`);
+      if (statusElement) {
+        statusElement.innerHTML = `🤖 자동 학습: <span style="color: #888888;">상태 불명</span>`;
+      }
+    }
+  }
+
+  // 저장된 자동 학습 상태 복원
+  function restoreAutoLearningStatus(memberName) {
+    try {
+      const savedStatus = localStorage.getItem('auto_learning_status');
+      if (savedStatus) {
+        const status = JSON.parse(savedStatus);
+        const statusElement = document.getElementById(`auto-learning-status-${memberName}`);
+        if (statusElement && status.memberName === memberName) {
+          const autoLearningEnabled = status.enabled;
+          const statusText = autoLearningEnabled ? '활성화' : '비활성화';
+          const color = autoLearningEnabled ? '#0ecb81' : '#f6465d';
+          statusElement.innerHTML = `🤖 자동 학습: <span style="color: ${color};">${statusText}</span>`;
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error('저장된 자동 학습 상태 복원 실패:', e);
+    }
+    return false;
+  }
+
+  // 저장된 촌장 지침 상태 복원
+  function restoreMayorGuidanceStatus(memberName) {
+    try {
+      const savedGuidance = localStorage.getItem(`mayor_guidance_${memberName}`);
+      if (savedGuidance) {
+        const guidance = JSON.parse(savedGuidance);
+        const guidanceElement = document.getElementById(`mayor-guidance-${memberName}`);
+        if (guidanceElement && guidance.memberName === memberName) {
+          // 30분 이내의 데이터만 유효로 간주
+          const isRecent = (Date.now() - guidance.timestamp) < 30 * 60 * 1000;
+          if (isRecent) {
+            guidanceElement.innerHTML = `
+              <div style="color: ${guidance.guidanceColor}; font-weight: 600; margin-bottom: 2px;">
+                🏛️ ${guidance.guidanceStatus}
+              </div>
+              <div style="color: #888888; font-size: 8px;">
+                ${guidance.trustInfo}
+              </div>
+              <div style="color: #888888; font-size: 8px;">
+                🔄 실시간 동기화 | N/B: 🟠${guidance.currentZone} | ML: 🟠${guidance.currentZone}
+              </div>
+              <div style="color: #888888; font-size: 8px;">
+                Zone-Side Only: BUY@BLUE / SELL@ORANGE
+              </div>
+            `;
+            return true;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('저장된 촌장 지침 상태 복원 실패:', e);
+    }
+    return false;
+  }
+
+  // 페이지 로드 시 저장된 상태 복원
+  function restoreAllSavedStates() {
+    console.log('🔄 저장된 상태 복원 중...');
+    
+    // 실시간 촌장 지침 복원
+    restoreRealtimeMayorGuidance();
+    
+    // 모든 길드 멤버의 저장된 상태 복원
+    Object.values(guildMembers).forEach(member => {
+      restoreMayorGuidanceStatus(member.name);
+      restoreAutoLearningStatus(member.name);
+      restoreAIExplanation(member.name);
+    });
+    
+    console.log('✅ 저장된 상태 복원 완료');
+  }
+
+  // AI 거래 설명 가져오기
+  async function getAIExplanation(memberName) {
+    try {
+      const response = await fetch(`/api/village/ai-explanation/${memberName}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🤖 AI 거래 설명:', result);
+        
+        const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
+        if (explanationElement) {
+          const exp = result.explanation;
+          explanationElement.innerHTML = `
+            <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
+              🤖 AI 거래 판단: ${result.current_action}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.reason}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.timing}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.zone_status}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.strategy}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.position}
+            </div>
+          `;
+        }
+        
+        // 설명을 localStorage에 저장
+        localStorage.setItem(`ai_explanation_${memberName}`, JSON.stringify({
+          ...result,
+          timestamp: Date.now()
+        }));
+        
+      } else {
+        const error = await response.json();
+        console.error('❌ AI 거래 설명 실패:', error);
+      }
+      
+    } catch (e) {
+      console.error('❌ AI 거래 설명 오류:', e);
+    }
+  }
+
+  // 저장된 AI 거래 설명 복원
+  function restoreAIExplanation(memberName) {
+    try {
+      const savedExplanation = localStorage.getItem(`ai_explanation_${memberName}`);
+      if (savedExplanation) {
+        const explanation = JSON.parse(savedExplanation);
+        const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
+        if (explanationElement && explanation.explanation) {
+          const exp = explanation.explanation;
+          explanationElement.innerHTML = `
+            <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
+              🤖 AI 거래 판단: ${explanation.current_action}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.reason}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.timing}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.zone_status}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.strategy}
+            </div>
+            <div style="color: #888888; font-size: 7px;">
+              ${exp.position}
+            </div>
+          `;
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error('저장된 AI 거래 설명 복원 실패:', e);
+    }
+    return false;
+  }
+
+  // 촌장 지침 시스템 import
+  // 참고: mayor-guidance.js 파일에서 함수들을 가져와서 사용
+
+  // 저장된 실시간 촌장 지침 복원
+  function restoreRealtimeMayorGuidance() {
+    try {
+      const savedGuidance = localStorage.getItem('realtime_mayor_guidance');
+      if (savedGuidance) {
+        const guidance = JSON.parse(savedGuidance);
+        const nbZone = guidance.nb_zone || guidance.current_zone || 'ORANGE';
+        const mlZone = guidance.ml_zone || 'BLUE';
+        
+        // 현재 구역 표시 복원 (N/B 시스템 기준 - 실시간 동기화와 일치)
+        const zoneDisplay = document.getElementById('current-zone-display');
+        if (zoneDisplay) {
+          const zoneColor = nbZone === 'BLUE' ? '#0ecb81' : '#f6465d';
+          const zoneEmoji = nbZone === 'BLUE' ? '🔵' : '🟠';
+          zoneDisplay.innerHTML = `<span style="color: ${zoneColor}; font-weight: 600;">${zoneEmoji} ${nbZone}</span>`;
+        }
+        
+        // 실시간 동기화 상태 복원 (N/B와 ML의 실제 구역 표시)
+        const zoneConsistencyInfo = document.getElementById('zoneConsistencyInfo');
+        if (zoneConsistencyInfo) {
+          const nbColor = nbZone === 'BLUE' ? '🔵' : '🟠';
+          const mlColor = mlZone === 'BLUE' ? '🔵' : '🟠';
+          zoneConsistencyInfo.innerHTML = `
+            <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
+              🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
+              N/B: ${nbColor}${nbZone} | 
+              ML: ${mlColor}${mlZone}
+            </div>
+          `;
+        }
+        
+        // 신뢰도 정보 복원
+        const trustDisplay = document.getElementById('mayor-trust-display');
+        if (trustDisplay) {
+          const mlTrust = guidance.ml_trust || 40;
+          const nbTrust = guidance.nb_trust || 86;
+          trustDisplay.innerHTML = `
+            <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span> | <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
+          `;
+        }
+        
+        return true;
+      }
+    } catch (e) {
+      console.error('저장된 실시간 촌장 지침 복원 실패:', e);
+    }
+    return false;
+  }
+
+  // 실시간 촌장 지침 주기적 업데이트 시작
+  function startRealtimeMayorGuidanceUpdates() {
+    // 기존 타이머가 있다면 제거
+    if (window.realtimeMayorGuidanceTimer) {
+      clearInterval(window.realtimeMayorGuidanceTimer);
+    }
+    
+    // 5초마다 실시간 촌장 지침 업데이트
+    window.realtimeMayorGuidanceTimer = setInterval(() => {
+      updateRealtimeMayorGuidance().catch(e => console.error('Error in periodic realtime mayor guidance update:', e));
+    }, 5000); // 5초마다 업데이트
+    
+    console.log('실시간 촌장 지침 주기적 업데이트 시작 (5초 간격)');
+  }
+
+  // 실시간 촌장 지침 주기적 업데이트 중지
+  function stopRealtimeMayorGuidanceUpdates() {
+    if (window.realtimeMayorGuidanceTimer) {
+      clearInterval(window.realtimeMayorGuidanceTimer);
+      window.realtimeMayorGuidanceTimer = null;
+      console.log('실시간 촌장 지침 주기적 업데이트 중지');
+    }
+  }
+
+  // 페이지 로드 완료 시 상태 복원 실행
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', restoreAllSavedStates);
+  } else {
+    restoreAllSavedStates();
+  }
+
+  // 촌장 지침 시스템은 mayor-guidance.js에서 관리됨
   // Check if member should close their position
 
   function shouldClosePosition(member, currentPrice, interval) {
@@ -11851,9 +12327,6 @@
     }
 
   }
-
-
-
   // Update zone indicator on chart
 
   function updateZoneIndicator() {
@@ -12632,9 +13105,6 @@
     // Keeping it for compatibility but it's no longer needed
 
   }
-
-
-
   // Force start auto trading for testing
 
   function forceStartAutoTrading() {
@@ -12902,8 +13372,3 @@
   setInterval(syncCurrentZoneWithNBStatus, 1000); // Check every 1 second
 
 })();
-
-
-
-
-

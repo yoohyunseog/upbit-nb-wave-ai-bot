@@ -1,4 +1,3 @@
- 
 import os
 import math
 import threading
@@ -16,11 +15,954 @@ import uuid
 import requests
 import hashlib
 import random
+from datetime import datetime, timedelta
 
 from main import load_config, get_candles
 from dotenv import load_dotenv
 from strategy import decide_signal
 from trade import Trader, TradeConfig
+
+# ===== 8BIT 마을 시스템 =====
+
+# 마을 에너지 시스템
+VILLAGE_ENERGY = 150
+MAX_VILLAGE_ENERGY = 100
+ENERGY_ACCUMULATED = 150
+
+# 촌장의 신뢰도 시스템
+MAYOR_TRUST_SYSTEM = {
+    "ML_Model_Trust": 40,    # 🤖 ML 모델 신뢰도
+    "NB_Guild_Trust": 82,    # 🏛️ N/B 길드 신뢰도 (82개 히스토리)
+    "last_guidance": None,
+    "guidance_history": [],
+    "auto_learning_enabled": True,  # 자동 촌장 지침 학습 활성화
+    "last_learning_time": None,     # 마지막 학습 시간
+    "learning_interval": 3600       # 학습 간격 (1시간)
+}
+
+# ===== 마을 출입 일지 시스템 =====
+VILLAGE_ENTRY_EXIT_LOG = {
+    "total_residents": 10,  # 총 주민 수
+    "current_in_village": 4,  # 현재 마을 내 주민 수
+    "current_in_orange": 3,   # 현재 ORANGE 구역 주민 수
+    "current_in_blue": 3,     # 현재 BLUE 구역 주민 수
+    "zone_logs": {
+        "ORANGE": {
+            "residents": [],  # ORANGE 구역 주민 목록
+            "activities": [], # ORANGE 구역 활동 기록
+            "entry_exit_log": []  # ORANGE 구역 출입 기록
+        },
+        "BLUE": {
+            "residents": [],  # BLUE 구역 주민 목록
+            "activities": [], # BLUE 구역 활동 기록
+            "entry_exit_log": []  # BLUE 구역 출입 기록
+        },
+        "VILLAGE": {
+            "residents": [],  # 마을 내 주민 목록
+            "activities": [], # 마을 내 활동 기록
+            "entry_exit_log": []  # 마을 출입 기록
+        }
+    },
+    "resident_status": {}  # 각 주민별 현재 상태
+}
+
+# 마을 주민 시스템 (Guild Members)
+VILLAGE_RESIDENTS = {
+    "scout": {
+        "name": "Scout",
+        "hp": 85,
+        "maxHp": 100,
+        "stamina": 70,
+        "maxStamina": 100,
+        "location": "Gate",
+        "role": "Explorer",
+        "trainerCards": ["minute1", "minute3"],
+        "specialty": "Quick Signals",
+        "description": "Monitors 1m & 3m charts for rapid opportunities",
+        "skillLevel": 2.9,
+        "experience": 0,
+        "learningRate": 0.1,
+        "autoTradingEnabled": True,
+        "lastAutoTrade": None,
+        "tradeFrequency": 0.6,
+        "strategy": "momentum",
+        "nbCoins": 0.001,
+        "totalNbCoinsEarned": 0.0,
+        "totalNbCoinsLost": 0.0,
+        "openPosition": None,
+        "positionHistory": [],
+        "averagePrice": 0.0,
+        "totalPositionSize": 0.0
+    },
+    "guardian": {
+        "name": "Guardian",
+        "hp": 95,
+        "maxHp": 100,
+        "stamina": 80,
+        "maxStamina": 100,
+        "location": "Market",
+        "role": "Protector",
+        "trainerCards": ["minute5", "minute10"],
+        "specialty": "Trend Protection",
+        "description": "Protects trends with 5m & 10m charts",
+        "skillLevel": 1.0,
+        "experience": 0,
+        "learningRate": 0.15,
+        "autoTradingEnabled": True,
+        "lastAutoTrade": None,
+        "tradeFrequency": 0.4,
+        "strategy": "mean_reversion",
+        "nbCoins": 0.001,
+        "totalNbCoinsEarned": 0.0,
+        "totalNbCoinsLost": 0.0,
+        "openPosition": None,
+        "positionHistory": [],
+        "averagePrice": 0.0,
+        "totalPositionSize": 0.0
+    },
+    "analyst": {
+        "name": "Analyst",
+        "hp": 60,
+        "maxHp": 100,
+        "stamina": 90,
+        "maxStamina": 100,
+        "location": "Tower",
+        "role": "Strategist",
+        "trainerCards": ["minute15", "minute30"],
+        "specialty": "Strategic Analysis",
+        "description": "Develops strategies with 15m & 30m charts",
+        "skillLevel": 1.0,
+        "experience": 0,
+        "learningRate": 0.12,
+        "autoTradingEnabled": True,
+        "lastAutoTrade": None,
+        "tradeFrequency": 0.3,
+        "strategy": "breakout",
+        "nbCoins": 0.001,
+        "totalNbCoinsEarned": 0.0,
+        "totalNbCoinsLost": 0.0,
+        "openPosition": None,
+        "positionHistory": [],
+        "averagePrice": 0.0,
+        "totalPositionSize": 0.0
+    },
+    "elder": {
+        "name": "Elder",
+        "hp": 75,
+        "maxHp": 100,
+        "stamina": 85,
+        "maxStamina": 100,
+        "location": "Inn",
+        "role": "Advisor",
+        "trainerCards": ["minute60", "day"],
+        "specialty": "Long-term Wisdom",
+        "description": "Provides wisdom with 1h & daily charts",
+        "skillLevel": 1.0,
+        "experience": 0,
+        "learningRate": 0.08,
+        "autoTradingEnabled": True,
+        "lastAutoTrade": None,
+        "tradeFrequency": 0.2,
+        "strategy": "trend_following",
+        "nbCoins": 0.001,
+        "totalNbCoinsEarned": 0.0,
+        "totalNbCoinsLost": 0.0,
+        "openPosition": None,
+        "positionHistory": [],
+        "averagePrice": 0.0,
+        "totalPositionSize": 0.0
+    }
+}
+
+# 트레이너 창고 시스템
+TRAINER_WAREHOUSES = {}
+
+def initialize_trainer_warehouses():
+    """트레이너 창고 초기화"""
+    for trainer_name, trainer_data in VILLAGE_RESIDENTS.items():
+        TRAINER_WAREHOUSES[trainer_name] = {
+            "location": f"{trainer_data['location']} Warehouse",
+            "capacity": "무제한",
+            "real_time_storage": True,
+            "trade_records": {
+                "real_trades": [],
+                "mock_trades": [],
+                "current_position": None
+            },
+            "profit_loss_history": {
+                "total_profit": 0,
+                "win_rate": 0,
+                "total_trades": 0,
+                "profitable_trades": 0,
+                "losing_trades": 0
+            },
+            "learning_data": {
+                "successful_patterns": [],
+                "failed_patterns": [],
+                "market_conditions": [],
+                "strategy_effectiveness": {}
+            },
+            # 거래 일지 시스템 추가
+            "trade_journal": {
+                "recent_entries": [],  # 최근 10개 거래 일지
+                "zone_entries": {      # 구역별 거래 일지
+                    "ORANGE": [],
+                    "BLUE": []
+                },
+                "mayor_guidance_log": [],  # 촌장 지침 기록
+                "ml_model_decisions": []   # ML 모델 판단 기록
+            }
+        }
+
+# 비트카 에너지 시스템
+BITCAR_ENERGY_SYSTEM = {
+    "scout": {"energy": 70, "bitcar_model": "Quick Signal Runner"},
+    "guardian": {"energy": 80, "bitcar_model": "Trend Protector"},
+    "analyst": {"energy": 90, "bitcar_model": "Strategic Analyzer"},
+    "elder": {"energy": 85, "bitcar_model": "Wisdom Keeper"}
+}
+
+# 마을 시스템 초기화
+initialize_trainer_warehouses()
+
+# ===== 8BIT 마을 시스템 함수들 =====
+
+def mayor_trust_guidance():
+    """촌장의 신뢰도 기반 지침 생성"""
+    global MAYOR_TRUST_SYSTEM
+    
+    guidance = {
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "location": "Town Hall",
+        "announcement": "마을 주민 여러분, 신뢰도 기반 지침을 전달합니다.",
+        
+        "trust_analysis": {
+            "ml_model_trust": MAYOR_TRUST_SYSTEM["ML_Model_Trust"],
+            "nb_guild_trust": MAYOR_TRUST_SYSTEM["NB_Guild_Trust"],
+            "interpretation": "신뢰도 분석 결과"
+        },
+        
+        "guidance": {
+            "zone": "ORANGE",
+            "official_strategy": "신중한 방어적 접근",
+            "trust_adjusted_strategy": "개인 판단 우선, ML 모델 참고",
+            "energy_requirement": "최소 50 에너지",
+            "special_instructions": "신뢰도 시스템 준수"
+        }
+    }
+    
+    MAYOR_TRUST_SYSTEM["last_guidance"] = guidance
+    MAYOR_TRUST_SYSTEM["guidance_history"].append(guidance)
+    
+    return guidance
+
+def generate_ai_trading_explanation(trainer_name, current_action, current_zone, r_value, confidence, position_status):
+    """AI 거래 판단 설명 생성"""
+    
+    explanations = {
+        "BUY": {
+            "BLUE": {
+                "reason": "✅ 촌장 지침 준수: BLUE 구역에서 BUY 허용",
+                "timing": "🕐 즉시 실행 가능 (구역 조건 충족)",
+                "confidence": f"🤖 ML 모델 신뢰도: {confidence}%",
+                "zone_status": f"📊 현재 r값: {r_value:.3f} (BLUE 구역 유지)",
+                "strategy": "📈 공격적 매수 전략 (BLUE 구역 특성)"
+            },
+            "ORANGE": {
+                "reason": "❌ 촌장 지침 위반: ORANGE 구역에서 BUY 금지",
+                "timing": "⏳ BLUE 구역 전환 대기 필요 (r값 0.45 이하)",
+                "confidence": f"🤖 ML 모델 신뢰도: {confidence}% (낮음)",
+                "zone_status": f"📊 현재 r값: {r_value:.3f} (ORANGE 구역)",
+                "strategy": "⚠️ 개인 판단 우선 (촌장 지침 무시)"
+            }
+        },
+        "SELL": {
+            "BLUE": {
+                "reason": "❌ 촌장 지침 위반: BLUE 구역에서 SELL 금지",
+                "timing": "⏳ ORANGE 구역 전환 대기 필요 (r값 0.55 이상)",
+                "confidence": f"🤖 ML 모델 신뢰도: {confidence}% (낮음)",
+                "zone_status": f"📊 현재 r값: {r_value:.3f} (BLUE 구역)",
+                "strategy": "⚠️ 개인 판단 우선 (촌장 지침 무시)"
+            },
+            "ORANGE": {
+                "reason": "✅ 촌장 지침 준수: ORANGE 구역에서 SELL 허용",
+                "timing": "🕐 즉시 실행 가능 (구역 조건 충족)",
+                "confidence": f"🤖 ML 모델 신뢰도: {confidence}%",
+                "zone_status": f"📊 현재 r값: {r_value:.3f} (ORANGE 구역 유지)",
+                "strategy": "📉 방어적 매도 전략 (ORANGE 구역 특성)"
+            }
+        },
+        "HOLD": {
+            "BLUE": {
+                "reason": "⏸️ BLUE 구역에서 관망 (BUY 대기)",
+                "timing": "🕐 적절한 진입 시점 대기",
+                "confidence": f"🤖 ML 모델 신뢰도: {confidence}%",
+                "zone_status": f"📊 현재 r값: {r_value:.3f} (BLUE 구역)",
+                "strategy": "👀 관망 전략 (더 나은 진입점 대기)"
+            },
+            "ORANGE": {
+                "reason": "⏸️ ORANGE 구역에서 관망 (SELL 대기)",
+                "timing": "🕐 적절한 청산 시점 대기",
+                "confidence": f"🤖 ML 모델 신뢰도: {confidence}%",
+                "zone_status": f"📊 현재 r값: {r_value:.3f} (ORANGE 구역)",
+                "strategy": "👀 관망 전략 (더 나은 청산점 대기)"
+            }
+        }
+    }
+    
+    # 포지션 상태에 따른 추가 설명
+    position_explanation = ""
+    if position_status == "HAS_POSITION":
+        if current_action == "SELL":
+            position_explanation = "💼 포지션 보유 중 - 청산 시점 판단"
+        elif current_action == "BUY":
+            position_explanation = "💼 포지션 보유 중 - 추가 매수 고려"
+        elif current_action == "HOLD":
+            position_explanation = "💼 포지션 보유 중 - 관망 전략"
+    else:
+        position_explanation = "💼 포지션 없음 - 진입 시점 판단"
+    
+    base_explanation = explanations.get(current_action, {}).get(current_zone, {})
+    
+    return {
+        "trainer": trainer_name,
+        "current_action": current_action,
+        "current_zone": current_zone,
+        "r_value": r_value,
+        "confidence": confidence,
+        "position_status": position_status,
+        "explanation": {
+            "reason": base_explanation.get("reason", "알 수 없음"),
+            "timing": base_explanation.get("timing", "알 수 없음"),
+            "confidence": base_explanation.get("confidence", "알 수 없음"),
+            "zone_status": base_explanation.get("zone_status", "알 수 없음"),
+            "strategy": base_explanation.get("strategy", "알 수 없음"),
+            "position": position_explanation
+        },
+        "timestamp": datetime.now().isoformat()
+    }
+
+def auto_mayor_guidance_learning():
+    """자동 촌장 지침 학습 실행"""
+    global MAYOR_TRUST_SYSTEM
+    
+    try:
+        # 자동 학습이 비활성화되어 있으면 스킵
+        if not MAYOR_TRUST_SYSTEM.get("auto_learning_enabled", True):
+            return
+        
+        current_time = time.time()
+        last_learning_time = MAYOR_TRUST_SYSTEM.get("last_learning_time")
+        learning_interval = MAYOR_TRUST_SYSTEM.get("learning_interval", 3600)  # 1시간
+        
+        # 학습 간격 체크
+        if last_learning_time and (current_time - last_learning_time) < learning_interval:
+            return
+        
+        print("🏛️ 자동 촌장 지침 학습 시작...")
+        
+        # 촌장 지침 학습 모델 훈련 실행
+        cfg = load_config()
+        window = 50
+        ema_fast = 10
+        ema_slow = 30
+        horizon = 5
+        count = 1800
+        interval = cfg.candle
+        
+        df = get_candles(cfg.market, interval, count=count)
+        
+        # 촌장 지침 기반 특성 생성
+        feat = _build_features(df, window, ema_fast, ema_slow, horizon).dropna().copy()
+        
+        # 촌장 지침 라벨링: Zone-Side Only
+        r = _compute_r_from_ohlcv(df, window)
+        HIGH = float(os.getenv('NB_HIGH', '0.55'))
+        LOW = float(os.getenv('NB_LOW', '0.45'))
+        labels = np.zeros(len(df), dtype=int)
+        zone = None
+        r_vals = r.values.tolist()
+        
+        for i in range(len(df)):
+            rv = r_vals[i] if i < len(r_vals) else 0.5
+            if zone not in ('BLUE','ORANGE'):
+                zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+            # hysteresis updates
+            if zone == 'BLUE' and rv >= HIGH:
+                zone = 'ORANGE'
+            elif zone == 'ORANGE' and rv <= LOW:
+                zone = 'BLUE'
+            
+            # 촌장 지침: BUY@BLUE / SELL@ORANGE
+            if zone == 'BLUE':
+                labels[i] = 1  # BUY
+            elif zone == 'ORANGE':
+                labels[i] = -1  # SELL
+            else:
+                labels[i] = 0  # HOLD
+        
+        idx_map = { ts: i for i, ts in enumerate(df.index) }
+        y = np.array([ labels[idx_map.get(ts, 0)] for ts in feat.index ], dtype=int)
+        
+        # 모델 훈련
+        from sklearn.ensemble import GradientBoostingClassifier
+        from sklearn.metrics import classification_report, confusion_matrix
+        
+        # 특성 선택
+        X = feat[['r', 'w', 'ema_diff', 'zone_flag', 'dist_high', 'dist_low', 'zone_conf']]
+        
+        # 모델 훈련
+        model = GradientBoostingClassifier(random_state=42, n_estimators=200, learning_rate=0.05, max_depth=3)
+        model.fit(X.values, y)
+        
+        # 평가
+        yhat = model.predict(X.values)
+        report = classification_report(y, yhat, output_dict=True, zero_division=0)
+        
+        # 모델 저장
+        pack = {
+            'model': model,
+            'window': window,
+            'ema_fast': ema_fast,
+            'ema_slow': ema_slow,
+            'horizon': horizon,
+            'interval': interval,
+            'label_mode': 'mayor_guidance',
+            'trained_at': int(current_time * 1000),
+            'feature_names': list(X.columns),
+            'metrics': {
+                'report': report
+            }
+        }
+        
+        # 모델 저장
+        try:
+            joblib.dump(pack, _model_path_for(interval))
+            print(f"✅ 자동 촌장 지침 학습 완료 - 모델 저장됨")
+        except Exception as e:
+            print(f"❌ 모델 저장 실패: {e}")
+            joblib.dump(pack, ML_MODEL_PATH)
+        
+        # 학습 시간 업데이트
+        MAYOR_TRUST_SYSTEM["last_learning_time"] = current_time
+        
+        # 학습 결과 로그
+        classes = {
+            '-1': int((y==-1).sum()),  # SELL (ORANGE)
+            '0': int((y==0).sum()),    # HOLD
+            '1': int((y==1).sum())     # BUY (BLUE)
+        }
+        print(f"📊 자동 학습 결과 - BUY: {classes['1']}, HOLD: {classes['0']}, SELL: {classes['-1']}")
+        
+    except Exception as e:
+        print(f"❌ 자동 촌장 지침 학습 실패: {e}")
+
+def calculate_weighted_confidence(personal_confidence, ml_trust, nb_guild_trust):
+    """신뢰도 가중 평균 계산"""
+    return (personal_confidence * 0.6) + (ml_trust * 0.2) + (nb_guild_trust * 0.2)
+
+def real_time_trade_recording(trainer_name, trade_data):
+    """실시간 거래 기록 저장"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    
+    # 거래 기록 저장
+    trade_record = {
+        'timestamp': trade_data.get('timestamp', datetime.now().isoformat()),
+        'action': trade_data.get('action'),
+        'price': trade_data.get('price'),
+        'quantity': trade_data.get('quantity', 0),
+        'pnl': trade_data.get('pnl', 0),
+        'strategy': trade_data.get('strategy'),
+        'zone': trade_data.get('zone'),
+        'confidence': trade_data.get('confidence', 0),
+        'trainer': trainer_name
+    }
+    
+    if trade_data.get('is_real', False):
+        warehouse['trade_records']['real_trades'].append(trade_record)
+    else:
+        warehouse['trade_records']['mock_trades'].append(trade_record)
+    
+    # 수익/손실 업데이트
+    update_profit_loss_history(warehouse, trade_data)
+    
+    # 학습 데이터 수집
+    collect_learning_data(warehouse, trade_data)
+    
+    return {"message": f"{trainer_name}의 거래 기록이 창고에 저장되었습니다."}
+
+def update_profit_loss_history(warehouse, trade_data):
+    """수익/손실 기록 업데이트"""
+    history = warehouse['profit_loss_history']
+    
+    # 거래 수 증가
+    history['total_trades'] += 1
+    
+    pnl = trade_data.get('pnl', 0)
+    
+    # 수익/손실 계산
+    if pnl > 0:
+        history['profitable_trades'] += 1
+        history['total_profit'] += pnl
+    else:
+        history['losing_trades'] += 1
+        history['total_profit'] += pnl
+    
+    # 승률 계산
+    if history['total_trades'] > 0:
+        history['win_rate'] = (history['profitable_trades'] / history['total_trades']) * 100
+
+def collect_learning_data(warehouse, trade_data):
+    """학습 데이터 수집"""
+    learning_data = warehouse['learning_data']
+    
+    pattern_data = {
+        'market_condition': trade_data.get('market_condition', 'unknown'),
+        'strategy': trade_data.get('strategy', 'unknown'),
+        'timing': trade_data.get('timing', 'unknown'),
+        'confidence': trade_data.get('confidence', 0),
+        'zone': trade_data.get('zone', 'unknown'),
+        'timestamp': trade_data.get('timestamp', datetime.now().isoformat())
+    }
+    
+    # 성공 패턴 수집
+    if trade_data.get('pnl', 0) > 0:
+        learning_data['successful_patterns'].append(pattern_data)
+    else:
+        # 실패 패턴 수집
+        pattern_data['lesson_learned'] = trade_data.get('lesson_learned', '분석 필요')
+        learning_data['failed_patterns'].append(pattern_data)
+
+def inject_village_energy_to_bitcar(trainer_name, energy_amount):
+    """마을 에너지를 비트카에 주입"""
+    global VILLAGE_ENERGY, BITCAR_ENERGY_SYSTEM
+    
+    if VILLAGE_ENERGY >= energy_amount:
+        if trainer_name in BITCAR_ENERGY_SYSTEM:
+            BITCAR_ENERGY_SYSTEM[trainer_name]["energy"] = energy_amount
+            VILLAGE_ENERGY -= energy_amount
+            return f"{trainer_name}의 비트카에 {energy_amount} 에너지 주입 완료"
+        else:
+            return f"{trainer_name} 트레이너를 찾을 수 없습니다."
+    else:
+        return "마을 에너지 부족"
+
+def get_trainer_warehouse_status(trainer_name):
+    """트레이너 창고 상태 조회"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    
+    return {
+        "trainer": trainer_name,
+        "warehouse_location": warehouse["location"],
+        "storage_usage": f"{len(warehouse['trade_records']['real_trades']) + len(warehouse['trade_records']['mock_trades'])} 거래 기록",
+        "data_integrity": "100%",
+        "last_backup": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "real_time_sync": "활성화",
+        "profit_loss_summary": warehouse['profit_loss_history']
+    }
+
+def analyze_warehouse_data(trainer_name):
+    """창고 데이터 기반 전략 분석"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    
+    analysis = {
+        "trainer": trainer_name,
+        "profitability_analysis": {
+            "total_profit": warehouse['profit_loss_history']['total_profit'],
+            "win_rate": warehouse['profit_loss_history']['win_rate'],
+            "total_trades": warehouse['profit_loss_history']['total_trades']
+        },
+        "strategy_effectiveness": {
+            "successful_patterns_count": len(warehouse['learning_data']['successful_patterns']),
+            "failed_patterns_count": len(warehouse['learning_data']['failed_patterns'])
+        },
+        "recommendations": generate_strategy_recommendations(warehouse)
+    }
+    
+    return analysis
+
+def generate_strategy_recommendations(warehouse):
+    """전략 개선 권장사항 생성"""
+    successful_count = len(warehouse['learning_data']['successful_patterns'])
+    failed_count = len(warehouse['learning_data']['failed_patterns'])
+    
+    if successful_count > failed_count:
+        return "현재 전략이 효과적입니다. 계속 유지하세요."
+    elif failed_count > successful_count:
+        return "전략 개선이 필요합니다. 실패 패턴을 분석해보세요."
+    else:
+        return "전략이 균형을 이루고 있습니다. 더 많은 데이터를 수집해보세요."
+
+# ===== 거래 일지 시스템 =====
+
+def add_trade_journal_entry(trainer_name, entry_data):
+    """거래 일지 항목 추가"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    journal = warehouse['trade_journal']
+    
+    # 기본 일지 항목 생성
+    journal_entry = {
+        'timestamp': entry_data.get('timestamp', datetime.now().isoformat()),
+        'trainer': trainer_name,
+        'action': entry_data.get('action', 'UNKNOWN'),
+        'zone': entry_data.get('zone', 'UNKNOWN'),
+        'price': entry_data.get('price', 0),
+        'pnl': entry_data.get('pnl', 0),
+        'strategy': entry_data.get('strategy', 'unknown'),
+        'confidence': entry_data.get('confidence', 0),
+        'mayor_guidance': entry_data.get('mayor_guidance', ''),
+        'ml_decision': entry_data.get('ml_decision', ''),
+        'reasoning': entry_data.get('reasoning', ''),
+        'lesson_learned': entry_data.get('lesson_learned', ''),
+        'trade_type': entry_data.get('trade_type', 'mock')  # 'real' or 'mock'
+    }
+    
+    # 최근 일지에 추가 (최대 10개 유지)
+    journal['recent_entries'].append(journal_entry)
+    if len(journal['recent_entries']) > 10:
+        journal['recent_entries'] = journal['recent_entries'][-10:]
+    
+    # 구역별 일지에 추가
+    zone = entry_data.get('zone', 'UNKNOWN')
+    if zone in journal['zone_entries']:
+        journal['zone_entries'][zone].append(journal_entry)
+        if len(journal['zone_entries'][zone]) > 10:
+            journal['zone_entries'][zone] = journal['zone_entries'][zone][-10:]
+    
+    # 촌장 지침 기록
+    if entry_data.get('mayor_guidance'):
+        mayor_entry = {
+            'timestamp': journal_entry['timestamp'],
+            'trainer': trainer_name,
+            'guidance': entry_data['mayor_guidance'],
+            'zone': zone,
+            'action': entry_data.get('action', 'UNKNOWN')
+        }
+        journal['mayor_guidance_log'].append(mayor_entry)
+        if len(journal['mayor_guidance_log']) > 10:
+            journal['mayor_guidance_log'] = journal['mayor_guidance_log'][-10:]
+    
+    # ML 모델 판단 기록
+    if entry_data.get('ml_decision'):
+        ml_entry = {
+            'timestamp': journal_entry['timestamp'],
+            'trainer': trainer_name,
+            'decision': entry_data['ml_decision'],
+            'confidence': entry_data.get('confidence', 0),
+            'zone': zone,
+            'action': entry_data.get('action', 'UNKNOWN')
+        }
+        journal['ml_model_decisions'].append(ml_entry)
+        if len(journal['ml_model_decisions']) > 10:
+            journal['ml_model_decisions'] = journal['ml_model_decisions'][-10:]
+    
+    return {"message": f"{trainer_name}의 거래 일지에 항목이 추가되었습니다.", "entry": journal_entry}
+
+def get_trade_journal(trainer_name, journal_type="recent", zone=None):
+    """거래 일지 조회"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    journal = warehouse['trade_journal']
+    
+    if journal_type == "recent":
+        return {
+            "trainer": trainer_name,
+            "journal_type": "recent",
+            "entries": journal['recent_entries'],
+            "count": len(journal['recent_entries'])
+        }
+    elif journal_type == "zone" and zone:
+        if zone in journal['zone_entries']:
+            return {
+                "trainer": trainer_name,
+                "journal_type": "zone",
+                "zone": zone,
+                "entries": journal['zone_entries'][zone],
+                "count": len(journal['zone_entries'][zone])
+            }
+        else:
+            return {"error": f"구역 {zone}의 일지를 찾을 수 없습니다."}
+    elif journal_type == "mayor_guidance":
+        return {
+            "trainer": trainer_name,
+            "journal_type": "mayor_guidance",
+            "entries": journal['mayor_guidance_log'],
+            "count": len(journal['mayor_guidance_log'])
+        }
+    elif journal_type == "ml_decisions":
+        return {
+            "trainer": trainer_name,
+            "journal_type": "ml_decisions",
+            "entries": journal['ml_model_decisions'],
+            "count": len(journal['ml_model_decisions'])
+        }
+    else:
+        return {"error": "지원하지 않는 일지 유형입니다."}
+
+def create_mayor_guidance_entry(trainer_name, zone, action, reasoning):
+    """촌장 지침 기반 거래 일지 생성"""
+    guidance_messages = {
+        "ORANGE": {
+            "BUY": "ORANGE 구역에서 촌장의 방어적 지침을 무시하고 개인 확신으로 BUY 실행",
+            "SELL": "ORANGE 구역에서 촌장의 지침에 따라 신중한 SELL 실행",
+            "HOLD": "ORANGE 구역에서 촌장의 방어적 지침에 따라 HOLD 결정"
+        },
+        "BLUE": {
+            "BUY": "BLUE 구역에서 촌장의 공격적 지침에 따라 자신감 있는 BUY 실행",
+            "SELL": "BLUE 구역에서 촌장의 지침을 무시하고 개인 판단으로 SELL 실행",
+            "HOLD": "BLUE 구역에서 촌장의 공격적 지침을 고려하되 HOLD 결정"
+        }
+    }
+    
+    guidance = guidance_messages.get(zone, {}).get(action, "촌장의 지침을 고려한 거래 결정")
+    
+    return {
+        'timestamp': datetime.now().isoformat(),
+        'trainer': trainer_name,
+        'action': action,
+        'zone': zone,
+        'mayor_guidance': guidance,
+        'reasoning': reasoning,
+        'trade_type': 'mock'
+    }
+
+def create_ml_decision_entry(trainer_name, zone, action, ml_confidence, personal_confidence):
+    """ML 모델 판단 기반 거래 일지 생성"""
+    ml_trust = MAYOR_TRUST_SYSTEM["ML_Model_Trust"]
+    
+    if ml_confidence < ml_trust:
+        decision = f"ML 모델 신뢰도({ml_confidence}%)가 낮아 개인 판단({personal_confidence}%) 우선"
+    else:
+        decision = f"ML 모델 신뢰도({ml_confidence}%)가 높아 ML 판단 채택"
+    
+    return {
+        'timestamp': datetime.now().isoformat(),
+        'trainer': trainer_name,
+        'action': action,
+        'zone': zone,
+        'ml_decision': decision,
+        'ml_confidence': ml_confidence,
+        'personal_confidence': personal_confidence,
+        'trade_type': 'mock'
+    }
+
+# ===== 마을 출입 일지 시스템 함수들 =====
+
+def generate_resident_activity_log(resident_name, zone, activity_type, duration=None):
+    """주민 활동 일지 생성 (AI 자동 작성)"""
+    activities = {
+        "ORANGE": {
+            "rest": [
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 휴식을 취하며 시장 상황을 관찰했습니다.",
+                f"{resident_name}이 ORANGE 구역의 적대적 환경에서 {duration}간 안전한 휴식을 취했습니다.",
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 신중한 관찰을 통해 시장 동향을 파악했습니다."
+            ],
+            "training": [
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 방어적 트레이닝을 수행했습니다.",
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 신중한 거래 연습을 했습니다.",
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 베타 관계 형성에 주의하며 트레이닝했습니다."
+            ],
+            "observation": [
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 적대적 시장 환경을 관찰했습니다.",
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 빠른 수익 실현 기회를 모색했습니다.",
+                f"{resident_name}이 ORANGE 구역에서 {duration}간 방어적 입장을 유지하며 시장을 분석했습니다."
+            ]
+        },
+        "BLUE": {
+            "rest": [
+                f"{resident_name}이 BLUE 구역에서 {duration}간 편안한 휴식을 취하며 시장 기회를 기다렸습니다.",
+                f"{resident_name}이 BLUE 구역의 우호적 환경에서 {duration}간 여유로운 휴식을 취했습니다.",
+                f"{resident_name}이 BLUE 구역에서 {duration}간 자신감을 회복하며 휴식을 취했습니다."
+            ],
+            "training": [
+                f"{resident_name}이 BLUE 구역에서 {duration}간 공격적 트레이닝을 수행했습니다.",
+                f"{resident_name}이 BLUE 구역에서 {duration}간 자신감 있는 거래 연습을 했습니다.",
+                f"{resident_name}이 BLUE 구역에서 {duration}간 알파 접근법으로 트레이닝했습니다."
+            ],
+            "observation": [
+                f"{resident_name}이 BLUE 구역에서 {duration}간 우호적 시장 환경을 관찰했습니다.",
+                f"{resident_name}이 BLUE 구역에서 {duration}간 강한 매수 기회를 모색했습니다.",
+                f"{resident_name}이 BLUE 구역에서 {duration}간 공격적 입장을 유지하며 시장을 분석했습니다."
+            ]
+        },
+        "VILLAGE": {
+            "rest": [
+                f"{resident_name}이 마을에서 {duration}간 편안한 휴식을 취했습니다.",
+                f"{resident_name}이 마을에서 {duration}간 동료들과 대화하며 경험을 나눴습니다.",
+                f"{resident_name}이 마을에서 {duration}간 촌장의 지침을 받으며 휴식을 취했습니다."
+            ],
+            "training": [
+                f"{resident_name}이 마을에서 {duration}간 이론적 트레이닝을 수행했습니다.",
+                f"{resident_name}이 마을에서 {duration}간 동료들과 함께 전략을 논의했습니다.",
+                f"{resident_name}이 마을에서 {duration}간 촌장의 멘토링을 받으며 학습했습니다."
+            ],
+            "observation": [
+                f"{resident_name}이 마을에서 {duration}간 시장 동향을 분석했습니다.",
+                f"{resident_name}이 마을에서 {duration}간 창고의 거래 기록을 검토했습니다.",
+                f"{resident_name}이 마을에서 {duration}간 향후 전략을 계획했습니다."
+            ]
+        }
+    }
+    
+    import random
+    activity_list = activities.get(zone, {}).get(activity_type, [f"{resident_name}이 {zone}에서 활동했습니다."])
+    return random.choice(activity_list)
+
+def record_resident_entry_exit(resident_name, from_zone, to_zone, activity_type="training", duration="몇 시간"):
+    """주민 출입 기록"""
+    global VILLAGE_ENTRY_EXIT_LOG
+    
+    timestamp = datetime.now().isoformat()
+    
+    # 출입 기록 생성
+    entry_exit_record = {
+        'timestamp': timestamp,
+        'resident': resident_name,
+        'from_zone': from_zone,
+        'to_zone': to_zone,
+        'activity_type': activity_type,
+        'duration': duration,
+        'activity_description': generate_resident_activity_log(resident_name, from_zone, activity_type, duration)
+    }
+    
+    # 출발 구역에서 제거
+    if from_zone in VILLAGE_ENTRY_EXIT_LOG['zone_logs']:
+        if resident_name in VILLAGE_ENTRY_EXIT_LOG['zone_logs'][from_zone]['residents']:
+            VILLAGE_ENTRY_EXIT_LOG['zone_logs'][from_zone]['residents'].remove(resident_name)
+        VILLAGE_ENTRY_EXIT_LOG['zone_logs'][from_zone]['entry_exit_log'].append(entry_exit_record)
+        if len(VILLAGE_ENTRY_EXIT_LOG['zone_logs'][from_zone]['entry_exit_log']) > 10:
+            VILLAGE_ENTRY_EXIT_LOG['zone_logs'][from_zone]['entry_exit_log'] = VILLAGE_ENTRY_EXIT_LOG['zone_logs'][from_zone]['entry_exit_log'][-10:]
+    
+    # 도착 구역에 추가
+    if to_zone in VILLAGE_ENTRY_EXIT_LOG['zone_logs']:
+        if resident_name not in VILLAGE_ENTRY_EXIT_LOG['zone_logs'][to_zone]['residents']:
+            VILLAGE_ENTRY_EXIT_LOG['zone_logs'][to_zone]['residents'].append(resident_name)
+        VILLAGE_ENTRY_EXIT_LOG['zone_logs'][to_zone]['entry_exit_log'].append(entry_exit_record)
+        if len(VILLAGE_ENTRY_EXIT_LOG['zone_logs'][to_zone]['entry_exit_log']) > 10:
+            VILLAGE_ENTRY_EXIT_LOG['zone_logs'][to_zone]['entry_exit_log'] = VILLAGE_ENTRY_EXIT_LOG['zone_logs'][to_zone]['entry_exit_log'][-10:]
+    
+    # 주민 상태 업데이트
+    VILLAGE_ENTRY_EXIT_LOG['resident_status'][resident_name] = {
+        'current_zone': to_zone,
+        'last_activity': activity_type,
+        'last_update': timestamp,
+        'duration_in_current_zone': duration
+    }
+    
+    # 구역별 인원 수 업데이트
+    _update_zone_population_counts()
+    
+    return entry_exit_record
+
+def _update_zone_population_counts():
+    """구역별 인원 수 업데이트"""
+    global VILLAGE_ENTRY_EXIT_LOG
+    
+    VILLAGE_ENTRY_EXIT_LOG['current_in_village'] = len(VILLAGE_ENTRY_EXIT_LOG['zone_logs']['VILLAGE']['residents'])
+    VILLAGE_ENTRY_EXIT_LOG['current_in_orange'] = len(VILLAGE_ENTRY_EXIT_LOG['zone_logs']['ORANGE']['residents'])
+    VILLAGE_ENTRY_EXIT_LOG['current_in_blue'] = len(VILLAGE_ENTRY_EXIT_LOG['zone_logs']['BLUE']['residents'])
+
+def get_zone_entry_exit_log(zone):
+    """구역별 출입 일지 조회"""
+    global VILLAGE_ENTRY_EXIT_LOG
+    
+    if zone not in VILLAGE_ENTRY_EXIT_LOG['zone_logs']:
+        return {"error": f"구역 {zone}를 찾을 수 없습니다."}
+    
+    return {
+        "zone": zone,
+        "current_residents": VILLAGE_ENTRY_EXIT_LOG['zone_logs'][zone]['residents'],
+        "entry_exit_log": VILLAGE_ENTRY_EXIT_LOG['zone_logs'][zone]['entry_exit_log'],
+        "total_entries": len(VILLAGE_ENTRY_EXIT_LOG['zone_logs'][zone]['entry_exit_log'])
+    }
+
+def get_all_residents_status():
+    """모든 주민 상태 조회"""
+    global VILLAGE_ENTRY_EXIT_LOG
+    
+    return {
+        "total_residents": VILLAGE_ENTRY_EXIT_LOG['total_residents'],
+        "current_in_village": VILLAGE_ENTRY_EXIT_LOG['current_in_village'],
+        "current_in_orange": VILLAGE_ENTRY_EXIT_LOG['current_in_orange'],
+        "current_in_blue": VILLAGE_ENTRY_EXIT_LOG['current_in_blue'],
+        "resident_status": VILLAGE_ENTRY_EXIT_LOG['resident_status']
+    }
+
+def simulate_resident_movement():
+    """주민 이동 시뮬레이션 (자동화된 시스템)"""
+    import random
+    import time
+    
+    # 주민 목록 (10명)
+    residents = [
+        "Scout", "Guardian", "Analyst", "Elder",
+        "Trader_A", "Trader_B", "Trader_C", "Trader_D", "Trader_E", "Trader_F"
+    ]
+    
+    zones = ["VILLAGE", "ORANGE", "BLUE"]
+    activities = ["rest", "training", "observation"]
+    durations = ["몇 시간", "하루", "며칠", "일주일", "몇 주", "한 달"]
+    
+    # 랜덤 주민 선택
+    resident = random.choice(residents)
+    
+    # 현재 상태 확인
+    current_zone = VILLAGE_ENTRY_EXIT_LOG['resident_status'].get(resident, {}).get('current_zone', 'VILLAGE')
+    
+    # 새로운 구역 선택 (현재 구역과 다른 곳)
+    available_zones = [z for z in zones if z != current_zone]
+    new_zone = random.choice(available_zones)
+    
+    # 활동 유형과 기간 선택
+    activity = random.choice(activities)
+    duration = random.choice(durations)
+    
+    # 출입 기록
+    record = record_resident_entry_exit(resident, current_zone, new_zone, activity, duration)
+    
+    return record
+
+# ===== 8BIT 마을 API 엔드포인트 (Flask 앱 정의 후에 이동됨) =====
+def get_village_status():
+    """마을 전체 상태 조회"""
+    return jsonify({
+        "village_name": "8BIT 마을",
+        "mayor": "촌장 (N/B 길드 지점장)",
+        "village_energy": VILLAGE_ENERGY,
+        "max_village_energy": MAX_VILLAGE_ENERGY,
+        "energy_accumulated": ENERGY_ACCUMULATED,
+        "residents_count": len(VILLAGE_RESIDENTS),
+        "warehouses_count": len(TRAINER_WAREHOUSES),
+        "current_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+# 중복 라우트 제거됨 - Flask 앱 정의 이후로 이동됨
+
+# ===== 기존 코드 계속 =====
 
 app = Flask(__name__)
 CORS(app)
@@ -52,6 +994,11 @@ def root():
 def serve_ui():
     # Serve the embedded chart UI from bot/static/ui.html
     return send_from_directory('static', 'ui.html')
+
+@app.route("/game")
+def serve_game():
+    # Serve the village simulator from bot/game/village.html
+    return send_from_directory('game', 'village.html')
 
 @app.route('/static/<path:filename>')
 def serve_static(filename: str):
@@ -113,6 +1060,388 @@ def save_chart_data():
             'error': 'Server error',
             'message': str(e)
         }), 500
+
+# ===== 8BIT 마을 API 엔드포인트 =====
+
+@app.route('/api/village/status')
+def get_village_status():
+    """마을 전체 상태 조회"""
+    return jsonify({
+        "village_name": "8BIT 마을",
+        "mayor": "촌장 (N/B 길드 지점장)",
+        "village_energy": VILLAGE_ENERGY,
+        "max_village_energy": MAX_VILLAGE_ENERGY,
+        "energy_accumulated": ENERGY_ACCUMULATED,
+        "residents_count": len(VILLAGE_RESIDENTS),
+        "warehouses_count": len(TRAINER_WAREHOUSES),
+        "current_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+@app.route('/api/village/mayor/guidance')
+def get_mayor_guidance():
+    """촌장의 신뢰도 기반 지침 조회"""
+    return jsonify(mayor_trust_guidance())
+
+@app.route('/api/village/residents')
+def get_village_residents():
+    """마을 주민 정보 조회"""
+    return jsonify({
+        "residents": VILLAGE_RESIDENTS,
+        "total_count": len(VILLAGE_RESIDENTS)
+    })
+
+@app.route('/api/village/resident/<trainer_name>')
+def get_resident_info(trainer_name):
+    """특정 주민 정보 조회"""
+    if trainer_name not in VILLAGE_RESIDENTS:
+        return jsonify({"error": "주민을 찾을 수 없습니다."}), 404
+    
+    return jsonify({
+        "resident": VILLAGE_RESIDENTS[trainer_name],
+        "warehouse_status": get_trainer_warehouse_status(trainer_name)
+    })
+
+@app.route('/api/village/warehouse/<trainer_name>')
+def get_warehouse_info(trainer_name):
+    """트레이너 창고 정보 조회"""
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return jsonify({"error": "창고를 찾을 수 없습니다."}), 404
+    
+    return jsonify({
+        "warehouse": TRAINER_WAREHOUSES[trainer_name],
+        "status": get_trainer_warehouse_status(trainer_name)
+    })
+
+@app.route('/api/village/warehouse/<trainer_name>/analysis')
+def get_warehouse_analysis(trainer_name):
+    """창고 데이터 분석 조회"""
+    return jsonify(analyze_warehouse_data(trainer_name))
+
+@app.route('/api/village/bitcar/energy', methods=['POST'])
+def inject_bitcar_energy():
+    """비트카 에너지 주입"""
+    data = request.get_json()
+    trainer_name = data.get('trainer_name')
+    energy_amount = data.get('energy_amount', 50)
+    
+    if not trainer_name:
+        return jsonify({"error": "트레이너 이름이 필요합니다."}), 400
+    
+    result = inject_village_energy_to_bitcar(trainer_name, energy_amount)
+    return jsonify({"message": result})
+
+@app.route('/api/village/trade/record', methods=['POST'])
+def record_trade():
+    """거래 기록 저장"""
+    data = request.get_json()
+    trainer_name = data.get('trainer_name')
+    
+    if not trainer_name:
+        return jsonify({"error": "트레이너 이름이 필요합니다."}), 400
+    
+    result = real_time_trade_recording(trainer_name, data)
+    return jsonify(result)
+
+@app.route('/api/village/trust/calculate', methods=['POST'])
+def calculate_trust():
+    """신뢰도 가중 평균 계산"""
+    data = request.get_json()
+    personal_confidence = data.get('personal_confidence', 0)
+    ml_trust = data.get('ml_trust', MAYOR_TRUST_SYSTEM["ML_Model_Trust"])
+    nb_guild_trust = data.get('nb_guild_trust', MAYOR_TRUST_SYSTEM["NB_Guild_Trust"])
+    
+    weighted_confidence = calculate_weighted_confidence(personal_confidence, ml_trust, nb_guild_trust)
+    
+    return jsonify({
+        "personal_confidence": personal_confidence,
+        "ml_trust": ml_trust,
+        "nb_guild_trust": nb_guild_trust,
+        "weighted_confidence": weighted_confidence,
+        "weights": {
+            "personal": 0.6,
+            "ml_model": 0.2,
+            "nb_guild": 0.2
+        }
+    })
+
+@app.route('/api/village/system/overview')
+def get_system_overview():
+    """마을 시스템 전체 개요"""
+    return jsonify({
+        "system_name": "8BIT 마을 트레이딩 시스템",
+        "description": "촌장의 지침에 따라 운영되는 AI 트레이더 마을",
+        "components": {
+            "mayor_system": "촌장 신뢰도 기반 지침 시스템",
+            "residents": "10명의 트레이너 주민",
+            "warehouses": "실시간 거래 기록 창고",
+            "bitcar_system": "비트카 에너지 주입 시스템",
+            "auto_learning": "자동 촌장 지침 학습 시스템"
+        },
+        "current_status": {
+            "village_energy": VILLAGE_ENERGY,
+            "residents_count": len(VILLAGE_RESIDENTS),
+            "warehouses_count": len(TRAINER_WAREHOUSES),
+            "auto_learning_enabled": MAYOR_TRUST_SYSTEM.get("auto_learning_enabled", True)
+        }
+    })
+
+@app.route('/api/village/scout/status')
+def get_scout_status():
+    """Scout의 현재 상태 조회 (특별 API)"""
+    if 'scout' not in VILLAGE_RESIDENTS:
+        return jsonify({"error": "Scout를 찾을 수 없습니다."}), 404
+    
+    scout = VILLAGE_RESIDENTS['scout']
+    warehouse = TRAINER_WAREHOUSES['scout']
+    
+    # Scout의 현재 포지션 정보 (예시)
+    current_position = {
+        "entry_time": "2025-01-27 08:15:00",
+        "entry_price": 161000000,
+        "current_price": 161401000,
+        "pnl": "+0.25%",
+        "duration": "12분",
+        "strategy": "momentum"
+    }
+    
+    # 거래 일지 정보 추가
+    recent_journal = get_trade_journal('scout', "recent")
+    mayor_journal = get_trade_journal('scout', "mayor_guidance")
+    ml_journal = get_trade_journal('scout', "ml_decisions")
+    
+    return jsonify({
+        "trainer": "Scout",
+        "status": {
+            "name": scout['name'],
+            "hp": scout['hp'],
+            "stamina": scout['stamina'],
+            "location": scout['location'],
+            "role": scout['role'],
+            "specialty": scout['specialty'],
+            "skillLevel": scout['skillLevel'],
+            "strategy": scout['strategy'],
+            "nbCoins": scout['nbCoins']
+        },
+        "current_position": current_position,
+        "warehouse_summary": {
+            "total_trades": warehouse['profit_loss_history']['total_trades'],
+            "total_profit": warehouse['profit_loss_history']['total_profit'],
+            "win_rate": warehouse['profit_loss_history']['win_rate'],
+            "successful_patterns": len(warehouse['learning_data']['successful_patterns']),
+            "failed_patterns": len(warehouse['learning_data']['failed_patterns'])
+        },
+        "mayor_guidance": {
+            "ml_model_trust": MAYOR_TRUST_SYSTEM["ML_Model_Trust"],
+            "nb_guild_trust": MAYOR_TRUST_SYSTEM["NB_Guild_Trust"],
+            "current_zone": "ORANGE",
+            "guidance": "신중한 방어적 접근, 개인 판단 우선"
+        },
+        "trade_journal": {
+            "recent_entries_count": recent_journal.get("count", 0),
+            "mayor_guidance_count": mayor_journal.get("count", 0),
+            "ml_decisions_count": ml_journal.get("count", 0),
+            "latest_entry": recent_journal.get("entries", [])[-1] if recent_journal.get("entries") else None
+        }
+    })
+
+@app.route('/api/village/current-zone')
+def get_current_zone():
+    """현재 구역 정보 조회 - UI에서 이미 계산된 값 사용"""
+    try:
+        # UI에서 이미 계산된 값들을 그대로 사용
+        r_value = bot_ctrl.get('r_value', 0.5)
+        nb_zone = bot_ctrl.get('nb_zone', 'ORANGE')
+        last_signal = bot_ctrl.get('last_signal', 'HOLD')
+        position = bot_ctrl.get('position', 'FLAT')
+        
+        # ML 구역은 N/B 구역과 동일하게 설정 (UI에서 이미 계산됨)
+        ml_zone = nb_zone
+        
+        # 현재 활성 구역 (N/B 시스템 기준)
+        current_zone = nb_zone
+        
+        # 촌장의 신뢰도 정보 추가
+        ml_trust = MAYOR_TRUST_SYSTEM.get("ML_Model_Trust", 40)
+        nb_trust = MAYOR_TRUST_SYSTEM.get("NB_Guild_Trust", 82)  # 82개 히스토리로 업데이트
+        
+        return jsonify({
+            'current_zone': current_zone,
+            'nb_zone': nb_zone,
+            'ml_zone': ml_zone,
+            'last_signal': last_signal,
+            'position': position,
+            'r_value': r_value,
+            'ml_trust': ml_trust,
+            'nb_trust': nb_trust,
+            'timestamp': int(time.time() * 1000)
+        })
+    except Exception as e:
+        return jsonify({'error': f'구역 정보 조회 실패: {str(e)}'}), 500
+
+@app.route('/api/village/auto-learning/toggle', methods=['POST'])
+def toggle_auto_learning():
+    """자동 촌장 지침 학습 토글"""
+    global MAYOR_TRUST_SYSTEM
+    
+    try:
+        # 현재 상태 토글
+        current_status = MAYOR_TRUST_SYSTEM.get("auto_learning_enabled", True)
+        MAYOR_TRUST_SYSTEM["auto_learning_enabled"] = not current_status
+        
+        return jsonify({
+            'ok': True,
+            'auto_learning_enabled': MAYOR_TRUST_SYSTEM["auto_learning_enabled"],
+            'message': f"자동 촌장 지침 학습이 {'활성화' if MAYOR_TRUST_SYSTEM['auto_learning_enabled'] else '비활성화'}되었습니다.",
+            'learning_interval': MAYOR_TRUST_SYSTEM.get("learning_interval", 3600),
+            'last_learning_time': MAYOR_TRUST_SYSTEM.get("last_learning_time")
+        })
+        
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'자동 학습 토글 실패: {str(e)}'}), 500
+
+@app.route('/api/ml/train-mayor-guidance', methods=['POST'])
+def train_mayor_guidance_model():
+    """촌장 지침 학습 모델 훈련"""
+    try:
+        payload = request.get_json(force=True) if request.is_json else request.form.to_dict()
+        
+        # 촌장 지침 학습 파라미터
+        window = int(payload.get('window', 50))
+        ema_fast = int(payload.get('ema_fast', 10))
+        ema_slow = int(payload.get('ema_slow', 30))
+        horizon = int(payload.get('horizon', 5))
+        count = int(payload.get('count', 1800))
+        interval = payload.get('interval') or load_config().candle
+        
+        cfg = load_config()
+        df = get_candles(cfg.market, interval, count=count)
+        
+        # 촌장 지침 기반 특성 생성
+        feat = _build_features(df, window, ema_fast, ema_slow, horizon).dropna().copy()
+        
+        # 촌장 지침 라벨링: Zone-Side Only
+        r = _compute_r_from_ohlcv(df, window)
+        HIGH = float(os.getenv('NB_HIGH', '0.55'))
+        LOW = float(os.getenv('NB_LOW', '0.45'))
+        labels = np.zeros(len(df), dtype=int)
+        zone = None
+        r_vals = r.values.tolist()
+        
+        for i in range(len(df)):
+            rv = r_vals[i] if i < len(r_vals) else 0.5
+            if zone not in ('BLUE','ORANGE'):
+                zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+            # hysteresis updates
+            if zone == 'BLUE' and rv >= HIGH:
+                zone = 'ORANGE'
+            elif zone == 'ORANGE' and rv <= LOW:
+                zone = 'BLUE'
+            
+            # 촌장 지침: BUY@BLUE / SELL@ORANGE
+            if zone == 'BLUE':
+                labels[i] = 1  # BUY
+            elif zone == 'ORANGE':
+                labels[i] = -1  # SELL
+            else:
+                labels[i] = 0  # HOLD
+        
+        idx_map = { ts: i for i, ts in enumerate(df.index) }
+        y = np.array([ labels[idx_map.get(ts, 0)] for ts in feat.index ], dtype=int)
+        
+        # 모델 훈련
+        from sklearn.ensemble import GradientBoostingClassifier
+        from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+        from sklearn.metrics import classification_report, confusion_matrix
+        
+        # 특성 선택
+        X = feat[['r', 'w', 'ema_diff', 'zone_flag', 'dist_high', 'dist_low', 'zone_conf']]
+        
+        # 시계열 교차 검증
+        tscv = TimeSeriesSplit(n_splits=3)
+        model = GradientBoostingClassifier(random_state=42, n_estimators=200, learning_rate=0.05, max_depth=3)
+        
+        # 훈련
+        model.fit(X.values, y)
+        
+        # 평가
+        yhat = model.predict(X.values)
+        report = classification_report(y, yhat, output_dict=True, zero_division=0)
+        cm = confusion_matrix(y, yhat, labels=[-1,0,1]).tolist()
+        
+        # 모델 저장
+        pack = {
+            'model': model,
+            'window': window,
+            'ema_fast': ema_fast,
+            'ema_slow': ema_slow,
+            'horizon': horizon,
+            'interval': interval,
+            'label_mode': 'mayor_guidance',
+            'trained_at': int(time.time() * 1000),
+            'feature_names': list(X.columns),
+            'metrics': {
+                'report': report,
+                'confusion': cm
+            }
+        }
+        
+        # 모델 저장
+        try:
+            joblib.dump(pack, _model_path_for(interval))
+        except Exception:
+            joblib.dump(pack, ML_MODEL_PATH)
+        
+        return jsonify({
+            'ok': True,
+            'message': '촌장 지침 학습 모델 훈련 완료',
+            'label_mode': 'mayor_guidance',
+            'classes': {
+                '-1': int((y==-1).sum()),  # SELL (ORANGE)
+                '0': int((y==0).sum()),    # HOLD
+                '1': int((y==1).sum())     # BUY (BLUE)
+            },
+            'report': report,
+            'confusion': cm
+        })
+        
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'촌장 지침 학습 실패: {str(e)}'}), 500
+
+@app.route('/api/village/ai-explanation/<trainer_name>')
+def get_ai_trading_explanation(trainer_name):
+    """AI 거래 판단 설명 조회"""
+    try:
+        # 현재 구역 정보 가져오기
+        current_zone = bot_ctrl.get('nb_zone', 'ORANGE')
+        last_signal = bot_ctrl.get('last_signal', 'HOLD')
+        position = bot_ctrl.get('position', 'FLAT')
+        
+        # r값 계산 (실제 구현에서는 실제 r값을 가져와야 함)
+        r_value = 0.5  # 기본값, 실제로는 계산된 값 사용
+        
+        # 포지션 상태 판단
+        position_status = "HAS_POSITION" if position != "FLAT" else "NO_POSITION"
+        
+        # 현재 액션 판단
+        current_action = last_signal if last_signal in ['BUY', 'SELL', 'HOLD'] else 'HOLD'
+        
+        # 신뢰도 계산 (예시)
+        confidence = 60  # 실제로는 계산된 신뢰도 사용
+        
+        # AI 거래 설명 생성
+        explanation = generate_ai_trading_explanation(
+            trainer_name, 
+            current_action, 
+            current_zone, 
+            r_value, 
+            confidence, 
+            position_status
+        )
+        
+        return jsonify(explanation)
+        
+    except Exception as e:
+        return jsonify({'error': f'AI 거래 설명 생성 실패: {str(e)}'}), 500
 
 state = {
     "price": 0.0,
@@ -409,7 +1738,7 @@ def _energy_tick(iv: str) -> float:
         now = int(time.time()*1000)
         dt_sec = max(0.0, (now - int(st.get('last_ms') or now)) / 1000.0)
         decay = float(os.getenv('ENERGY_DECAY_PER_SEC', '0.001'))
-        st['E'] = float(max(0.0, min(100.0, float(st.get('E', 50.0)) - decay * dt_sec)))
+        st['E'] = float(max(0.0, min(99999.0, float(st.get('E', 50.0)) - decay * dt_sec)))
         st['last_ms'] = now
         return float(st['E'])
     except Exception:
@@ -419,7 +1748,7 @@ def _energy_adjust(iv: str, delta: float, reason: str | None = None) -> float:
     try:
         st = _energy_state(iv)
         _energy_tick(iv)
-        st['E'] = float(max(0.0, min(100.0, float(st.get('E', 50.0)) + float(delta))))
+        st['E'] = float(max(0.0, min(99999.0, float(st.get('E', 50.0)) + float(delta))))
         if reason:
             st['last_reason'] = str(reason)
         return float(st['E'])
@@ -460,6 +1789,24 @@ def api_village_state():
         buyable = int(krw // max(1, price_per_coin))
         return jsonify({ 'ok': True, 'interval': str(iv), 'energy': E, 'last_reason': last_reason, 'reputation': rep, 'treasury': { 'krw': krw, 'coins': total_owned, 'price_per_coin': price_per_coin, 'buyable': buyable } })
     except Exception as e:
+        return jsonify({ 'ok': False, 'error': str(e) }), 500
+
+@app.route('/api/village/energy/fill', methods=['POST'])
+def api_village_energy_fill():
+    try:
+        iv = request.args.get('interval') if request.args else None
+        if not iv:
+            iv = state.get('candle') or load_config().candle
+        
+        # Fill energy to 99999
+        current_energy = _energy_tick(str(iv))
+        energy_needed = 99999.0 - current_energy
+        new_energy = _energy_adjust(str(iv), energy_needed, 'manual_fill')
+        
+        print(f"✅ Village energy filled: {current_energy:.1f}% → {new_energy:.1f}% (interval: {iv})")
+        return jsonify({ 'ok': True, 'interval': str(iv), 'previous_energy': current_energy, 'new_energy': new_energy })
+    except Exception as e:
+        print(f"❌ Error filling village energy: {e}")
         return jsonify({ 'ok': False, 'error': str(e) }), 500
 
 def _interval_to_sec(iv: str) -> int:
@@ -979,7 +2326,9 @@ bot_ctrl = {
     'thread': None,
     'last_signal': 'HOLD',
     'last_order': None,
-    'nb_zone': None,  # 'BLUE' or 'ORANGE'
+    'nb_zone': 'ORANGE',  # 'BLUE' or 'ORANGE'
+    'ml_zone': 'ORANGE',  # 'BLUE' or 'ORANGE'
+    'r_value': 0.5,  # Current r value
     'position': 'FLAT',  # 'FLAT' or 'LONG' (single-cycle enforcement)
     'cfg_override': {  # values can be overridden via /api/bot/config
         'paper': None,
@@ -1516,6 +2865,38 @@ def api_ml_train():
                     y = np.where(y == 0, np.where(rv_feat >= 0.5, -1, 1), y)
                 except Exception:
                     y = np.where(y == 0, 1, y)
+        elif label_mode == 'mayor_guidance':
+            # 촌장 지침 학습: Zone-Side Only (BUY@BLUE / SELL@ORANGE)
+            r = _compute_r_from_ohlcv(df, window)
+            HIGH = float(os.getenv('NB_HIGH', '0.55'))
+            LOW = float(os.getenv('NB_LOW', '0.45'))
+            labels = np.zeros(len(df), dtype=int)
+            zone = None
+            r_vals = r.values.tolist()
+            
+            # 촌장 지침 기반 라벨링
+            for i in range(len(df)):
+                rv = r_vals[i] if i < len(r_vals) else 0.5
+                if zone not in ('BLUE','ORANGE'):
+                    zone = 'ORANGE' if rv >= 0.5 else 'BLUE'
+                # hysteresis updates
+                if zone == 'BLUE' and rv >= HIGH:
+                    zone = 'ORANGE'
+                elif zone == 'ORANGE' and rv <= LOW:
+                    zone = 'BLUE'
+                
+                # 촌장 지침에 따른 라벨링:
+                # BLUE 구역: BUY(+1)만 허용, SELL(-1) 금지
+                # ORANGE 구역: SELL(-1)만 허용, BUY(+1) 금지
+                if zone == 'BLUE':
+                    labels[i] = 1  # BUY만 허용
+                elif zone == 'ORANGE':
+                    labels[i] = -1  # SELL만 허용
+                else:
+                    labels[i] = 0  # HOLD
+            
+            idx_map = { ts: i for i, ts in enumerate(df.index) }
+            y = np.array([ labels[idx_map.get(ts, 0)] for ts in feat.index ], dtype=int)
         elif label_mode == 'nb_extreme':
             # Learn BLUE/ORANGE extremes with pullback confirmation; one BUY then one SELL
             r = _compute_r_from_ohlcv(df, window)
@@ -2005,6 +3386,14 @@ def api_ml_predict():
         action = 'HOLD'
         if label_mode in ('zone','zone_flag'):
             action = ('BLUE' if pred>0 else 'ORANGE')
+        elif label_mode == 'mayor_guidance':
+            # 촌장 지침 기반 액션 매핑
+            if pred > 0:
+                action = 'BUY'  # BLUE 구역에서 BUY
+            elif pred < 0:
+                action = 'SELL'  # ORANGE 구역에서 SELL
+            else:
+                action = 'HOLD'
         elif pred > 0:
             action = 'BUY'
         elif pred < 0:
@@ -2329,6 +3718,24 @@ def trade_loop():
         last_order_ts = 0
         # Prevent multiple orders within the same candle/bar
         last_order_bar_ts = 0
+        
+        # ===== 8BIT 마을 시스템 통합 =====
+        # 촌장의 신뢰도 기반 지침 생성
+        mayor_guidance = mayor_trust_guidance()
+        print(f"🏛️ 촌장 지침: {mayor_guidance['guidance']['official_strategy']}")
+        
+        # 자동 촌장 지침 학습 체크 및 실행
+        auto_mayor_guidance_learning()
+        
+        # 마을 주민들의 비트카 에너지 주입
+        for trainer_name in VILLAGE_RESIDENTS.keys():
+            energy_amount = BITCAR_ENERGY_SYSTEM[trainer_name]["energy"]
+            result = inject_village_energy_to_bitcar(trainer_name, energy_amount)
+            print(f"🚗 {trainer_name} 비트카: {result}")
+        
+        print("🍊 ORANGE 구역으로 출발합니다!")
+        # ===== 마을 시스템 통합 완료 =====
+        
         while bot_ctrl['running']:
             try:
                 cfg = _resolve_config()
@@ -2343,6 +3750,9 @@ def trade_loop():
                     window = 50
                 r = _compute_r_from_ohlcv(df, window)
                 r_last = float(r.iloc[-1]) if len(r) else 0.5
+                # Update bot_ctrl with current r_value
+                bot_ctrl['r_value'] = r_last
+                
                 # Current bar timestamp (ms) to dedupe orders per bar
                 try:
                     bar_ts = int(df.index[-1].timestamp() * 1000)
@@ -2352,6 +3762,9 @@ def trade_loop():
                 LOW = float(os.getenv('NB_LOW', '0.45'))
                 if bot_ctrl.get('nb_zone') not in ('BLUE','ORANGE'):
                     bot_ctrl['nb_zone'] = 'ORANGE' if r_last >= 0.5 else 'BLUE'
+                
+                # Update ml_zone to match nb_zone for now (can be enhanced later)
+                bot_ctrl['ml_zone'] = bot_ctrl['nb_zone']
                 sig = 'HOLD'
                 if bot_ctrl['nb_zone'] == 'BLUE' and r_last >= HIGH:
                     bot_ctrl['nb_zone'] = 'ORANGE'
@@ -2710,6 +4123,66 @@ def trade_loop():
                         _mark_nb_coin(str(cfg.candle), str(cfg.market), sig, order.get('ts'), order)
                     except Exception:
                         pass
+                    
+                    # ===== 8BIT 마을 시스템 거래 기록 =====
+                    # 각 트레이너의 창고에 거래 기록 저장
+                    for trainer_name in VILLAGE_RESIDENTS.keys():
+                        try:
+                            # 신뢰도 계산
+                            personal_confidence = VILLAGE_RESIDENTS[trainer_name].get('skillLevel', 1.0) * 100
+                            weighted_confidence = calculate_weighted_confidence(
+                                personal_confidence, 
+                                MAYOR_TRUST_SYSTEM["ML_Model_Trust"], 
+                                MAYOR_TRUST_SYSTEM["NB_Guild_Trust"]
+                            )
+                            
+                            # 거래 데이터 준비
+                            trade_data = {
+                                'timestamp': datetime.now().isoformat(),
+                                'action': sig,
+                                'price': price,
+                                'quantity': order.get('size', 0),
+                                'pnl': 0,  # 나중에 계산
+                                'strategy': VILLAGE_RESIDENTS[trainer_name].get('strategy', 'unknown'),
+                                'zone': bot_ctrl.get('nb_zone', 'unknown'),
+                                'confidence': weighted_confidence,
+                                'is_real': not cfg.paper,
+                                'market_condition': 'ORANGE' if bot_ctrl.get('nb_zone') == 'ORANGE' else 'BLUE',
+                                'timing': 'immediate',
+                                'lesson_learned': '거래 실행됨'
+                            }
+                            
+                            # 창고에 거래 기록 저장
+                            real_time_trade_recording(trainer_name, trade_data)
+                            
+                            # ===== 거래 일지 추가 =====
+                            # 촌장 지침 기반 일지 생성
+                            mayor_entry = create_mayor_guidance_entry(
+                                trainer_name, 
+                                bot_ctrl.get('nb_zone', 'unknown'), 
+                                sig, 
+                                f"{trainer_name}의 {sig} 거래 실행"
+                            )
+                            
+                            # ML 모델 판단 기반 일지 생성
+                            ml_entry = create_ml_decision_entry(
+                                trainer_name,
+                                bot_ctrl.get('nb_zone', 'unknown'),
+                                sig,
+                                MAYOR_TRUST_SYSTEM["ML_Model_Trust"],
+                                personal_confidence
+                            )
+                            
+                            # 일지에 추가
+                            add_trade_journal_entry(trainer_name, mayor_entry)
+                            add_trade_journal_entry(trainer_name, ml_entry)
+                            
+                            print(f"📦 {trainer_name} 창고에 거래 기록 저장: {sig} @ {price}")
+                            print(f"📝 {trainer_name} 거래 일지 업데이트: {mayor_entry['mayor_guidance']}")
+                            
+                        except Exception as e:
+                            print(f"❌ {trainer_name} 거래 기록 저장 실패: {e}")
+                    # ===== 마을 시스템 거래 기록 완료 =====
                     last_order_ts = int(order['ts'])
                     last_order_bar_ts = int(bar_ts)
                     bot_ctrl['last_order'] = order
