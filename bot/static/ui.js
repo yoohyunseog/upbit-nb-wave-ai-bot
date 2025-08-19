@@ -10,6 +10,20 @@
 
   const getInterval = () => (tfEl ? tfEl.value : 'minute10');
 
+// UI 간격 변경 시 서버에 알림
+function updateServerInterval() {
+    const currentInterval = getInterval();
+    fetch('/api/bot/update-ui-interval', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            interval: currentInterval
+        })
+    }).catch(err => console.log('UI 간격 업데이트 실패:', err));
+}
+
 
 
 
@@ -3562,6 +3576,9 @@
       }, 200);
 
     pushConfig();
+    
+    // 서버에 UI 간격 변경 알림
+    updateServerInterval();
 
   });
 
@@ -13903,5 +13920,11 @@
     
     console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
   }, 6000); // 6초 후 시작
+
+  // 페이지 로드 시 현재 UI 간격을 서버에 알림
+  setTimeout(() => {
+    updateServerInterval();
+    console.log('📊 UI 간격 서버 동기화 완료');
+  }, 7000); // 7초 후 시작
 
 })();
