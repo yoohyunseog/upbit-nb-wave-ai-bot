@@ -1334,7 +1334,8 @@ def get_current_zone():
                 df_1m = get_candles(cfg.market, 'minute1', count=10)
                 print(f"1분봉 데이터 조회 완료 - 데이터 개수: {len(df_1m) if not df_1m.empty else 0}")
                 if not df_1m.empty:
-                    current_candle_data['minute1'] = {
+                    current_candle_data['minute_1'] = {
+                        'interval': {'minute': 1},
                         'latest': {
                             'timestamp': int(df_1m.index[-1].timestamp() * 1000),
                             'open': float(df_1m['open'].iloc[-1]),
@@ -1354,17 +1355,18 @@ def get_current_zone():
                         'count': len(df_1m)
                     }
                 else:
-                    current_candle_data['minute1'] = {'error': '1분봉 데이터가 비어있습니다'}
+                    current_candle_data['minute_1'] = {'error': '1분봉 데이터가 비어있습니다'}
             except Exception as e1:
                 print(f"1분봉 데이터 조회 실패: {e1}")
-                current_candle_data['minute1'] = {'error': f'1분봉 조회 실패: {str(e1)}'}
+                current_candle_data['minute_1'] = {'error': f'1분봉 조회 실패: {str(e1)}'}
             
             # 5분봉 데이터 (최근 10개)
             try:
                 df_5m = get_candles(cfg.market, 'minute5', count=10)
                 print(f"5분봉 데이터 조회 완료 - 데이터 개수: {len(df_5m) if not df_5m.empty else 0}")
                 if not df_5m.empty:
-                    current_candle_data['minute5'] = {
+                    current_candle_data['minute_5'] = {
+                        'interval': {'minute': 5},
                         'latest': {
                             'timestamp': int(df_5m.index[-1].timestamp() * 1000),
                             'open': float(df_5m['open'].iloc[-1]),
@@ -1384,17 +1386,18 @@ def get_current_zone():
                         'count': len(df_5m)
                     }
                 else:
-                    current_candle_data['minute5'] = {'error': '5분봉 데이터가 비어있습니다'}
+                    current_candle_data['minute_5'] = {'error': '5분봉 데이터가 비어있습니다'}
             except Exception as e5:
                 print(f"5분봉 데이터 조회 실패: {e5}")
-                current_candle_data['minute5'] = {'error': f'5분봉 조회 실패: {str(e5)}'}
+                current_candle_data['minute_5'] = {'error': f'5분봉 조회 실패: {str(e5)}'}
             
             # 10분봉 데이터 (최근 10개)
             try:
                 df_10m = get_candles(cfg.market, 'minute10', count=10)
                 print(f"10분봉 데이터 조회 완료 - 데이터 개수: {len(df_10m) if not df_10m.empty else 0}")
                 if not df_10m.empty:
-                    current_candle_data['minute10'] = {
+                    current_candle_data['minute_10'] = {
+                        'interval': {'minute': 10},
                         'latest': {
                             'timestamp': int(df_10m.index[-1].timestamp() * 1000),
                             'open': float(df_10m['open'].iloc[-1]),
@@ -1414,10 +1417,10 @@ def get_current_zone():
                         'count': len(df_10m)
                     }
                 else:
-                    current_candle_data['minute10'] = {'error': '10분봉 데이터가 비어있습니다'}
+                    current_candle_data['minute_10'] = {'error': '10분봉 데이터가 비어있습니다'}
             except Exception as e10:
                 print(f"10분봉 데이터 조회 실패: {e10}")
-                current_candle_data['minute10'] = {'error': f'10분봉 조회 실패: {str(e10)}'}
+                current_candle_data['minute_10'] = {'error': f'10분봉 조회 실패: {str(e10)}'}
             
             # UI에서 선택된 현재 차트 간격 데이터 (UI와 동기화)
             try:
