@@ -681,7 +681,7 @@ function getMayorGuidanceStatus(member) {
         ${trustInfo}
       </div>
              <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
-         🔄 실시간 동기화 | N/B: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone} | ML: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone}
+         🔄 실시간 동기화 | N/B: ${(window.zoneNow || 'ORANGE') === 'BLUE' ? '🔵' : '🟠'}${window.zoneNow || 'ORANGE'} | ML: ${(window.zoneNow || 'ORANGE') === 'BLUE' ? '🔵' : '🟠'}${window.zoneNow || 'ORANGE'}
        </div>
       <div style="color: #888888; font-size: 8px;">
         Zone-Side Only: BUY@BLUE / SELL@ORANGE
@@ -710,7 +710,7 @@ function restoreMayorGuidanceStatus(memberName) {
             ${guidance.trustInfo}
           </div>
                  <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
-         🔄 실시간 동기화 | N/B: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone} | ML: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone}
+         🔄 실시간 동기화 | N/B: ${(window.zoneNow || 'ORANGE') === 'BLUE' ? '🔵' : '🟠'}${window.zoneNow || 'ORANGE'} | ML: ${(window.zoneNow || 'ORANGE') === 'BLUE' ? '🔵' : '🟠'}${window.zoneNow || 'ORANGE'}
        </div>
           <div style="color: #888888; font-size: 8px;">
             Zone-Side Only: BUY@BLUE / SELL@ORANGE
