@@ -5,16 +5,22 @@
 // Guild Members Status 업데이트 메인 함수
 async function updateGuildMembersStatus() {
   try {
-    const guildContainer = document.getElementById('guildContainer');
-    if (!guildContainer) return;
+    console.log('🔄 Updating Guild Members Status...');
+    
+    const guildContainer = document.getElementById('integratedGuildStatus');
+    if (!guildContainer) {
+      console.error('❌ integratedGuildStatus not found in updateGuildMembersStatus');
+      return;
+    }
 
     // Check if guildMembers is available
     if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
-      console.log('Guild members not initialized yet');
+      console.log('⚠️ Guild members not initialized yet in updateGuildMembersStatus');
       return;
     }
 
     const guildMembers = window.guildMembers;
+    console.log('📊 Found guild members:', Object.keys(guildMembers));
 
     // Clear existing content
     guildContainer.innerHTML = '';
@@ -331,6 +337,27 @@ function forceStartAutoTrading() {
 
 // Initialize guild members status system
 function initializeGuildMembersStatusSystem() {
+  console.log('🏰 Guild Members Status System 초기화 시작...');
+  
+  // Check if required elements exist
+  const guildContainer = document.getElementById('integratedGuildStatus');
+  if (!guildContainer) {
+    console.error('❌ integratedGuildStatus element not found');
+    return;
+  }
+  console.log('✅ integratedGuildStatus found');
+  
+  // Check if guildMembers is available
+  if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
+    console.log('⚠️ Guild members not initialized yet, waiting...');
+    // Retry after 3 seconds
+    setTimeout(() => {
+      initializeGuildMembersStatusSystem();
+    }, 3000);
+    return;
+  }
+  console.log('✅ guildMembers available:', Object.keys(window.guildMembers));
+  
   // Set up periodic updates
   setInterval(() => {
     updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
@@ -339,6 +366,7 @@ function initializeGuildMembersStatusSystem() {
 
   // Initial update
   setTimeout(() => {
+    console.log('🔄 Initial guild members status update...');
     updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
   }, 2000); // 2초 후 초기 업데이트
 
@@ -353,7 +381,7 @@ function initializeGuildMembersStatusSystem() {
   window.updateAutoTradingStatus = updateAutoTradingStatus;
   window.forceStartAutoTrading = forceStartAutoTrading;
   
-  console.log('Guild Members Status System initialized');
+  console.log('✅ Guild Members Status System initialized successfully');
 }
 
 // Export functions for module usage
