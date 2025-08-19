@@ -6418,9 +6418,9 @@
 
   // Guild Members Data Structure
 
-  let guildMembers = {
+    let guildMembers = {
 
-    scout: { 
+      scout: { 
 
       name: 'Scout', 
 
@@ -6701,6 +6701,9 @@
     }
 
   };
+
+  // Expose guildMembers globally for other modules
+  window.guildMembers = guildMembers;
 
 
 
@@ -12647,6 +12650,9 @@
     }
 
   }
+
+  // Expose getCurrentPrice globally for other modules
+  window.getCurrentPrice = getCurrentPrice;
 
   
 

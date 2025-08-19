@@ -8,10 +8,13 @@ async function updateGuildMembersStatus() {
     const guildContainer = document.getElementById('guildContainer');
     if (!guildContainer) return;
 
-    if (typeof guildMembers === 'undefined' || !guildMembers) {
+    // Check if guildMembers is available
+    if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
       console.log('Guild members not initialized yet');
       return;
     }
+
+    const guildMembers = window.guildMembers;
 
     // Clear existing content
     guildContainer.innerHTML = '';
@@ -30,14 +33,21 @@ async function updateGuildMembersStatus() {
 
     // 모든 길드 멤버의 상태 업데이트 (저장된 상태 복원 우선)
     Object.values(guildMembers).forEach(member => {
-      // 먼저 저장된 상태 복원 시도
-      const guidanceRestored = restoreMayorGuidanceStatus(member.name);
-      // const autoLearningRestored = restoreAutoLearningStatus(member.name); // moved to village-learning-system.js
-      const aiExplanationRestored = restoreAIExplanation(member.name);
+      // 먼저 저장된 상태 복원 시도 - check if functions are available
+      let guidanceRestored = false;
+      let aiExplanationRestored = false;
+      
+      if (typeof window.restoreMayorGuidanceStatus === 'function') {
+        guidanceRestored = window.restoreMayorGuidanceStatus(member.name);
+      }
+      
+      if (typeof window.restoreAIExplanation === 'function') {
+        aiExplanationRestored = window.restoreAIExplanation(member.name);
+      }
 
       // 실시간 업데이트 (복원되지 않은 경우에만)
-      if (!guidanceRestored) {
-        getMayorGuidanceStatus(member).then(guidanceHtml => {
+      if (!guidanceRestored && typeof window.getMayorGuidanceStatus === 'function') {
+        window.getMayorGuidanceStatus(member).then(guidanceHtml => {
           const guidanceElement = document.getElementById(`mayor-guidance-${member.name}`);
           if (guidanceElement) {
             guidanceElement.innerHTML = guidanceHtml;
@@ -45,13 +55,8 @@ async function updateGuildMembersStatus() {
         }).catch(e => console.error('Error updating mayor guidance status:', e));
       }
 
-      // if (!autoLearningRestored) {
-      //   updateAutoLearningStatus(member.name).catch(e => console.error('Error updating auto learning status:', e));
-      // }
-      // moved to village-learning-system.js
-
-      if (!aiExplanationRestored) {
-        getAIExplanation(member.name).catch(e => console.error('Error updating AI explanation:', e));
+      if (!aiExplanationRestored && typeof window.getAIExplanation === 'function') {
+        window.getAIExplanation(member.name).catch(e => console.error('Error updating AI explanation:', e));
       }
     });
 
@@ -90,7 +95,7 @@ function createMemberCard(member) {
 
 // 멤버 기본 정보 HTML 생성
 function generateMemberInfoHTML(member) {
-  const currentPrice = getCurrentPrice();
+  const currentPrice = typeof window.getCurrentPrice === 'function' ? window.getCurrentPrice() : 160000000;
   const warehouseValue = member.nbCoins * currentPrice;
   const profitColor = member.totalProfit > 0 ? '#0ecb81' : member.totalProfit < 0 ? '#f6465d' : '#ffffff';
   
@@ -122,7 +127,7 @@ function generateMemberInfoHTML(member) {
 // 트레이드 슬라이드 HTML 생성
 function generateTradeSlideHTML(member) {
   const hasPosition = member.openPosition !== null;
-  const currentPrice = getCurrentPrice();
+  const currentPrice = typeof window.getCurrentPrice === 'function' ? window.getCurrentPrice() : 160000000;
   
   if (!hasPosition) {
     return `
@@ -229,6 +234,18 @@ function calculateSellPrediction(member, currentPnl, minutesHeld) {
 // Get Guild Members Status for specific interval
 function getGuildMembersStatusForInterval(interval) {
   try {
+    // Check if guildMembers is available
+    if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
+      return {
+        nbEnergy: 50,
+        nbEnergyColor: '#ffb703',
+        activeMembers: 0,
+        treasuryAccess: false
+      };
+    }
+    
+    const guildMembers = window.guildMembers;
+    
     // Calculate active members (those with stamina > 30)
     const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30).length;
     
@@ -289,10 +306,12 @@ function updateAutoTradingStatus() {
 // Force start auto trading for testing
 function forceStartAutoTrading() {
   try {
-    if (typeof guildMembers === 'undefined' || !guildMembers) {
+    if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
       console.log('Guild members not initialized yet');
       return;
     }
+    
+    const guildMembers = window.guildMembers;
     
     Object.values(guildMembers).forEach(member => {
       if (!member.autoTrading) {
