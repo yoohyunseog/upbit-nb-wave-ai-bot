@@ -66,7 +66,7 @@ VILLAGE_ENTRY_EXIT_LOG = {
     "resident_status": {}  # 각 주민별 현재 상태
 }
 
-# 마을 주민 시스템 (Guild Members)
+# 마을 주민 시스템 (Guild Members) - 카드 기반 시스템
 VILLAGE_RESIDENTS = {
     "scout": {
         "name": "Scout",
@@ -76,7 +76,7 @@ VILLAGE_RESIDENTS = {
         "maxStamina": 100,
         "location": "Gate",
         "role": "Explorer",
-        "trainerCards": ["minute1", "minute3"],
+        "assignedTimeframes": ["minute1", "minute3"],  # 담당 분봉
         "specialty": "Quick Signals",
         "description": "Monitors 1m & 3m charts for rapid opportunities",
         "skillLevel": 2.9,
@@ -86,6 +86,24 @@ VILLAGE_RESIDENTS = {
         "lastAutoTrade": None,
         "tradeFrequency": 0.6,
         "strategy": "momentum",
+        
+        # 카드 시스템
+        "cardSystem": {
+            "activeCards": [],  # 활성 카드 ID들
+            "completedCards": [],  # 완료된 카드 ID들
+            "failedCards": [],  # 실패한 카드 ID들
+            "cardAnalysisHistory": [],  # 카드 분석 히스토리
+            "currentAnalysis": None,  # 현재 분석 중인 카드
+            "analysisSuccessRate": 0.0,  # 분석 성공률
+            "totalCardsAnalyzed": 0,  # 총 분석한 카드 수
+            "successfulCards": 0,  # 성공한 카드 수
+            "averageProfit": 0.0,  # 평균 수익률
+            "totalProfit": 0.0,  # 총 수익
+            "totalVolume": 0.0,  # 총 거래량
+            "totalFees": 0.0  # 총 수수료
+        },
+        
+        # 기존 시스템 (호환성 유지)
         "nbCoins": 0.001,
         "totalNbCoinsEarned": 0.0,
         "totalNbCoinsLost": 0.0,
@@ -102,7 +120,7 @@ VILLAGE_RESIDENTS = {
         "maxStamina": 100,
         "location": "Market",
         "role": "Protector",
-        "trainerCards": ["minute5", "minute10"],
+        "assignedTimeframes": ["minute5", "minute10"],  # 담당 분봉
         "specialty": "Trend Protection",
         "description": "Protects trends with 5m & 10m charts",
         "skillLevel": 1.0,
@@ -112,6 +130,24 @@ VILLAGE_RESIDENTS = {
         "lastAutoTrade": None,
         "tradeFrequency": 0.4,
         "strategy": "mean_reversion",
+        
+        # 카드 시스템
+        "cardSystem": {
+            "activeCards": [],
+            "completedCards": [],
+            "failedCards": [],
+            "cardAnalysisHistory": [],
+            "currentAnalysis": None,
+            "analysisSuccessRate": 0.0,
+            "totalCardsAnalyzed": 0,
+            "successfulCards": 0,
+            "averageProfit": 0.0,
+            "totalProfit": 0.0,
+            "totalVolume": 0.0,
+            "totalFees": 0.0
+        },
+        
+        # 기존 시스템 (호환성 유지)
         "nbCoins": 0.001,
         "totalNbCoinsEarned": 0.0,
         "totalNbCoinsLost": 0.0,
@@ -128,7 +164,7 @@ VILLAGE_RESIDENTS = {
         "maxStamina": 100,
         "location": "Tower",
         "role": "Strategist",
-        "trainerCards": ["minute15", "minute30"],
+        "assignedTimeframes": ["minute15", "minute30"],  # 담당 분봉
         "specialty": "Strategic Analysis",
         "description": "Develops strategies with 15m & 30m charts",
         "skillLevel": 1.0,
@@ -138,6 +174,24 @@ VILLAGE_RESIDENTS = {
         "lastAutoTrade": None,
         "tradeFrequency": 0.3,
         "strategy": "breakout",
+        
+        # 카드 시스템
+        "cardSystem": {
+            "activeCards": [],
+            "completedCards": [],
+            "failedCards": [],
+            "cardAnalysisHistory": [],
+            "currentAnalysis": None,
+            "analysisSuccessRate": 0.0,
+            "totalCardsAnalyzed": 0,
+            "successfulCards": 0,
+            "averageProfit": 0.0,
+            "totalProfit": 0.0,
+            "totalVolume": 0.0,
+            "totalFees": 0.0
+        },
+        
+        # 기존 시스템 (호환성 유지)
         "nbCoins": 0.001,
         "totalNbCoinsEarned": 0.0,
         "totalNbCoinsLost": 0.0,
@@ -154,7 +208,7 @@ VILLAGE_RESIDENTS = {
         "maxStamina": 100,
         "location": "Inn",
         "role": "Advisor",
-        "trainerCards": ["minute60", "day"],
+        "assignedTimeframes": ["minute60", "day"],  # 담당 분봉
         "specialty": "Long-term Wisdom",
         "description": "Provides wisdom with 1h & daily charts",
         "skillLevel": 1.0,
@@ -164,6 +218,24 @@ VILLAGE_RESIDENTS = {
         "lastAutoTrade": None,
         "tradeFrequency": 0.2,
         "strategy": "trend_following",
+        
+        # 카드 시스템
+        "cardSystem": {
+            "activeCards": [],
+            "completedCards": [],
+            "failedCards": [],
+            "cardAnalysisHistory": [],
+            "currentAnalysis": None,
+            "analysisSuccessRate": 0.0,
+            "totalCardsAnalyzed": 0,
+            "successfulCards": 0,
+            "averageProfit": 0.0,
+            "totalProfit": 0.0,
+            "totalVolume": 0.0,
+            "totalFees": 0.0
+        },
+        
+        # 기존 시스템 (호환성 유지)
         "nbCoins": 0.001,
         "totalNbCoinsEarned": 0.0,
         "totalNbCoinsLost": 0.0,
@@ -174,7 +246,259 @@ VILLAGE_RESIDENTS = {
     }
 }
 
-# 트레이너 창고 시스템
+# 카드 시스템 전역 변수
+CARD_SYSTEM = {
+    "totalCards": 25,  # 총 카드 수
+    "activeCards": {},  # 활성 카드들 (임시)
+    "completedCards": {},  # 완성된 카드들
+    "failedCards": {},  # 실패한 카드들
+    "cardCounter": 0,  # 카드 ID 카운터
+    "lastCardUpdate": None  # 마지막 카드 업데이트 시간
+}
+
+# 카드 시스템 함수들
+def create_card(member_name, timeframe, pattern_data):
+    """새로운 카드 생성"""
+    global CARD_SYSTEM
+    
+    CARD_SYSTEM["cardCounter"] += 1
+    card_id = CARD_SYSTEM["cardCounter"]
+    
+    card = {
+        "cardId": card_id,
+        "memberName": member_name,
+        "timeframe": timeframe,
+        "status": "created",  # created, analyzing, buy_completed, completed, failed
+        "patternData": pattern_data,
+        "createdAt": time.time(),
+        "buyInfo": None,
+        "sellInfo": None,
+        "performance": None,
+        "strategy": None
+    }
+    
+    # 활성 카드에 추가
+    CARD_SYSTEM["activeCards"][card_id] = card
+    
+    # 주민의 활성 카드 목록에 추가
+    if member_name in VILLAGE_RESIDENTS:
+        VILLAGE_RESIDENTS[member_name]["cardSystem"]["activeCards"].append(card_id)
+    
+    print(f"🃏 카드 생성: {member_name} - {timeframe} (ID: {card_id})")
+    return card_id
+
+def analyze_card(card_id, member_name):
+    """카드 분석 및 매수/매도 전략 생성"""
+    if card_id not in CARD_SYSTEM["activeCards"]:
+        return None
+    
+    card = CARD_SYSTEM["activeCards"][card_id]
+    member = VILLAGE_RESIDENTS.get(member_name)
+    
+    if not member:
+        return None
+    
+    # 주민의 전문성에 따른 전략 생성
+    strategy = generate_trading_strategy(member, card["timeframe"], card["patternData"])
+    
+    # 카드 업데이트
+    card["status"] = "analyzing"
+    card["strategy"] = strategy
+    card["analyzedAt"] = time.time()
+    
+    # 주민의 현재 분석 상태 업데이트
+    member["cardSystem"]["currentAnalysis"] = card_id
+    member["cardSystem"]["cardAnalysisHistory"].append({
+        "cardId": card_id,
+        "timeframe": card["timeframe"],
+        "strategy": strategy,
+        "analyzedAt": time.time()
+    })
+    
+    print(f"🔍 카드 분석 완료: {member_name} - 카드 {card_id}")
+    return strategy
+
+def execute_card_buy(card_id, buy_info):
+    """카드 매수 실행"""
+    if card_id not in CARD_SYSTEM["activeCards"]:
+        return False
+    
+    card = CARD_SYSTEM["activeCards"][card_id]
+    member_name = card["memberName"]
+    
+    # 매수 정보 저장
+    card["buyInfo"] = buy_info
+    card["status"] = "buy_completed"
+    card["buyCompletedAt"] = time.time()
+    
+    # 주민의 창고에 임시 배치
+    if member_name in VILLAGE_RESIDENTS:
+        member = VILLAGE_RESIDENTS[member_name]
+        member["cardSystem"]["totalVolume"] += buy_info.get("amount", 0)
+        member["cardSystem"]["totalFees"] += buy_info.get("fee", 0)
+    
+    print(f"💰 카드 매수 완료: {member_name} - 카드 {card_id}")
+    return True
+
+def execute_card_sell(card_id, sell_info):
+    """카드 매도 실행 및 완성"""
+    if card_id not in CARD_SYSTEM["activeCards"]:
+        return False
+    
+    card = CARD_SYSTEM["activeCards"][card_id]
+    member_name = card["memberName"]
+    
+    # 매도 정보 저장
+    card["sellInfo"] = sell_info
+    card["status"] = "completed"
+    card["sellCompletedAt"] = time.time()
+    
+    # 성과 계산
+    performance = calculate_card_performance(card)
+    card["performance"] = performance
+    
+    # 완성된 카드로 이동
+    CARD_SYSTEM["completedCards"][card_id] = card
+    del CARD_SYSTEM["activeCards"][card_id]
+    
+    # 주민 통계 업데이트
+    if member_name in VILLAGE_RESIDENTS:
+        member = VILLAGE_RESIDENTS[member_name]
+        member["cardSystem"]["activeCards"].remove(card_id)
+        member["cardSystem"]["completedCards"].append(card_id)
+        
+        # 성과 업데이트
+        member["cardSystem"]["totalCardsAnalyzed"] += 1
+        if performance["success"]:
+            member["cardSystem"]["successfulCards"] += 1
+            member["cardSystem"]["totalProfit"] += performance["profit"]
+        else:
+            member["cardSystem"]["failedCards"].append(card_id)
+        
+        # 성공률 계산
+        total_analyzed = member["cardSystem"]["totalCardsAnalyzed"]
+        successful = member["cardSystem"]["successfulCards"]
+        if total_analyzed > 0:
+            member["cardSystem"]["analysisSuccessRate"] = successful / total_analyzed
+            member["cardSystem"]["averageProfit"] = member["cardSystem"]["totalProfit"] / total_analyzed
+        
+        # 현재 분석 상태 초기화
+        member["cardSystem"]["currentAnalysis"] = None
+    
+    print(f"✅ 카드 완성: {member_name} - 카드 {card_id} (수익: {performance['profit']:.2f}%)")
+    return True
+
+def generate_trading_strategy(member, timeframe, pattern_data):
+    """주민의 전문성에 따른 거래 전략 생성"""
+    strategy = {
+        "timeframe": timeframe,
+        "memberRole": member["role"],
+        "specialty": member["specialty"],
+        "confidence": 0.0,
+        "buyCondition": "",
+        "sellCondition": "",
+        "stopLoss": "",
+        "takeProfit": "",
+        "expectedProfit": 0.0,
+        "expectedRisk": 0.0
+    }
+    
+    # 주민별 전략 생성
+    if member["role"] == "Explorer":  # Scout
+        strategy.update({
+            "buyCondition": "RSI < 25 && volume_spike > 200%",
+            "sellCondition": "profit >= 1.5% || RSI > 75",
+            "stopLoss": "loss >= -0.8%",
+            "takeProfit": "profit >= 2%",
+            "expectedProfit": 1.5,
+            "expectedRisk": -0.8,
+            "confidence": 0.85
+        })
+    elif member["role"] == "Protector":  # Guardian
+        strategy.update({
+            "buyCondition": "MACD_crossover && support_level",
+            "sellCondition": "resistance_level || profit >= 2.5%",
+            "stopLoss": "loss >= -1.2%",
+            "takeProfit": "profit >= 3%",
+            "expectedProfit": 2.5,
+            "expectedRisk": -1.2,
+            "confidence": 0.80
+        })
+    elif member["role"] == "Strategist":  # Analyst
+        strategy.update({
+            "buyCondition": "price_breakout_above_resistance",
+            "sellCondition": "trend_exhaustion || profit >= 3%",
+            "stopLoss": "loss >= -1.5%",
+            "takeProfit": "profit >= 4%",
+            "expectedProfit": 3.0,
+            "expectedRisk": -1.5,
+            "confidence": 0.75
+        })
+    elif member["role"] == "Advisor":  # Elder
+        strategy.update({
+            "buyCondition": "strong_uptrend_confirmation",
+            "sellCondition": "trend_reversal || profit >= 4%",
+            "stopLoss": "loss >= -2%",
+            "takeProfit": "profit >= 5%",
+            "expectedProfit": 4.0,
+            "expectedRisk": -2.0,
+            "confidence": 0.70
+        })
+    
+    return strategy
+
+def calculate_card_performance(card):
+    """카드 성과 계산"""
+    if not card["buyInfo"] or not card["sellInfo"]:
+        return {"success": False, "profit": 0.0, "reason": "거래 정보 부족"}
+    
+    buy_price = card["buyInfo"]["price"]
+    sell_price = card["sellInfo"]["price"]
+    buy_time = card["buyInfo"]["time"]
+    sell_time = card["sellInfo"]["time"]
+    
+    # 수익률 계산
+    profit_percent = ((sell_price - buy_price) / buy_price) * 100
+    
+    # 성공 여부 판단
+    success = profit_percent > 0
+    
+    # 거래 시간 계산
+    duration = sell_time - buy_time
+    
+    return {
+        "success": success,
+        "profit": profit_percent,
+        "buyPrice": buy_price,
+        "sellPrice": sell_price,
+        "duration": duration,
+        "reason": "목표 달성" if success else "손실 발생"
+    }
+
+def get_member_card_status(member_name):
+    """주민의 카드 상태 조회"""
+    if member_name not in VILLAGE_RESIDENTS:
+        return None
+    
+    member = VILLAGE_RESIDENTS[member_name]
+    card_system = member["cardSystem"]
+    
+    return {
+        "memberName": member_name,
+        "role": member["role"],
+        "assignedTimeframes": member["assignedTimeframes"],
+        "activeCards": len(card_system["activeCards"]),
+        "completedCards": len(card_system["completedCards"]),
+        "failedCards": len(card_system["failedCards"]),
+        "analysisSuccessRate": card_system["analysisSuccessRate"],
+        "totalCardsAnalyzed": card_system["totalCardsAnalyzed"],
+        "successfulCards": card_system["successfulCards"],
+        "averageProfit": card_system["averageProfit"],
+        "totalProfit": card_system["totalProfit"],
+        "currentAnalysis": card_system["currentAnalysis"]
+    }
+
+# 트레이너 창고 시스템 (카드 기반으로 개선)
 TRAINER_WAREHOUSES = {}
 
 def initialize_trainer_warehouses():
@@ -1597,6 +1921,151 @@ def get_ai_trading_explanation(trainer_name):
         
     except Exception as e:
         return jsonify({'error': f'AI 거래 설명 생성 실패: {str(e)}'}), 500
+
+# 카드 시스템 API 엔드포인트들
+@app.route('/api/village/card-system/status', methods=['GET'])
+def api_village_card_system_status():
+    """카드 시스템 전체 상태 API"""
+    try:
+        status = {
+            "totalCards": CARD_SYSTEM["totalCards"],
+            "activeCards": len(CARD_SYSTEM["activeCards"]),
+            "completedCards": len(CARD_SYSTEM["completedCards"]),
+            "failedCards": len(CARD_SYSTEM["failedCards"]),
+            "cardCounter": CARD_SYSTEM["cardCounter"],
+            "lastUpdate": CARD_SYSTEM["lastCardUpdate"],
+            "members": {}
+        }
+        
+        # 각 주민의 카드 상태
+        for member_name, member in VILLAGE_RESIDENTS.items():
+            status["members"][member_name] = get_member_card_status(member_name)
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        print(f"Error in card system status API: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/village/card-system/member/<member_name>', methods=['GET'])
+def api_village_card_system_member(member_name):
+    """특정 주민의 카드 시스템 상태 API"""
+    try:
+        status = get_member_card_status(member_name)
+        if not status:
+            return jsonify({"error": "Member not found"}), 404
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        print(f"Error in member card system API: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/village/card-system/create', methods=['POST'])
+def api_village_card_system_create():
+    """새로운 카드 생성 API"""
+    try:
+        data = request.get_json()
+        member_name = data.get("member_name")
+        timeframe = data.get("timeframe")
+        pattern_data = data.get("pattern_data", {})
+        
+        if not member_name or not timeframe:
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        # 주민이 해당 분봉을 담당하는지 확인
+        member = VILLAGE_RESIDENTS.get(member_name.lower())
+        if not member or timeframe not in member["assignedTimeframes"]:
+            return jsonify({"error": "Member not assigned to this timeframe"}), 400
+        
+        # 카드 생성
+        card_id = create_card(member_name, timeframe, pattern_data)
+        
+        return jsonify({
+            "success": True,
+            "card_id": card_id,
+            "member_name": member_name,
+            "timeframe": timeframe
+        })
+        
+    except Exception as e:
+        print(f"Error in create card API: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/village/card-system/analyze/<int:card_id>', methods=['POST'])
+def api_village_card_system_analyze(card_id):
+    """카드 분석 API"""
+    try:
+        data = request.get_json()
+        member_name = data.get("member_name")
+        
+        if not member_name:
+            return jsonify({"error": "Missing member_name"}), 400
+        
+        # 카드 분석
+        strategy = analyze_card(card_id, member_name)
+        if not strategy:
+            return jsonify({"error": "Card analysis failed"}), 400
+        
+        return jsonify({
+            "success": True,
+            "card_id": card_id,
+            "strategy": strategy
+        })
+        
+    except Exception as e:
+        print(f"Error in analyze card API: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/village/card-system/buy/<int:card_id>', methods=['POST'])
+def api_village_card_system_buy(card_id):
+    """카드 매수 실행 API"""
+    try:
+        data = request.get_json()
+        buy_info = data.get("buy_info", {})
+        
+        if not buy_info:
+            return jsonify({"error": "Missing buy_info"}), 400
+        
+        # 매수 실행
+        success = execute_card_buy(card_id, buy_info)
+        if not success:
+            return jsonify({"error": "Buy execution failed"}), 400
+        
+        return jsonify({
+            "success": True,
+            "card_id": card_id,
+            "status": "buy_completed"
+        })
+        
+    except Exception as e:
+        print(f"Error in buy card API: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/village/card-system/sell/<int:card_id>', methods=['POST'])
+def api_village_card_system_sell(card_id):
+    """카드 매도 실행 API"""
+    try:
+        data = request.get_json()
+        sell_info = data.get("sell_info", {})
+        
+        if not sell_info:
+            return jsonify({"error": "Missing sell_info"}), 400
+        
+        # 매도 실행
+        success = execute_card_sell(card_id, sell_info)
+        if not success:
+            return jsonify({"error": "Sell execution failed"}), 400
+        
+        return jsonify({
+            "success": True,
+            "card_id": card_id,
+            "status": "completed"
+        })
+        
+    except Exception as e:
+        print(f"Error in sell card API: {e}")
+        return jsonify({"error": str(e)}), 500
 
 state = {
     "price": 0.0,
