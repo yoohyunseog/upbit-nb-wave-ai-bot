@@ -62,32 +62,8 @@ async function updateGuildMembersStatus() {
       }
 
       if (!aiExplanationRestored && typeof window.getAIExplanation === 'function') {
-        window.getAIExplanation(member.name).then(explanation => {
-          const aiElement = document.getElementById(`ai-explanation-${member.name}`);
-          if (aiElement) {
-            // Handle both string and object responses
-            let explanationText = 'AI 분석 중...';
-            
-            if (typeof explanation === 'string') {
-              explanationText = explanation;
-            } else if (explanation && typeof explanation === 'object') {
-              // Extract text from object properties
-              if (explanation.explanation) {
-                explanationText = explanation.explanation;
-              } else if (explanation.text) {
-                explanationText = explanation.text;
-              } else if (explanation.reason) {
-                explanationText = explanation.reason;
-              } else if (explanation.strategy) {
-                explanationText = explanation.strategy;
-              } else {
-                explanationText = JSON.stringify(explanation);
-              }
-            }
-            
-            aiElement.innerHTML = `🤖 AI 트레이딩 설명: ${explanationText}`;
-          }
-        }).catch(e => {
+        // getAIExplanation 함수는 이미 HTML을 생성하므로 직접 호출
+        window.getAIExplanation(member.name).catch(e => {
           console.error('Error updating AI explanation:', e);
           const aiElement = document.getElementById(`ai-explanation-${member.name}`);
           if (aiElement) {
