@@ -3563,8 +3563,8 @@
 
     pushConfig();
     
-    // 🎯 UI 차트 간격을 서버에 전송하여 동기화
-    updateServerCurrentInterval();
+    // 🎯 UI 차트 간격 변경 시 current-zone API 호출하여 업데이트
+    updateCurrentZoneAPI();
 
   });
 
@@ -13907,36 +13907,30 @@
     console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
   }, 6000); // 6초 후 시작
 
-  // 🎯 UI 차트 간격을 서버에 전송하여 동기화
-  async function updateServerCurrentInterval() {
+  // 🎯 UI 차트 간격 변경 시 current-zone API 호출하여 업데이트
+  async function updateCurrentZoneAPI() {
     try {
       const currentInterval = getInterval();
-      console.log(`🎯 UI 차트 간격을 서버에 전송: ${currentInterval}`);
+      console.log(`🎯 UI 차트 간격 변경 감지: ${currentInterval}`);
       
-      const response = await fetch('/api/village/update-current-interval', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          current_interval: currentInterval
-        })
-      });
+      // current-zone API 호출하여 최신 데이터 가져오기
+      const response = await fetch('/api/village/current-zone');
+      const data = await response.json();
       
-      const result = await response.json();
-      if (result.ok) {
-        console.log(`✅ 서버 차트 간격 업데이트 완료: ${currentInterval}`);
+      if (data.candle_data && data.candle_data.ui_current_interval) {
+        console.log(`✅ current-zone API 업데이트 완료: ${currentInterval}`);
+        console.log('📊 UI 현재 간격 데이터:', data.candle_data.ui_current_interval);
       } else {
-        console.error('❌ 서버 차트 간격 업데이트 실패:', result.error);
+        console.error('❌ current-zone API 응답에 candle_data가 없습니다');
       }
     } catch (error) {
-      console.error('❌ 서버 차트 간격 업데이트 오류:', error);
+      console.error('❌ current-zone API 호출 오류:', error);
     }
   }
   
-  // 페이지 로드 시 초기 간격 전송
+  // 페이지 로드 시 초기 API 호출
   setTimeout(() => {
-    updateServerCurrentInterval();
-  }, 2000); // 2초 후 초기 전송
+    updateCurrentZoneAPI();
+  }, 2000); // 2초 후 초기 호출
 
 })();
