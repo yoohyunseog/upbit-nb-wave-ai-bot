@@ -66,8 +66,25 @@ async function updateGuildMembersStatus() {
           const aiElement = document.getElementById(`ai-explanation-${member.name}`);
           if (aiElement) {
             // Handle both string and object responses
-            const explanationText = typeof explanation === 'string' ? explanation : 
-              (explanation && explanation.text ? explanation.text : 'AI 분석 중...');
+            let explanationText = 'AI 분석 중...';
+            
+            if (typeof explanation === 'string') {
+              explanationText = explanation;
+            } else if (explanation && typeof explanation === 'object') {
+              // Extract text from object properties
+              if (explanation.explanation) {
+                explanationText = explanation.explanation;
+              } else if (explanation.text) {
+                explanationText = explanation.text;
+              } else if (explanation.reason) {
+                explanationText = explanation.reason;
+              } else if (explanation.strategy) {
+                explanationText = explanation.strategy;
+              } else {
+                explanationText = JSON.stringify(explanation);
+              }
+            }
+            
             aiElement.innerHTML = `🤖 AI 트레이딩 설명: ${explanationText}`;
           }
         }).catch(e => {
