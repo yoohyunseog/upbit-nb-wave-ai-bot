@@ -37,32 +37,10 @@ async function updateGuildMembersStatus() {
       guildContainer.appendChild(memberDiv);
     });
 
-    // 모든 길드 멤버의 상태 업데이트 (저장된 상태 복원 우선)
+    // 모든 길드 멤버의 상태 업데이트
     Object.values(guildMembers).forEach(member => {
-      // 먼저 저장된 상태 복원 시도 - check if functions are available
-      let guidanceRestored = false;
-      let aiExplanationRestored = false;
-      
-      if (typeof window.restoreMayorGuidanceStatus === 'function') {
-        guidanceRestored = window.restoreMayorGuidanceStatus(member.name);
-      }
-      
-      if (typeof window.restoreAIExplanation === 'function') {
-        aiExplanationRestored = window.restoreAIExplanation(member.name);
-      }
-
-      // 실시간 업데이트 (복원되지 않은 경우에만)
-      if (!guidanceRestored && typeof window.getMayorGuidanceStatus === 'function') {
-        window.getMayorGuidanceStatus(member).then(guidanceHtml => {
-          const guidanceElement = document.getElementById(`mayor-guidance-${member.name}`);
-          if (guidanceElement) {
-            guidanceElement.innerHTML = guidanceHtml;
-          }
-        }).catch(e => console.error('Error updating mayor guidance status:', e));
-      }
-
-      if (!aiExplanationRestored && typeof window.getAIExplanation === 'function') {
-        // getAIExplanation 함수는 이미 HTML을 생성하므로 직접 호출
+      // AI 설명 업데이트 - getAIExplanation 함수 직접 호출
+      if (typeof window.getAIExplanation === 'function') {
         window.getAIExplanation(member.name).catch(e => {
           console.error('Error updating AI explanation:', e);
           const aiElement = document.getElementById(`ai-explanation-${member.name}`);
@@ -166,14 +144,12 @@ function generateTradeSlideHTML(member) {
   }
   
   const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
-  const pnlBgColor = currentPnl > 0 ? 'rgba(14,203,129,0.1)' : currentPnl < 0 ? 'rgba(246,70,93,0.1)' : 'rgba(255,255,255,0.05)';
   
   // Sell prediction logic
   const sellPrediction = calculateSellPrediction(member, currentPnl, minutesHeld);
   
   return `
     <div style="font-size:11px; color:#ffffff; background:rgba(0,209,255,0.1); border-radius:6px; padding:8px; border-left:3px solid #00d1ff;">
-      <!-- Trade Progress Bar -->
       <div class="mb-2">
         <div class="d-flex justify-content-between align-items-center mb-1">
           <span style="font-size:10px; color:#ffffff;">📊 ${positionSide} ${coinAmount.toFixed(8)} BTC</span>
@@ -310,7 +286,7 @@ function getGuildMembersStatusForInterval(interval) {
   }
 }
 
-// Update Auto Trading Status Display (now integrated into updateGuildMembersStatus)
+// Update Auto Trading Status Display
 function updateAutoTradingStatus() {
   // This function is now integrated into updateGuildMembersStatus
   // Keeping it for compatibility but it's no longer needed
