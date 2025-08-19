@@ -2,6 +2,33 @@
 // 🏛️ 촌장의 실시간 지침 시스템
 // ========================================
 
+// 현재 차트 간격을 표시 형식으로 변환하는 함수
+function getCurrentTimeframeDisplay() {
+  try {
+    const tfEl = document.getElementById('timeframe');
+    if (tfEl && tfEl.value) {
+      const interval = tfEl.value;
+      switch (interval) {
+        case 'minute1': return '1m';
+        case 'minute3': return '3m';
+        case 'minute5': return '5m';
+        case 'minute10': return '10m';
+        case 'minute15': return '15m';
+        case 'minute30': return '30m';
+        case 'minute60': return '1h';
+        case 'minute240': return '4h';
+        case 'day': return '1d';
+        case 'week': return '1w';
+        case 'month': return '1M';
+        default: return interval;
+      }
+    }
+  } catch (e) {
+    console.error('차트 간격 표시 변환 오류:', e);
+  }
+  return '1h'; // 기본값
+}
+
 // jQuery를 사용한 촌장 지침 데이터 가져오기
 function getMayorGuidanceData() {
   return $.ajax({
@@ -295,7 +322,7 @@ function updateRealtimeMayorGuidance() {
           <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
         </div>
         <div style="margin-bottom: 4px;">
-          <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">1h ${data.nbZone}</span>
+          <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${getCurrentTimeframeDisplay()} ${data.nbZone}</span>
         </div>
         <div style="margin-bottom: 4px;">
           <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
@@ -380,7 +407,7 @@ function restoreRealtimeMayorGuidance() {
             <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
           </div>
           <div style="margin-bottom: 4px;">
-            <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">1h ${nbZone}</span>
+            <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${getCurrentTimeframeDisplay()} ${nbZone}</span>
           </div>
           <div style="margin-bottom: 4px;">
             <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
@@ -505,7 +532,7 @@ function getMayorGuidanceStatus(member) {
         <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbGuildTrust}%</span>
       </div>
       <div style="margin-bottom: 2px;">
-        <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">1h ${currentZone}</span>
+        <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${getCurrentTimeframeDisplay()} ${currentZone}</span>
       </div>
       <div style="margin-bottom: 2px;">
         <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
