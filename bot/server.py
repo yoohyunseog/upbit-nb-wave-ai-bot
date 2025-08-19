@@ -1362,10 +1362,10 @@ def get_current_zone():
                 print(f"UI 간격 데이터 조회 실패: {e_ui_curr}")
                 current_candle_data['ui_current_interval'] = {'error': f'UI 간격 조회 실패: {str(e_ui_curr)}'}
             
-            # 서버 설정된 캔들 간격 데이터 (기존 유지)
+            # 서버 설정된 캔들 간격 데이터 (UI와 동일한 간격 사용)
             try:
-                server_current_interval = cfg.candle
-                print(f"서버 설정 간격: {server_current_interval}")
+                server_current_interval = UI_CURRENT_INTERVAL  # UI에서 전송받은 간격 사용
+                print(f"서버 간격 (UI 동기화): {server_current_interval}")
                 df_server_current = get_candles(cfg.market, server_current_interval, count=10)
                 print(f"서버 간격 데이터 조회 완료 - 데이터 개수: {len(df_server_current) if not df_server_current.empty else 0}")
                 if not df_server_current.empty:
