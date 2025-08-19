@@ -323,7 +323,7 @@ function updateRealtimeMayorGuidance() {
       console.log('분봉 데이터 확인:', data.candle_data);
       
       if (data.candle_data) {
-        // ui_current_interval에서 분봉 정보 추출
+        // ui_current_interval에서 분봉 정보 추출 (우선)
         if (data.candle_data.ui_current_interval && data.candle_data.ui_current_interval.interval) {
           const interval = data.candle_data.ui_current_interval.interval;
           console.log('UI 현재 간격:', interval);
@@ -354,6 +354,34 @@ function updateRealtimeMayorGuidance() {
         // candle_data가 있지만 interval 정보가 없는 경우
         else {
           candleTime = 'API 분봉';
+        }
+      }
+      
+      // 분봉 정보가 여전히 기본값인 경우, 현재 차트에서 직접 가져오기
+      if (candleTime === '--분봉' || candleTime === 'API 분봉') {
+        try {
+          const tfEl = document.getElementById('timeframe');
+          if (tfEl && tfEl.value) {
+            const interval = tfEl.value;
+            console.log('현재 차트 간격:', interval);
+            switch (interval) {
+              case 'minute1': candleTime = '1분봉'; break;
+              case 'minute3': candleTime = '3분봉'; break;
+              case 'minute5': candleTime = '5분봉'; break;
+              case 'minute10': candleTime = '10분봉'; break;
+              case 'minute15': candleTime = '15분봉'; break;
+              case 'minute30': candleTime = '30분봉'; break;
+              case 'minute60': candleTime = '60분봉'; break;
+              case 'minute240': candleTime = '240분봉'; break;
+              case 'day': candleTime = '1일봉'; break;
+              case 'week': candleTime = '1주봉'; break;
+              case 'month': candleTime = '1월봉'; break;
+              default: candleTime = `${interval}봉`;
+            }
+          }
+        } catch (e) {
+          console.error('차트 간격 가져오기 오류:', e);
+          candleTime = '차트 분봉';
         }
       }
       
@@ -569,8 +597,32 @@ function getMayorGuidanceStatus(member) {
       second: '2-digit',
       hour12: false 
     });
-    const currentMinute = now.getMinutes();
-    const candleTime = `${currentMinute.toString().padStart(2, '0')}분봉`;
+    
+    // 분봉 정보를 현재 차트에서 직접 가져오기
+    let candleTime = '차트 분봉';
+    try {
+      const tfEl = document.getElementById('timeframe');
+      if (tfEl && tfEl.value) {
+        const interval = tfEl.value;
+        switch (interval) {
+          case 'minute1': candleTime = '1분봉'; break;
+          case 'minute3': candleTime = '3분봉'; break;
+          case 'minute5': candleTime = '5분봉'; break;
+          case 'minute10': candleTime = '10분봉'; break;
+          case 'minute15': candleTime = '15분봉'; break;
+          case 'minute30': candleTime = '30분봉'; break;
+          case 'minute60': candleTime = '60분봉'; break;
+          case 'minute240': candleTime = '240분봉'; break;
+          case 'day': candleTime = '1일봉'; break;
+          case 'week': candleTime = '1주봉'; break;
+          case 'month': candleTime = '1월봉'; break;
+          default: candleTime = `${interval}봉`;
+        }
+      }
+    } catch (e) {
+      console.error('차트 간격 가져오기 오류:', e);
+      candleTime = '차트 분봉';
+    }
     
     const trustInfo = `
       <div style="margin-bottom: 2px;">
