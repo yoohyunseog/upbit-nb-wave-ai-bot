@@ -11361,6 +11361,9 @@
     // 실시간 촌장 지침 복원
     restoreRealtimeMayorGuidance();
     
+    // 마을 이동 에너지 정보 복원
+    restoreVillageEnergyInfo();
+    
     // 모든 길드 멤버의 저장된 상태 복원
     Object.values(guildMembers).forEach(member => {
       restoreMayorGuidanceStatus(member.name);
@@ -13449,5 +13452,209 @@
       console.log('⚠️ startVillageTradingProcessMonitoring 함수를 찾을 수 없습니다');
     }
   }, 3000); // 3초 후 시작
+
+  // 🏰 마을 이동 에너지 자동 저장 시스템
+  function saveVillageEnergyAndChartInfo() {
+    try {
+      // 현재 시간
+      const now = new Date();
+      const currentTime = now.toLocaleTimeString('ko-KR', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false 
+      });
+      
+      // 마을 이동 에너지 정보 수집
+      const energyInfo = {
+        currentEnergy: 99999,
+        maxEnergy: 99999,
+        percentage: 100,
+        treasuryAccess: 'Unlocked',
+        recovery: 'Chart Interval Changes',
+        chartChanges: {
+          total: 0,
+          profitable: 0,
+          ratio: '0/0 profitable'
+        },
+        lastUpdate: currentTime,
+        timestamp: Date.now()
+      };
+      
+      // localStorage에 저장
+      localStorage.setItem('village_energy_info', JSON.stringify(energyInfo));
+      
+      console.log('🏰 마을 이동 에너지 정보 저장됨:', energyInfo);
+      
+      // UI 업데이트
+      updateVillageEnergyDisplay(energyInfo);
+      
+    } catch (e) {
+      console.error('마을 이동 에너지 정보 저장 실패:', e);
+    }
+  }
+  
+  // 마을 이동 에너지 정보 복원
+  function restoreVillageEnergyInfo() {
+    try {
+      const savedEnergyInfo = localStorage.getItem('village_energy_info');
+      if (savedEnergyInfo) {
+        const energyInfo = JSON.parse(savedEnergyInfo);
+        
+        // UI 업데이트
+        updateVillageEnergyDisplay(energyInfo);
+        
+        console.log('🏰 마을 이동 에너지 정보 복원됨:', energyInfo);
+        return true;
+      }
+    } catch (e) {
+      console.error('마을 이동 에너지 정보 복원 실패:', e);
+    }
+    return false;
+  }
+  
+  // 마을 이동 에너지 UI 업데이트
+  function updateVillageEnergyDisplay(energyInfo) {
+    // 에너지 표시 요소 찾기
+    const energyElements = document.querySelectorAll('[data-energy-display]');
+    
+    energyElements.forEach(element => {
+      element.innerHTML = `
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px; border-radius: 6px; color: white; font-size: 11px;">
+          <div style="font-weight: 600; margin-bottom: 4px;">🏰 마을의 이동 에너지</div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #00d1ff;">⚡ 에너지:</span> 
+            <span style="color: #ffffff; font-weight: 600;">${energyInfo.currentEnergy}/${energyInfo.maxEnergy}</span>
+            <span style="color: #0ecb81; margin-left: 4px;">${energyInfo.percentage}%</span>
+          </div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #ffb703;">💰 Treasury Access:</span> 
+            <span style="color: #0ecb81; font-weight: 600;">${energyInfo.treasuryAccess}</span>
+          </div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #f6465d;">🔄 Recovery:</span> 
+            <span style="color: #ffffff;">${energyInfo.recovery}</span>
+          </div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #9c27b0;">📊 Chart Changes:</span> 
+            <span style="color: #ffffff;">${energyInfo.chartChanges.ratio}</span>
+          </div>
+          <div style="font-size: 9px; color: #cccccc; margin-top: 4px;">
+            마지막 업데이트: ${energyInfo.lastUpdate}
+          </div>
+        </div>
+      `;
+    });
+    
+    // 차트 변경 정보 업데이트
+    updateChartChangesInfo(energyInfo.chartChanges);
+  }
+  
+  // 차트 변경 정보 업데이트
+  function updateChartChangesInfo(chartChanges) {
+    const chartInfoElements = document.querySelectorAll('[data-chart-changes]');
+    
+    chartInfoElements.forEach(element => {
+      element.innerHTML = `
+        <div style="font-size: 10px; color: #888888; padding: 4px; background: rgba(255,255,255,0.05); border-radius: 3px;">
+          <div style="color: #9c27b0; font-weight: 600; margin-bottom: 2px;">📊 Chart Changes</div>
+          <div style="margin-bottom: 1px;">
+            <span style="color: #00d1ff;">총 변경:</span> ${chartChanges.total}
+          </div>
+          <div style="margin-bottom: 1px;">
+            <span style="color: #0ecb81;">수익성:</span> ${chartChanges.profitable}
+          </div>
+          <div style="margin-bottom: 1px;">
+            <span style="color: #ffb703;">비율:</span> ${chartChanges.ratio}
+          </div>
+        </div>
+      `;
+    });
+  }
+  
+  // 차트 변경 정보 자동 업데이트 (실제 차트 변경 시 호출)
+  function updateChartChangesCount(isProfitable = false) {
+    try {
+      const savedEnergyInfo = localStorage.getItem('village_energy_info');
+      if (savedEnergyInfo) {
+        const energyInfo = JSON.parse(savedEnergyInfo);
+        
+        // 차트 변경 카운트 업데이트
+        energyInfo.chartChanges.total += 1;
+        if (isProfitable) {
+          energyInfo.chartChanges.profitable += 1;
+        }
+        
+        // 비율 계산
+        const ratio = energyInfo.chartChanges.profitable / energyInfo.chartChanges.total;
+        energyInfo.chartChanges.ratio = `${energyInfo.chartChanges.profitable}/${energyInfo.chartChanges.total} profitable (${(ratio * 100).toFixed(1)}%)`;
+        
+        // 현재 시간 업데이트
+        const now = new Date();
+        energyInfo.lastUpdate = now.toLocaleTimeString('ko-KR', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit',
+          hour12: false 
+        });
+        energyInfo.timestamp = Date.now();
+        
+        // 저장 및 UI 업데이트
+        localStorage.setItem('village_energy_info', JSON.stringify(energyInfo));
+        updateVillageEnergyDisplay(energyInfo);
+        
+        console.log('📊 차트 변경 정보 업데이트됨:', energyInfo.chartChanges);
+      }
+    } catch (e) {
+      console.error('차트 변경 정보 업데이트 실패:', e);
+    }
+  }
+  
+  // 에너지 복구 시뮬레이션
+  function simulateEnergyRecovery() {
+    try {
+      const savedEnergyInfo = localStorage.getItem('village_energy_info');
+      if (savedEnergyInfo) {
+        const energyInfo = JSON.parse(savedEnergyInfo);
+        
+        // 에너지 복구 (차트 간격 변경 시)
+        if (energyInfo.currentEnergy < energyInfo.maxEnergy) {
+          energyInfo.currentEnergy = Math.min(energyInfo.maxEnergy, energyInfo.currentEnergy + 1000);
+          energyInfo.percentage = Math.round((energyInfo.currentEnergy / energyInfo.maxEnergy) * 100);
+          
+          // 현재 시간 업데이트
+          const now = new Date();
+          energyInfo.lastUpdate = now.toLocaleTimeString('ko-KR', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit',
+            hour12: false 
+          });
+          energyInfo.timestamp = Date.now();
+          
+          // 저장 및 UI 업데이트
+          localStorage.setItem('village_energy_info', JSON.stringify(energyInfo));
+          updateVillageEnergyDisplay(energyInfo);
+          
+          console.log('⚡ 에너지 복구됨:', energyInfo.currentEnergy);
+        }
+      }
+    } catch (e) {
+      console.error('에너지 복구 시뮬레이션 실패:', e);
+    }
+  }
+  
+  // 마을 이동 에너지 자동 저장 시작
+  setTimeout(() => {
+    // 초기 저장
+    saveVillageEnergyAndChartInfo();
+    
+    // 30초마다 자동 저장
+    setInterval(() => {
+      saveVillageEnergyAndChartInfo();
+    }, 30000); // 30초마다
+    
+    console.log('🏰 마을 이동 에너지 자동 저장 시작됨');
+  }, 5000); // 5초 후 시작
 
 })();
