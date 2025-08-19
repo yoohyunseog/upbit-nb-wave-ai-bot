@@ -7624,14 +7624,19 @@
 
       integratedGuildStatus.innerHTML = html;
 
-      // 실시간 촌장 지침 업데이트
+      // 실시간 촌장 지침 업데이트 (mayor-guidance.js에서 관리됨)
       const realtimeGuidanceRestored = restoreRealtimeMayorGuidance();
       if (!realtimeGuidanceRestored) {
-        updateRealtimeMayorGuidance().catch(e => console.error('Error updating realtime mayor guidance:', e));
+        // mayor-guidance.js의 함수 사용
+        if (typeof updateRealtimeMayorGuidance === 'function') {
+          updateRealtimeMayorGuidance().catch(e => console.error('Error updating realtime mayor guidance:', e));
+        }
       }
       
-      // 실시간 촌장 지침 주기적 업데이트 시작
-      startRealtimeMayorGuidanceUpdates();
+      // 실시간 촌장 지침 주기적 업데이트 시작 (mayor-guidance.js에서 관리됨)
+      if (typeof startRealtimeMayorGuidanceUpdates === 'function') {
+        startRealtimeMayorGuidanceUpdates();
+      }
 
       // Update individual trade slides
 
@@ -11574,27 +11579,23 @@
     return false;
   }
 
-  // 실시간 촌장 지침 주기적 업데이트 시작
+  // 실시간 촌장 지침 주기적 업데이트 시작 (mayor-guidance.js에서 관리됨)
   function startRealtimeMayorGuidanceUpdates() {
-    // 기존 타이머가 있다면 제거
-    if (window.realtimeMayorGuidanceTimer) {
-      clearInterval(window.realtimeMayorGuidanceTimer);
+    // mayor-guidance.js의 함수 사용
+    if (typeof window.startRealtimeMayorGuidanceUpdates === 'function') {
+      window.startRealtimeMayorGuidanceUpdates();
+    } else {
+      console.log('mayor-guidance.js의 startRealtimeMayorGuidanceUpdates 함수를 찾을 수 없습니다');
     }
-    
-    // 5초마다 실시간 촌장 지침 업데이트
-    window.realtimeMayorGuidanceTimer = setInterval(() => {
-      updateRealtimeMayorGuidance().catch(e => console.error('Error in periodic realtime mayor guidance update:', e));
-    }, 5000); // 5초마다 업데이트
-    
-    console.log('실시간 촌장 지침 주기적 업데이트 시작 (5초 간격)');
   }
 
-  // 실시간 촌장 지침 주기적 업데이트 중지
+  // 실시간 촌장 지침 주기적 업데이트 중지 (mayor-guidance.js에서 관리됨)
   function stopRealtimeMayorGuidanceUpdates() {
-    if (window.realtimeMayorGuidanceTimer) {
-      clearInterval(window.realtimeMayorGuidanceTimer);
-      window.realtimeMayorGuidanceTimer = null;
-      console.log('실시간 촌장 지침 주기적 업데이트 중지');
+    // mayor-guidance.js의 함수 사용
+    if (typeof window.stopRealtimeMayorGuidanceUpdates === 'function') {
+      window.stopRealtimeMayorGuidanceUpdates();
+    } else {
+      console.log('mayor-guidance.js의 stopRealtimeMayorGuidanceUpdates 함수를 찾을 수 없습니다');
     }
   }
 

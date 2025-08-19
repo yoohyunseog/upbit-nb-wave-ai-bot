@@ -424,6 +424,11 @@ function stopRealtimeMayorGuidanceUpdates() {
   }
 }
 
+// 전역 함수로 노출 (ui.js에서 접근 가능하도록)
+window.startRealtimeMayorGuidanceUpdates = startRealtimeMayorGuidanceUpdates;
+window.stopRealtimeMayorGuidanceUpdates = stopRealtimeMayorGuidanceUpdates;
+window.updateRealtimeMayorGuidance = updateRealtimeMayorGuidance;
+
 // jQuery를 사용한 개별 길드 멤버의 촌장 지침 상태 생성
 function getMayorGuidanceStatus(member) {
   return getMayorGuidanceData().then(function(data) {
