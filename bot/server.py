@@ -1251,6 +1251,35 @@ def get_scout_status():
         }
     })
 
+# UI에서 전송된 현재 차트 간격을 저장할 전역 변수
+UI_CURRENT_INTERVAL = 'minute10'  # 기본값
+
+@app.route('/api/village/update-current-interval', methods=['POST'])
+def update_current_interval():
+    """UI에서 현재 선택된 차트 간격을 서버에 전송"""
+    global UI_CURRENT_INTERVAL
+    
+    try:
+        payload = request.get_json(force=True) if request.is_json else request.form.to_dict()
+        current_interval = payload.get('current_interval', 'minute10')
+        
+        # 유효한 간격인지 확인
+        valid_intervals = ['minute1', 'minute3', 'minute5', 'minute10', 'minute15', 'minute30', 'minute60', 'minute240', 'day', 'week', 'month']
+        if current_interval not in valid_intervals:
+            return jsonify({'ok': False, 'error': f'유효하지 않은 간격: {current_interval}'}), 400
+        
+        UI_CURRENT_INTERVAL = current_interval
+        print(f"🎯 UI 차트 간격 업데이트: {current_interval}")
+        
+        return jsonify({
+            'ok': True,
+            'current_interval': current_interval,
+            'message': f'차트 간격이 {current_interval}로 업데이트되었습니다.'
+        })
+        
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'간격 업데이트 실패: {str(e)}'}), 500
+
 @app.route('/api/village/current-zone')
 def get_current_zone():
     """현재 구역 정보 조회 - UI에서 이미 계산된 값 사용"""
@@ -1368,13 +1397,12 @@ def get_current_zone():
                 print(f"10분봉 데이터 조회 실패: {e10}")
                 current_candle_data['minute10'] = {'error': f'10분봉 조회 실패: {str(e10)}'}
             
-            # UI에서 현재 선택된 차트 간격 데이터 (중요!)
+            # UI에서 선택된 현재 차트 간격 데이터 (UI와 동기화)
             try:
-                # UI에서 현재 선택된 간격을 가져오기 위해 bot_ctrl에서 확인
-                ui_current_interval = bot_ctrl.get('current_ui_interval', cfg.candle)
-                print(f"UI 현재 선택 간격: {ui_current_interval}")
+                ui_current_interval = UI_CURRENT_INTERVAL
+                print(f"UI 선택 간격: {ui_current_interval}")
                 df_ui_current = get_candles(cfg.market, ui_current_interval, count=10)
-                print(f"UI 현재 간격 데이터 조회 완료 - 데이터 개수: {len(df_ui_current) if not df_ui_current.empty else 0}")
+                print(f"UI 간격 데이터 조회 완료 - 데이터 개수: {len(df_ui_current) if not df_ui_current.empty else 0}")
                 if not df_ui_current.empty:
                     current_candle_data['ui_current_interval'] = {
                         'interval': ui_current_interval,
@@ -1397,43 +1425,43 @@ def get_current_zone():
                         'count': len(df_ui_current)
                     }
                 else:
-                    current_candle_data['ui_current_interval'] = {'error': f'UI 현재 간격({ui_current_interval}) 데이터가 비어있습니다'}
+                    current_candle_data['ui_current_interval'] = {'error': f'UI 간격({ui_current_interval}) 데이터가 비어있습니다'}
             except Exception as e_ui_curr:
-                print(f"UI 현재 간격 데이터 조회 실패: {e_ui_curr}")
-                current_candle_data['ui_current_interval'] = {'error': f'UI 현재 간격 조회 실패: {str(e_ui_curr)}'}
+                print(f"UI 간격 데이터 조회 실패: {e_ui_curr}")
+                current_candle_data['ui_current_interval'] = {'error': f'UI 간격 조회 실패: {str(e_ui_curr)}'}
             
-            # 설정 파일의 기본 간격 데이터 (기존 유지)
+            # 서버 설정된 캔들 간격 데이터 (기존 유지)
             try:
-                config_interval = cfg.candle
-                print(f"설정 파일 간격: {config_interval}")
-                df_config = get_candles(cfg.market, config_interval, count=10)
-                print(f"설정 간격 데이터 조회 완료 - 데이터 개수: {len(df_config) if not df_config.empty else 0}")
-                if not df_config.empty:
-                    current_candle_data['config_interval'] = {
-                        'interval': config_interval,
+                server_current_interval = cfg.candle
+                print(f"서버 설정 간격: {server_current_interval}")
+                df_server_current = get_candles(cfg.market, server_current_interval, count=10)
+                print(f"서버 간격 데이터 조회 완료 - 데이터 개수: {len(df_server_current) if not df_server_current.empty else 0}")
+                if not df_server_current.empty:
+                    current_candle_data['server_current_interval'] = {
+                        'interval': server_current_interval,
                         'latest': {
-                            'timestamp': int(df_config.index[-1].timestamp() * 1000),
-                            'open': float(df_config['open'].iloc[-1]),
-                            'high': float(df_config['high'].iloc[-1]),
-                            'low': float(df_config['low'].iloc[-1]),
-                            'close': float(df_config['close'].iloc[-1]),
-                            'volume': float(df_config['volume'].iloc[-1])
+                            'timestamp': int(df_server_current.index[-1].timestamp() * 1000),
+                            'open': float(df_server_current['open'].iloc[-1]),
+                            'high': float(df_server_current['high'].iloc[-1]),
+                            'low': float(df_server_current['low'].iloc[-1]),
+                            'close': float(df_server_current['close'].iloc[-1]),
+                            'volume': float(df_server_current['volume'].iloc[-1])
                         },
                         'previous': {
-                            'timestamp': int(df_config.index[-2].timestamp() * 1000),
-                            'open': float(df_config['open'].iloc[-2]),
-                            'high': float(df_config['high'].iloc[-2]),
-                            'low': float(df_config['low'].iloc[-2]),
-                            'close': float(df_config['close'].iloc[-2]),
-                            'volume': float(df_config['volume'].iloc[-2])
-                        } if len(df_config) > 1 else None,
-                        'count': len(df_config)
+                            'timestamp': int(df_server_current.index[-2].timestamp() * 1000),
+                            'open': float(df_server_current['open'].iloc[-2]),
+                            'high': float(df_server_current['high'].iloc[-2]),
+                            'low': float(df_server_current['low'].iloc[-2]),
+                            'close': float(df_server_current['close'].iloc[-2]),
+                            'volume': float(df_server_current['volume'].iloc[-2])
+                        } if len(df_server_current) > 1 else None,
+                        'count': len(df_server_current)
                     }
                 else:
-                    current_candle_data['config_interval'] = {'error': f'설정 간격({config_interval}) 데이터가 비어있습니다'}
-            except Exception as e_config:
-                print(f"설정 간격 데이터 조회 실패: {e_config}")
-                current_candle_data['config_interval'] = {'error': f'설정 간격 조회 실패: {str(e_config)}'}
+                    current_candle_data['server_current_interval'] = {'error': f'서버 간격({server_current_interval}) 데이터가 비어있습니다'}
+            except Exception as e_server_curr:
+                print(f"서버 간격 데이터 조회 실패: {e_server_curr}")
+                current_candle_data['server_current_interval'] = {'error': f'서버 간격 조회 실패: {str(e_server_curr)}'}
                 
             print(f"📊 분봉 데이터 조회 완료 - 총 {len(current_candle_data)}개 간격")
                 
@@ -1455,27 +1483,6 @@ def get_current_zone():
         })
     except Exception as e:
         return jsonify({'error': f'구역 정보 조회 실패: {str(e)}'}), 500
-
-@app.route('/api/bot/update-ui-interval', methods=['POST'])
-def update_ui_interval():
-    """UI에서 선택된 차트 간격 업데이트"""
-    try:
-        payload = request.get_json(force=True) if request.is_json else request.form.to_dict()
-        interval = payload.get('interval', 'minute10')
-        
-        # bot_ctrl에 UI 현재 간격 저장
-        bot_ctrl['current_ui_interval'] = interval
-        
-        print(f"📊 UI 간격 업데이트: {interval}")
-        
-        return jsonify({
-            'ok': True,
-            'interval': interval,
-            'message': f'UI 간격이 {interval}로 업데이트되었습니다.'
-        })
-        
-    except Exception as e:
-        return jsonify({'ok': False, 'error': f'UI 간격 업데이트 실패: {str(e)}'}), 500
 
 @app.route('/api/village/auto-learning/toggle', methods=['POST'])
 def toggle_auto_learning():

@@ -10,20 +10,6 @@
 
   const getInterval = () => (tfEl ? tfEl.value : 'minute10');
 
-// UI 간격 변경 시 서버에 알림
-function updateServerInterval() {
-    const currentInterval = getInterval();
-    fetch('/api/bot/update-ui-interval', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            interval: currentInterval
-        })
-    }).catch(err => console.log('UI 간격 업데이트 실패:', err));
-}
-
 
 
 
@@ -3577,8 +3563,8 @@ function updateServerInterval() {
 
     pushConfig();
     
-    // 서버에 UI 간격 변경 알림
-    updateServerInterval();
+    // 🎯 UI 차트 간격을 서버에 전송하여 동기화
+    updateServerCurrentInterval();
 
   });
 
@@ -13921,10 +13907,36 @@ function updateServerInterval() {
     console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
   }, 6000); // 6초 후 시작
 
-  // 페이지 로드 시 현재 UI 간격을 서버에 알림
+  // 🎯 UI 차트 간격을 서버에 전송하여 동기화
+  async function updateServerCurrentInterval() {
+    try {
+      const currentInterval = getInterval();
+      console.log(`🎯 UI 차트 간격을 서버에 전송: ${currentInterval}`);
+      
+      const response = await fetch('/api/village/update-current-interval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_interval: currentInterval
+        })
+      });
+      
+      const result = await response.json();
+      if (result.ok) {
+        console.log(`✅ 서버 차트 간격 업데이트 완료: ${currentInterval}`);
+      } else {
+        console.error('❌ 서버 차트 간격 업데이트 실패:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ 서버 차트 간격 업데이트 오류:', error);
+    }
+  }
+  
+  // 페이지 로드 시 초기 간격 전송
   setTimeout(() => {
-    updateServerInterval();
-    console.log('📊 UI 간격 서버 동기화 완료');
-  }, 7000); // 7초 후 시작
+    updateServerCurrentInterval();
+  }, 2000); // 2초 후 초기 전송
 
 })();
