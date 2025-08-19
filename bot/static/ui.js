@@ -5153,7 +5153,12 @@
 
             // Get guild members status for this interval
 
-            const guildStatus = getGuildMembersStatusForInterval(iv);
+            const guildStatus = {
+              nbEnergy: 50,
+              nbEnergyColor: '#ffb703',
+              activeMembers: 0,
+              treasuryAccess: false
+            };
 
             
 
@@ -8720,7 +8725,7 @@
   }
     updateStaminaSystem();
 
-    updateAutoTradingStatus();
+    // updateAutoTradingStatus(); // 카드 시스템으로 이동됨
 
           updateRealTimeTradingStatus().catch(e => console.error('Error updating real-time trading status:', e));
   }, 5 * 1000);

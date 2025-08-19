@@ -287,11 +287,11 @@ function viewCardStats(memberName) {
 }
 
 // Get Guild Members Status for specific interval (카드 시스템 기반)
-function getGuildMembersStatusForInterval(interval) {
+async function getGuildMembersStatusForInterval(interval) {
   try {
     // 카드 시스템 상태를 기반으로 길드 상태 계산
-    const cardSystemStatus = fetchCardSystemStatus();
-    if (!cardSystemStatus) {
+    const cardSystemStatus = await fetchCardSystemStatus();
+    if (!cardSystemStatus || !cardSystemStatus.members) {
       return {
         nbEnergy: 50,
         nbEnergyColor: '#ffb703',
@@ -301,18 +301,19 @@ function getGuildMembersStatusForInterval(interval) {
     }
     
     // 활성 카드 수에 따른 에너지 계산
-    const totalActiveCards = cardSystemStatus.activeCards;
-    const totalCompletedCards = cardSystemStatus.completedCards;
+    const totalActiveCards = cardSystemStatus.activeCards || 0;
+    const totalCompletedCards = cardSystemStatus.completedCards || 0;
+    const totalFailedCards = cardSystemStatus.failedCards || 0;
     
     // 카드 성과에 따른 에너지 계산
     let nbEnergyPercent = 50; // 기본값
     if (totalCompletedCards > 0) {
-      const successRate = (totalCompletedCards - cardSystemStatus.failedCards) / totalCompletedCards;
+      const successRate = (totalCompletedCards - totalFailedCards) / totalCompletedCards;
       nbEnergyPercent = Math.round(successRate * 100);
     }
     
     // 활성 멤버 수 계산 (활성 카드가 있는 멤버)
-    const activeMembers = Object.values(cardSystemStatus.members).filter(member => member.activeCards > 0).length;
+    const activeMembers = Object.values(cardSystemStatus.members).filter(member => member && member.activeCards > 0).length;
     
     // Determine N/B Energy color
     let nbEnergyColor = '#f6465d'; // red
