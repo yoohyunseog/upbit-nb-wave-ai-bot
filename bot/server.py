@@ -1254,6 +1254,28 @@ def get_scout_status():
 # UI에서 전송된 현재 차트 간격을 저장할 전역 변수
 UI_CURRENT_INTERVAL = 'minute10'  # 기본값
 
+def parse_interval_to_object(interval_str):
+    """간격 문자열을 객체로 변환"""
+    try:
+        if interval_str.startswith('minute'):
+            minute_value = int(interval_str.replace('minute', ''))
+            return {'minute': minute_value}
+        elif interval_str.startswith('second'):
+            second_value = int(interval_str.replace('second', ''))
+            return {'second': second_value}
+        elif interval_str == 'hour':
+            return {'hour': 1}
+        elif interval_str == 'day':
+            return {'day': 1}
+        elif interval_str == 'week':
+            return {'week': 1}
+        elif interval_str == 'month':
+            return {'month': 1}
+        else:
+            return {'unknown': interval_str}
+    except:
+        return {'error': interval_str}
+
 @app.route('/api/village/update-current-interval', methods=['POST'])
 def update_current_interval():
     """UI에서 현재 선택된 차트 간격을 서버에 전송"""
@@ -1405,7 +1427,7 @@ def get_current_zone():
                 print(f"UI 간격 데이터 조회 완료 - 데이터 개수: {len(df_ui_current) if not df_ui_current.empty else 0}")
                 if not df_ui_current.empty:
                     current_candle_data['ui_current_interval'] = {
-                        'interval': ui_current_interval,
+                        'interval': parse_interval_to_object(ui_current_interval),
                         'latest': {
                             'timestamp': int(df_ui_current.index[-1].timestamp() * 1000),
                             'open': float(df_ui_current['open'].iloc[-1]),
@@ -1438,7 +1460,7 @@ def get_current_zone():
                 print(f"서버 간격 데이터 조회 완료 - 데이터 개수: {len(df_server_current) if not df_server_current.empty else 0}")
                 if not df_server_current.empty:
                     current_candle_data['server_current_interval'] = {
-                        'interval': server_current_interval,
+                        'interval': parse_interval_to_object(server_current_interval),
                         'latest': {
                             'timestamp': int(df_server_current.index[-1].timestamp() * 1000),
                             'open': float(df_server_current['open'].iloc[-1]),
