@@ -1271,6 +1271,109 @@ def get_current_zone():
         ml_trust = MAYOR_TRUST_SYSTEM.get("ML_Model_Trust", 40)
         nb_trust = MAYOR_TRUST_SYSTEM.get("NB_Guild_Trust", 82)  # 82개 히스토리로 업데이트
         
+        # 현재 차트의 분봉 데이터 추가
+        cfg = load_config()
+        current_candle_data = {}
+        
+        try:
+            # 1분봉 데이터 (최근 10개)
+            df_1m = get_candles(cfg.market, 'minute1', count=10)
+            if not df_1m.empty:
+                current_candle_data['minute1'] = {
+                    'latest': {
+                        'timestamp': int(df_1m.index[-1].timestamp() * 1000),
+                        'open': float(df_1m['open'].iloc[-1]),
+                        'high': float(df_1m['high'].iloc[-1]),
+                        'low': float(df_1m['low'].iloc[-1]),
+                        'close': float(df_1m['close'].iloc[-1]),
+                        'volume': float(df_1m['volume'].iloc[-1])
+                    },
+                    'previous': {
+                        'timestamp': int(df_1m.index[-2].timestamp() * 1000),
+                        'open': float(df_1m['open'].iloc[-2]),
+                        'high': float(df_1m['high'].iloc[-2]),
+                        'low': float(df_1m['low'].iloc[-2]),
+                        'close': float(df_1m['close'].iloc[-2]),
+                        'volume': float(df_1m['volume'].iloc[-2])
+                    } if len(df_1m) > 1 else None,
+                    'count': len(df_1m)
+                }
+            
+            # 5분봉 데이터 (최근 10개)
+            df_5m = get_candles(cfg.market, 'minute5', count=10)
+            if not df_5m.empty:
+                current_candle_data['minute5'] = {
+                    'latest': {
+                        'timestamp': int(df_5m.index[-1].timestamp() * 1000),
+                        'open': float(df_5m['open'].iloc[-1]),
+                        'high': float(df_5m['high'].iloc[-1]),
+                        'low': float(df_5m['low'].iloc[-1]),
+                        'close': float(df_5m['close'].iloc[-1]),
+                        'volume': float(df_5m['volume'].iloc[-1])
+                    },
+                    'previous': {
+                        'timestamp': int(df_5m.index[-2].timestamp() * 1000),
+                        'open': float(df_5m['open'].iloc[-2]),
+                        'high': float(df_5m['high'].iloc[-2]),
+                        'low': float(df_5m['low'].iloc[-2]),
+                        'close': float(df_5m['close'].iloc[-2]),
+                        'volume': float(df_5m['volume'].iloc[-2])
+                    } if len(df_5m) > 1 else None,
+                    'count': len(df_5m)
+                }
+            
+            # 10분봉 데이터 (최근 10개)
+            df_10m = get_candles(cfg.market, 'minute10', count=10)
+            if not df_10m.empty:
+                current_candle_data['minute10'] = {
+                    'latest': {
+                        'timestamp': int(df_10m.index[-1].timestamp() * 1000),
+                        'open': float(df_10m['open'].iloc[-1]),
+                        'high': float(df_10m['high'].iloc[-1]),
+                        'low': float(df_10m['low'].iloc[-1]),
+                        'close': float(df_10m['close'].iloc[-1]),
+                        'volume': float(df_10m['volume'].iloc[-1])
+                    },
+                    'previous': {
+                        'timestamp': int(df_10m.index[-2].timestamp() * 1000),
+                        'open': float(df_10m['open'].iloc[-2]),
+                        'high': float(df_10m['high'].iloc[-2]),
+                        'low': float(df_10m['low'].iloc[-2]),
+                        'close': float(df_10m['close'].iloc[-2]),
+                        'volume': float(df_10m['volume'].iloc[-2])
+                    } if len(df_10m) > 1 else None,
+                    'count': len(df_10m)
+                }
+            
+            # 현재 설정된 캔들 간격 데이터
+            current_interval = cfg.candle
+            df_current = get_candles(cfg.market, current_interval, count=10)
+            if not df_current.empty:
+                current_candle_data['current_interval'] = {
+                    'interval': current_interval,
+                    'latest': {
+                        'timestamp': int(df_current.index[-1].timestamp() * 1000),
+                        'open': float(df_current['open'].iloc[-1]),
+                        'high': float(df_current['high'].iloc[-1]),
+                        'low': float(df_current['low'].iloc[-1]),
+                        'close': float(df_current['close'].iloc[-1]),
+                        'volume': float(df_current['volume'].iloc[-1])
+                    },
+                    'previous': {
+                        'timestamp': int(df_current.index[-2].timestamp() * 1000),
+                        'open': float(df_current['open'].iloc[-2]),
+                        'high': float(df_current['high'].iloc[-2]),
+                        'low': float(df_current['low'].iloc[-2]),
+                        'close': float(df_current['close'].iloc[-2]),
+                        'volume': float(df_current['volume'].iloc[-2])
+                    } if len(df_current) > 1 else None,
+                    'count': len(df_current)
+                }
+                
+        except Exception as candle_error:
+            print(f"분봉 데이터 조회 실패: {candle_error}")
+            current_candle_data = {'error': f'분봉 데이터 조회 실패: {str(candle_error)}'}
+        
         return jsonify({
             'current_zone': current_zone,
             'nb_zone': nb_zone,
@@ -1280,6 +1383,7 @@ def get_current_zone():
             'r_value': r_value,
             'ml_trust': ml_trust,
             'nb_trust': nb_trust,
+            'candle_data': current_candle_data,
             'timestamp': int(time.time() * 1000)
         })
     except Exception as e:
