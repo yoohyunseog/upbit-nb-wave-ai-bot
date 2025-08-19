@@ -11402,6 +11402,10 @@
           const strategy = exp.strategy || '기본 전략 유지';
           const position = exp.position || '포지션 없음 - 진입 시점 판단';
           
+          // 현재 구역 정보 추가
+          const currentZone = window.zoneNow || 'ORANGE';
+          const zoneColor = currentZone === 'BLUE' ? '🔵' : '🟠';
+          
           explanationElement.innerHTML = `
             <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
               🤖 AI 거래 판단: ${currentAction}
@@ -11413,7 +11417,7 @@
               ${timing}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${zoneStatus}
+              ${zoneStatus} ${zoneColor}${currentZone}
             </div>
             <div style="color: #888888; font-size: 7px;">
               ${strategy}
@@ -11595,7 +11599,10 @@
     if (typeof window.startRealtimeMayorGuidanceUpdates === 'function') {
       window.startRealtimeMayorGuidanceUpdates();
     } else {
-      console.log('mayor-guidance.js의 startRealtimeMayorGuidanceUpdates 함수를 찾을 수 없습니다');
+      console.log('mayor-
+        
+        
+        .js의 startRealtimeMayorGuidanceUpdates 함수를 찾을 수 없습니다');
     }
   }
 

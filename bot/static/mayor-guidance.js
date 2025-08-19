@@ -470,30 +470,30 @@ function restoreRealtimeMayorGuidance() {
            hour12: false 
          });
          
-         // 분봉 정보를 현재 차트에서 직접 가져오기
-         let candleTime = '차트 분봉';
+         // 현재 차트 간격을 가져오기 (N/B Zone Status용)
+         let currentTimeframe = '15m';
          try {
            const tfEl = document.getElementById('timeframe');
            if (tfEl && tfEl.value) {
              const interval = tfEl.value;
              switch (interval) {
-               case 'minute1': candleTime = '1분봉'; break;
-               case 'minute3': candleTime = '3분봉'; break;
-               case 'minute5': candleTime = '5분봉'; break;
-               case 'minute10': candleTime = '10분봉'; break;
-               case 'minute15': candleTime = '15분봉'; break;
-               case 'minute30': candleTime = '30분봉'; break;
-               case 'minute60': candleTime = '60분봉'; break;
-               case 'minute240': candleTime = '240분봉'; break;
-               case 'day': candleTime = '1일봉'; break;
-               case 'week': candleTime = '1주봉'; break;
-               case 'month': candleTime = '1월봉'; break;
-               default: candleTime = `${interval}봉`;
+               case 'minute1': currentTimeframe = '1m'; break;
+               case 'minute3': currentTimeframe = '3m'; break;
+               case 'minute5': currentTimeframe = '5m'; break;
+               case 'minute10': currentTimeframe = '10m'; break;
+               case 'minute15': currentTimeframe = '15m'; break;
+               case 'minute30': currentTimeframe = '30m'; break;
+               case 'minute60': currentTimeframe = '1h'; break;
+               case 'minute240': currentTimeframe = '4h'; break;
+               case 'day': currentTimeframe = '1d'; break;
+               case 'week': currentTimeframe = '1w'; break;
+               case 'month': currentTimeframe = '1M'; break;
+               default: currentTimeframe = interval;
              }
            }
          } catch (e) {
            console.error('차트 간격 가져오기 오류:', e);
-           candleTime = '차트 분봉';
+           currentTimeframe = '15m';
          }
         
         $(this).html(`
@@ -507,7 +507,7 @@ function restoreRealtimeMayorGuidance() {
             <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbTrust}%</span>
           </div>
                      <div style="margin-bottom: 4px;">
-             <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime} ${nbZone}</span>
+             <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${currentTimeframe} ${nbZone}</span>
            </div>
           <div style="margin-bottom: 4px;">
             <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
@@ -616,30 +616,30 @@ function getMayorGuidanceStatus(member) {
       hour12: false 
     });
     
-    // 분봉 정보를 현재 차트에서 직접 가져오기
-    let candleTime = '차트 분봉';
+    // 현재 차트 간격을 가져오기 (N/B Zone Status용)
+    let currentTimeframe = '15m';
     try {
       const tfEl = document.getElementById('timeframe');
       if (tfEl && tfEl.value) {
         const interval = tfEl.value;
         switch (interval) {
-          case 'minute1': candleTime = '1분봉'; break;
-          case 'minute3': candleTime = '3분봉'; break;
-          case 'minute5': candleTime = '5분봉'; break;
-          case 'minute10': candleTime = '10분봉'; break;
-          case 'minute15': candleTime = '15분봉'; break;
-          case 'minute30': candleTime = '30분봉'; break;
-          case 'minute60': candleTime = '60분봉'; break;
-          case 'minute240': candleTime = '240분봉'; break;
-          case 'day': candleTime = '1일봉'; break;
-          case 'week': candleTime = '1주봉'; break;
-          case 'month': candleTime = '1월봉'; break;
-          default: candleTime = `${interval}봉`;
+          case 'minute1': currentTimeframe = '1m'; break;
+          case 'minute3': currentTimeframe = '3m'; break;
+          case 'minute5': currentTimeframe = '5m'; break;
+          case 'minute10': currentTimeframe = '10m'; break;
+          case 'minute15': currentTimeframe = '15m'; break;
+          case 'minute30': currentTimeframe = '30m'; break;
+          case 'minute60': currentTimeframe = '1h'; break;
+          case 'minute240': currentTimeframe = '4h'; break;
+          case 'day': currentTimeframe = '1d'; break;
+          case 'week': currentTimeframe = '1w'; break;
+          case 'month': currentTimeframe = '1M'; break;
+          default: currentTimeframe = interval;
         }
       }
     } catch (e) {
       console.error('차트 간격 가져오기 오류:', e);
-      candleTime = '차트 분봉';
+      currentTimeframe = '15m';
     }
     
     const trustInfo = `
@@ -653,7 +653,7 @@ function getMayorGuidanceStatus(member) {
         <span style="color: #0ecb81;">⚖️ Trust Balance: </span><span style="color: #0ecb81; font-weight: 600; background: rgba(14,203,129,0.1); padding: 1px 3px; border-radius: 2px;">ML: ${mlTrust}% | N/B: ${nbGuildTrust}%</span>
       </div>
              <div style="margin-bottom: 2px;">
-         <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${candleTime} ${currentZone}</span>
+         <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${currentTimeframe} ${currentZone}</span>
        </div>
       <div style="margin-bottom: 2px;">
         <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
