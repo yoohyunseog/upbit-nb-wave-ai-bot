@@ -21,114 +21,8 @@
   const base = '';
 
 
-  // Function to modify trainer storage (N/B Guild NPC control)
-  async function modifyTrainerStorage(trainer, amount) {
-    try {
-      // Get current price to calculate 5,000 KRW worth of BTC
-      let actualAmount = amount;
-      if (amount > 0) {
-        // For positive amounts, calculate 5,000 KRW worth of BTC
-        const currentPrice = window.currentPrice || 160000000; // fallback price
-        const btcFor5000KRW = 5000 / currentPrice;
-        actualAmount = btcFor5000KRW;
-        console.log(`💰 Adding 5,000 KRW worth of BTC: ${actualAmount.toFixed(8)} BTC at price ${currentPrice.toLocaleString()} KRW`);
-      }
-      
-      const response = await fetch('/api/trainer/storage/modify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          trainer: trainer,
-          amount: actualAmount
-        })
-      });
-      
-      const result = await response.json();
-      if (result.ok) {
-        // Refresh the trade ready display to show updated values
-        refreshTradeReady();
-        console.log(`✅ Trainer storage modified: ${trainer} ${actualAmount > 0 ? '+' : ''}${actualAmount.toFixed(8)} BTC`);
-      } else {
-        console.error('❌ Failed to modify trainer storage:', result.error);
-      }
-    } catch (error) {
-      console.error('❌ Error modifying trainer storage:', error);
-    }
-  }
-
-  // Function to reset trainer storage average price
-  async function resetTrainerStoragePrice(trainer) {
-    try {
-      console.log(`🔄 Resetting average price for: ${trainer}`);
-      
-      const response = await fetch('/api/trainer/storage/reset', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          trainer: trainer
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.ok) {
-        console.log(`✅ Average price reset for: ${trainer}`);
-        // Refresh the display
-        setTimeout(() => {
-          refreshTradeReady();
-          updateRealTimeTradingStatus();
-          updateGuildMembersStatus();
-        }, 500);
-      } else {
-        console.error('❌ Failed to reset average price:', result.error);
-      }
-    } catch (error) {
-      console.error('❌ Error resetting average price:', error);
-    }
-  }
-
-  // Function to modify trainer storage ticks
-  async function modifyTrainerTicks(trainer, delta) {
-    try {
-      console.log(`🔄 Modifying ticks for: ${trainer} ${delta > 0 ? '+' : ''}${delta}`);
-      
-      const response = await fetch('/api/trainer/storage/tick', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          trainer: trainer,
-          delta: delta
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.ok) {
-        console.log(`✅ Ticks modified for: ${trainer} ${delta > 0 ? '+' : ''}${delta} (new total: ${result.new_ticks})`);
-        // Refresh the display
-        setTimeout(() => {
-          refreshTradeReady();
-          updateRealTimeTradingStatus();
-          updateGuildMembersStatus();
-        }, 500);
-      } else {
-        console.error('❌ Failed to modify ticks:', result.error);
-      }
-    } catch (error) {
-      console.error('❌ Error modifying ticks:', error);
-    }
-  }
-
-  // Make functions globally accessible
-  window.modifyTrainerStorage = modifyTrainerStorage;
-  window.resetTrainerStoragePrice = resetTrainerStoragePrice;
-  window.modifyTrainerTicks = modifyTrainerTicks;
+  // Trainer System Import
+  // Note: Trainer functions are now in trainer-system.js
 
 
   // Function to get chart zone data for N/B Zone Status
@@ -5268,7 +5162,7 @@
 
               </div>
 
-              <div class='mt-1 nb-bubble'>${buildTrainerMessage(iv, side, coinCount, reasons, { chosen:intent==='HOLD'?chosen:chosen, intent:intent, feasTxt:feasTxt })}</div>
+              <div class='mt-1 nb-bubble'>${window.buildTrainerMessage ? window.buildTrainerMessage(iv, side, coinCount, reasons, { chosen:intent==='HOLD'?chosen:chosen, intent:intent, feasTxt:feasTxt }) : 'Trainer message not available'}</div>
 
               <div class='mt-1' style='font-size:12px; color:#ffffff'>${reasons}</div>
 
@@ -13966,5 +13860,15 @@
     setInterval(checkAndUpdateInterval, 1000); // 1초마다 체크
     console.log('🎯 자동 차트 변경 감지 시작됨');
   }, 3000); // 3초 후 시작
+
+  // 트레이너 시스템 초기화
+  setTimeout(() => {
+    if (typeof window.initializeTrainerSystem === 'function') {
+      window.initializeTrainerSystem();
+      console.log('✅ 트레이너 시스템 초기화 완료');
+    } else {
+      console.log('⚠️ 트레이너 시스템 초기화 함수를 찾을 수 없습니다');
+    }
+  }, 4000); // 4초 후 트레이너 시스템 초기화
 
 })();
