@@ -11404,11 +11404,11 @@
           
           // 현재 구역 정보 추가
           const currentZone = window.zoneNow || 'ORANGE';
-          const zoneColor = currentZone === 'BLUE' ? '🔵' : '🟠';
+          const zoneColor = currentZone === 'BLUE' ? 'BLUE' : 'ORANGE';
           
           explanationElement.innerHTML = `
             <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
-              🤖 AI 거래 판단: ${currentAction}
+              AI 거래 판단: ${currentAction}
             </div>
             <div style="color: #888888; font-size: 7px;">
               ${reason}
@@ -11417,7 +11417,7 @@
               ${timing}
             </div>
             <div style="color: #888888; font-size: 7px;">
-              ${zoneStatus} ${zoneColor}${currentZone}
+              ${zoneStatus} ${zoneColor}
             </div>
             <div style="color: #888888; font-size: 7px;">
               ${strategy}
@@ -11436,14 +11436,14 @@
         
       } else {
         const error = await response.json();
-        console.error('❌ AI 거래 설명 실패:', error);
+        console.error('AI 거래 설명 실패:', error);
         
         // API 실패 시 기본 정보 표시
         const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
         if (explanationElement) {
           explanationElement.innerHTML = `
             <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
-              🤖 AI 거래 판단: HOLD
+              AI 거래 판단: HOLD
             </div>
             <div style="color: #888888; font-size: 7px;">
               AI 시스템 연결 중...
@@ -11458,22 +11458,22 @@
               기본 전략: 관망
             </div>
             <div style="color: #888888; font-size: 7px;">
-              💼 포지션 없음 - 진입 시점 판단
+              포지션 없음 - 진입 시점 판단
             </div>
           `;
         }
       }
       
     } catch (e) {
-      console.error('❌ AI 거래 설명 오류:', e);
+      console.error('AI 거래 설명 오류:', e);
       
-      // 오류 시 기본 정보 표시
-      const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
-      if (explanationElement) {
-        explanationElement.innerHTML = `
-          <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
-            🤖 AI 거래 판단: HOLD
-          </div>
+              // 오류 시 기본 정보 표시
+        const explanationElement = document.getElementById(`ai-explanation-${memberName}`);
+        if (explanationElement) {
+          explanationElement.innerHTML = `
+            <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
+              AI 거래 판단: HOLD
+            </div>
           <div style="color: #888888; font-size: 7px;">
             AI 시스템 점검 중
           </div>
@@ -11487,7 +11487,7 @@
             기본 전략: 관망
           </div>
           <div style="color: #888888; font-size: 7px;">
-            💼 포지션 없음 - 진입 시점 판단
+            포지션 없음 - 진입 시점 판단
           </div>
         `;
       }
@@ -11514,7 +11514,7 @@
           
           explanationElement.innerHTML = `
             <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">
-              🤖 AI 거래 판단: ${currentAction}
+              AI 거래 판단: ${currentAction}
             </div>
             <div style="color: #888888; font-size: 7px;">
               ${reason}
@@ -11557,20 +11557,20 @@
         const zoneDisplay = document.getElementById('current-zone-display');
         if (zoneDisplay) {
           const zoneColor = nbZone === 'BLUE' ? '#0ecb81' : '#f6465d';
-          const zoneEmoji = nbZone === 'BLUE' ? '🔵' : '🟠';
+          const zoneEmoji = nbZone === 'BLUE' ? 'BLUE' : 'ORANGE';
           zoneDisplay.innerHTML = `<span style="color: ${zoneColor}; font-weight: 600;">${zoneEmoji} ${nbZone}</span>`;
         }
         
         // 실시간 동기화 상태 복원 (N/B와 ML의 실제 구역 표시)
         const zoneConsistencyInfo = document.getElementById('zoneConsistencyInfo');
         if (zoneConsistencyInfo) {
-          const nbColor = nbZone === 'BLUE' ? '🔵' : '🟠';
-          const mlColor = mlZone === 'BLUE' ? '🔵' : '🟠';
+          const nbColor = nbZone === 'BLUE' ? 'BLUE' : 'ORANGE';
+          const mlColor = mlZone === 'BLUE' ? 'BLUE' : 'ORANGE';
           zoneConsistencyInfo.innerHTML = `
             <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
-              🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
-              N/B: ${nbColor}${nbZone} | 
-              ML: ${mlColor}${mlZone}
+                          실시간 동기화 | 
+            N/B: ${nbColor} | 
+            ML: ${mlColor}
             </div>
           `;
         }
@@ -11581,7 +11581,7 @@
           const mlTrust = guidance.ml_trust || 40;
           const nbTrust = guidance.nb_trust || 86;
           trustDisplay.innerHTML = `
-            <span style="color: #00d1ff;">🤖 ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span> | <span style="color: #ffb703;">🏛️ N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
+            <span style="color: #00d1ff;">ML Model Trust: </span><span style="color: #00d1ff; font-weight: 600; background: rgba(0,209,255,0.1); padding: 1px 3px; border-radius: 2px;">${mlTrust}%</span> | <span style="color: #ffb703;">N/B Guild Trust: </span><span style="color: #ffb703; font-weight: 600; background: rgba(255,183,3,0.1); padding: 1px 3px; border-radius: 2px;">${nbTrust}%</span> (${nbTrust}개 히스토리)
           `;
         }
         
@@ -11599,10 +11599,7 @@
     if (typeof window.startRealtimeMayorGuidanceUpdates === 'function') {
       window.startRealtimeMayorGuidanceUpdates();
     } else {
-      console.log('mayor-
-        
-        
-        .js의 startRealtimeMayorGuidanceUpdates 함수를 찾을 수 없습니다');
+      console.log('mayor-guidance.js의 startRealtimeMayorGuidanceUpdates 함수를 찾을 수 없습니다');
     }
   }
 
