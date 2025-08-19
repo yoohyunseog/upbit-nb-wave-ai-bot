@@ -285,17 +285,18 @@ function updateRealtimeMayorGuidance() {
       $(this).html(`<span style="color: ${zoneColor}; font-weight: 600;">${zoneEmoji} ${actualNbZone}</span>`);
     });
     
-    // 실시간 동기화 상태 업데이트 (jQuery 사용) - N/B Zone Status와 동일한 값 사용
+    // 실시간 동기화 상태 업데이트 (jQuery 사용) - API 데이터만 사용
     $('#zoneConsistencyInfo').each(function() {
-      // N/B Zone Status와 동일하게 window.zoneNow 사용
-      const nbZone = window.zoneNow || 'BLUE';
+      // API에서 받은 데이터만 사용
+      const nbZone = data.nbZone || 'BLUE';
+      const mlZone = data.mlZone || 'BLUE';
       const nbColor = nbZone === 'BLUE' ? '🔵' : '🟠';
-      const mlColor = nbZone === 'BLUE' ? '🔵' : '🟠'; // ML도 N/B와 동일하게 설정
+      const mlColor = mlZone === 'BLUE' ? '🔵' : '🟠';
       $(this).html(`
         <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
           🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
           N/B: ${nbColor}${nbZone} | 
-          ML: ${mlColor}${nbZone}
+          ML: ${mlColor}${mlZone}
         </div>
       `);
     });
@@ -308,16 +309,14 @@ function updateRealtimeMayorGuidance() {
       const winRate = data.winRate || 0;
       const historyCount = data.historyCount || 0;
       
-      // 현재 시간과 분봉 정보 계산
-      const now = new Date();
-      const currentTime = now.toLocaleTimeString('ko-KR', { 
+      // API에서 받은 시간 정보 사용 (계산 금지)
+      const currentTime = data.timestamp ? new Date(data.timestamp).toLocaleTimeString('ko-KR', { 
         hour: '2-digit', 
         minute: '2-digit', 
         second: '2-digit',
         hour12: false 
-      });
-      const currentMinute = now.getMinutes();
-      const candleTime = `${currentMinute.toString().padStart(2, '0')}분봉`;
+      }) : '--:--:--';
+      const candleTime = data.candle_data ? 'API 분봉' : '--분봉';
       
       $(this).html(`
         <div style="margin-bottom: 4px;">
@@ -333,7 +332,7 @@ function updateRealtimeMayorGuidance() {
           <span style="color: #e74c3c;">📈 Win%: </span><span style="color: #e74c3c; font-weight: 600; background: rgba(231,76,60,0.1); padding: 1px 3px; border-radius: 2px;">${winRate.toFixed(1)}%</span> (${historyCount}개 히스토리)
         </div>
         <div style="margin-bottom: 4px;">
-          <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${getCurrentTimeframeDisplay()} ${data.nbZone}</span>
+          <span style="color: #f6465d;">📍 N/B Zone Status: </span><span style="color: #f6465d; font-weight: 600; background: rgba(246,70,93,0.1); padding: 1px 3px; border-radius: 2px;">${data.nbZone}</span>
         </div>
         <div style="margin-bottom: 4px;">
           <span style="color: #9c27b0;">⏰ 현재 시간: </span><span style="color: #9c27b0; font-weight: 600; background: rgba(156,39,176,0.1); padding: 1px 3px; border-radius: 2px;">${currentTime}</span>
