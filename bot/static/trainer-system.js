@@ -252,9 +252,15 @@ function createTrainerStorageHTML(trainerStorageData, currentPrice) {
       const profit = data.avg_price ? ((currentPrice - data.avg_price) / data.avg_price) * 100 : 0;
       const ticks = data.ticks || 0;
       
+      // Get last trade info
+      const lastTrade = data.trades && data.trades.length > 0 ? data.trades[data.trades.length - 1] : null;
+      const lastTradeInfo = lastTrade ? 
+        `<br><span style="font-size: 9px; color: #666;">마지막 거래: ${lastTrade.action} ${lastTrade.size} BTC @ ${Math.round(lastTrade.price).toLocaleString()} KRW (${new Date(lastTrade.ts).toLocaleString()})</span>` : '';
+      
       return `
         <div style="margin-bottom: 8px; padding: 4px; background: rgba(25,118,210,0.05); border-radius: 3px;">
           <strong>${trainer}:</strong> ${data.coins.toFixed(8)} BTC (≈ ${Math.round(currentValue).toLocaleString()} KRW) ${ticks}틱
+          ${lastTradeInfo}
           <div style="margin-top: 2px; font-size: 10px;">
             <button onclick="modifyTrainerStorage('${trainer}', -0.001)" style="background: #d32f2f; color: white; border: none; border-radius: 2px; width: 24px; height: 20px; font-size: 10px; cursor: pointer;" title="Remove 0.001 BTC">--</button>
             <button onclick="modifyTrainerStorage('${trainer}', -0.0001)" style="background: #f44336; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="Remove 0.0001 BTC">-</button>

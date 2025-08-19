@@ -4493,6 +4493,11 @@
             const profitColor = profit >= 0 ? '#4caf50' : '#f44336';
             const ticks = data.ticks || 0;
             
+            // Get last trade info
+            const lastTrade = data.trades && data.trades.length > 0 ? data.trades[data.trades.length - 1] : null;
+            const lastTradeInfo = lastTrade ? 
+              `<br><span style="font-size: 9px; color: #666;">마지막 거래: ${lastTrade.action} ${lastTrade.size} BTC @ ${Math.round(lastTrade.price).toLocaleString()} KRW (${new Date(lastTrade.ts).toLocaleString()})</span>` : '';
+            
             // 제고가 0이면 평균가 초기화 표시
             const avgPriceDisplay = data.coins > 0 && data.entry_price > 0 ? 
               `<br><span style="font-size: 10px; color: #666;">평균가: ${data.entry_price.toLocaleString()} KRW</span>` : 
@@ -4503,6 +4508,7 @@
                 <div style="flex: 1; color: #0d47a1;">
                   <strong>${trainer}:</strong> ${data.coins.toFixed(8)} BTC (≈ ${Math.round(currentValue).toLocaleString()} KRW) ${ticks}틱
                   ${avgPriceDisplay}
+                  ${lastTradeInfo}
                   <span style="color: ${profitColor};">${profit > 0 ? '+' : ''}${profit.toFixed(2)}%</span>
                 </div>
                 <div style="display: flex; gap: 2px;">
