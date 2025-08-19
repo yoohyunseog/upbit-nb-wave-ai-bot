@@ -11364,6 +11364,9 @@
     // 마을 이동 에너지 정보 복원
     restoreVillageEnergyInfo();
     
+    // Auto Trade 토글 상태 복원
+    restoreAutoTradeToggleStates();
+    
     // 모든 길드 멤버의 저장된 상태 복원
     Object.values(guildMembers).forEach(member => {
       restoreMayorGuidanceStatus(member.name);
@@ -13656,5 +13659,249 @@
     
     console.log('🏰 마을 이동 에너지 자동 저장 시작됨');
   }, 5000); // 5초 후 시작
+
+  // 🎛️ Auto Trade 토글 상태 자동 저장 시스템
+  function saveAutoTradeToggleStates() {
+    try {
+      // 현재 시간
+      const now = new Date();
+      const currentTime = now.toLocaleTimeString('ko-KR', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false 
+      });
+      
+      // Auto Trade 토글 상태 수집
+      const toggleStates = {
+        autoTrade: {
+          enabled: false,
+          interval: '1m',
+          autoBT: {
+            enabled: false,
+            seconds: 5,
+            count: 1800,
+            segments: 1
+          }
+        },
+        mlOnlyAutoTrade: {
+          enabled: false,
+          modelInsight: '-',
+          mlAuto: {
+            enabled: false
+          }
+        },
+        mlSegmentOnly: {
+          enabled: false,
+          extreme: true
+        },
+        lastUpdate: currentTime,
+        timestamp: Date.now()
+      };
+      
+      // 실제 토글 상태 확인 (체크박스, 버튼 등)
+      const autoTradeCheckbox = document.querySelector('input[name="auto-trade"], input[type="checkbox"][data-auto-trade]');
+      if (autoTradeCheckbox) {
+        toggleStates.autoTrade.enabled = autoTradeCheckbox.checked;
+      }
+      
+      const mlOnlyCheckbox = document.querySelector('input[name="ml-only"], input[type="checkbox"][data-ml-only]');
+      if (mlOnlyCheckbox) {
+        toggleStates.mlOnlyAutoTrade.enabled = mlOnlyCheckbox.checked;
+      }
+      
+      const mlSegmentCheckbox = document.querySelector('input[name="ml-segment"], input[type="checkbox"][data-ml-segment]');
+      if (mlSegmentCheckbox) {
+        toggleStates.mlSegmentOnly.enabled = mlSegmentCheckbox.checked;
+      }
+      
+      // ML Auto 토글 상태 확인
+      const mlAutoButton = document.querySelector('button[data-ml-auto], .ml-auto-toggle');
+      if (mlAutoButton) {
+        toggleStates.mlOnlyAutoTrade.mlAuto.enabled = mlAutoButton.classList.contains('active') || 
+                                                     mlAutoButton.getAttribute('data-active') === 'true';
+      }
+      
+      // localStorage에 저장
+      localStorage.setItem('auto_trade_toggle_states', JSON.stringify(toggleStates));
+      
+      console.log('🎛️ Auto Trade 토글 상태 저장됨:', toggleStates);
+      
+      // UI 업데이트
+      updateAutoTradeToggleDisplay(toggleStates);
+      
+    } catch (e) {
+      console.error('Auto Trade 토글 상태 저장 실패:', e);
+    }
+  }
+  
+  // Auto Trade 토글 상태 복원
+  function restoreAutoTradeToggleStates() {
+    try {
+      const savedToggleStates = localStorage.getItem('auto_trade_toggle_states');
+      if (savedToggleStates) {
+        const toggleStates = JSON.parse(savedToggleStates);
+        
+        // 토글 상태 복원
+        restoreToggleState('auto-trade', toggleStates.autoTrade.enabled);
+        restoreToggleState('ml-only', toggleStates.mlOnlyAutoTrade.enabled);
+        restoreToggleState('ml-segment', toggleStates.mlSegmentOnly.enabled);
+        restoreToggleState('ml-auto', toggleStates.mlOnlyAutoTrade.mlAuto.enabled);
+        
+        // UI 업데이트
+        updateAutoTradeToggleDisplay(toggleStates);
+        
+        console.log('🎛️ Auto Trade 토글 상태 복원됨:', toggleStates);
+        return true;
+      }
+    } catch (e) {
+      console.error('Auto Trade 토글 상태 복원 실패:', e);
+    }
+    return false;
+  }
+  
+  // 개별 토글 상태 복원
+  function restoreToggleState(toggleName, enabled) {
+    try {
+      // 체크박스 찾기
+      const checkbox = document.querySelector(`input[name="${toggleName}"], input[data-${toggleName}]`);
+      if (checkbox) {
+        checkbox.checked = enabled;
+        // 이벤트 트리거
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      
+      // 버튼 토글 찾기
+      const button = document.querySelector(`button[data-${toggleName}], .${toggleName}-toggle`);
+      if (button) {
+        if (enabled) {
+          button.classList.add('active');
+          button.setAttribute('data-active', 'true');
+        } else {
+          button.classList.remove('active');
+          button.setAttribute('data-active', 'false');
+        }
+        // 이벤트 트리거
+        button.dispatchEvent(new Event('click', { bubbles: true }));
+      }
+      
+    } catch (e) {
+      console.error(`${toggleName} 토글 상태 복원 실패:`, e);
+    }
+  }
+  
+  // Auto Trade 토글 UI 업데이트
+  function updateAutoTradeToggleDisplay(toggleStates) {
+    // 토글 상태 표시 요소 찾기
+    const toggleDisplayElements = document.querySelectorAll('[data-toggle-display]');
+    
+    toggleDisplayElements.forEach(element => {
+      element.innerHTML = `
+        <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); padding: 8px; border-radius: 6px; color: white; font-size: 11px;">
+          <div style="font-weight: 600; margin-bottom: 4px;">🎛️ Auto Trade 토글 상태</div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #00d1ff;">🔄 Auto Trade:</span> 
+            <span style="color: ${toggleStates.autoTrade.enabled ? '#0ecb81' : '#f6465d'}; font-weight: 600;">
+              ${toggleStates.autoTrade.enabled ? 'ON' : 'OFF'}
+            </span>
+            <span style="color: #ffffff; margin-left: 4px;">(${toggleStates.autoTrade.interval})</span>
+          </div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #ffb703;">🤖 ML-only Auto Trade:</span> 
+            <span style="color: ${toggleStates.mlOnlyAutoTrade.enabled ? '#0ecb81' : '#f6465d'}; font-weight: 600;">
+              ${toggleStates.mlOnlyAutoTrade.enabled ? 'ON' : 'OFF'}
+            </span>
+          </div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #9c27b0;">📊 ML segment-only:</span> 
+            <span style="color: ${toggleStates.mlSegmentOnly.enabled ? '#0ecb81' : '#f6465d'}; font-weight: 600;">
+              ${toggleStates.mlSegmentOnly.enabled ? 'ON' : 'OFF'}
+            </span>
+            <span style="color: #ffffff; margin-left: 4px;">(extreme: ${toggleStates.mlSegmentOnly.extreme ? 'ON' : 'OFF'})</span>
+          </div>
+          <div style="margin-bottom: 2px;">
+            <span style="color: #e74c3c;">⚡ ML Auto:</span> 
+            <span style="color: ${toggleStates.mlOnlyAutoTrade.mlAuto.enabled ? '#0ecb81' : '#f6465d'}; font-weight: 600;">
+              ${toggleStates.mlOnlyAutoTrade.mlAuto.enabled ? 'ON' : 'OFF'}
+            </span>
+          </div>
+          <div style="font-size: 9px; color: #cccccc; margin-top: 4px;">
+            마지막 업데이트: ${toggleStates.lastUpdate}
+          </div>
+        </div>
+      `;
+    });
+    
+    // Auto BT 설정 표시
+    updateAutoBTSettingsDisplay(toggleStates.autoTrade.autoBT);
+  }
+  
+  // Auto BT 설정 표시
+  function updateAutoBTSettingsDisplay(autoBTSettings) {
+    const autoBTElements = document.querySelectorAll('[data-auto-bt-settings]');
+    
+    autoBTElements.forEach(element => {
+      element.innerHTML = `
+        <div style="font-size: 10px; color: #888888; padding: 4px; background: rgba(255,255,255,0.05); border-radius: 3px;">
+          <div style="color: #00d1ff; font-weight: 600; margin-bottom: 2px;">⚡ Auto BT 설정</div>
+          <div style="margin-bottom: 1px;">
+            <span style="color: #ffb703;">상태:</span> 
+            <span style="color: ${autoBTSettings.enabled ? '#0ecb81' : '#f6465d'};">
+              ${autoBTSettings.enabled ? '활성화' : '비활성화'}
+            </span>
+          </div>
+          <div style="margin-bottom: 1px;">
+            <span style="color: #9c27b0;">간격:</span> ${autoBTSettings.seconds}초
+          </div>
+          <div style="margin-bottom: 1px;">
+            <span style="color: #e74c3c;">횟수:</span> ${autoBTSettings.count}
+          </div>
+          <div style="margin-bottom: 1px;">
+            <span style="color: #f39c12;">세그먼트:</span> ${autoBTSettings.segments}
+          </div>
+        </div>
+      `;
+    });
+  }
+  
+  // 토글 상태 변경 감지 및 자동 저장
+  function setupToggleChangeListeners() {
+    // Auto Trade 토글 변경 감지
+    const autoTradeToggles = document.querySelectorAll('input[type="checkbox"], button[data-toggle], .toggle-button');
+    
+    autoTradeToggles.forEach(toggle => {
+      toggle.addEventListener('change', () => {
+        console.log('🎛️ 토글 상태 변경 감지:', toggle.name || toggle.className);
+        setTimeout(() => {
+          saveAutoTradeToggleStates();
+        }, 100); // 100ms 후 저장 (상태 변경 완료 후)
+      });
+      
+      toggle.addEventListener('click', () => {
+        console.log('🎛️ 토글 클릭 감지:', toggle.name || toggle.className);
+        setTimeout(() => {
+          saveAutoTradeToggleStates();
+        }, 100); // 100ms 후 저장 (상태 변경 완료 후)
+      });
+    });
+    
+    console.log('🎛️ 토글 변경 감지 리스너 설정 완료');
+  }
+  
+  // Auto Trade 토글 자동 저장 시작
+  setTimeout(() => {
+    // 초기 저장
+    saveAutoTradeToggleStates();
+    
+    // 토글 변경 감지 설정
+    setupToggleChangeListeners();
+    
+    // 60초마다 자동 저장 (토글 상태는 자주 변경되지 않음)
+    setInterval(() => {
+      saveAutoTradeToggleStates();
+    }, 60000); // 60초마다
+    
+    console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
+  }, 6000); // 6초 후 시작
 
 })();
