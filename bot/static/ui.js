@@ -7118,7 +7118,8 @@
 
   // Update Integrated Guild Members & Auto Trading Status
 
-  async function updateGuildMembersStatus() {
+  // Guild Members Status - moved to guild-members-status.js
+  async function updateGuildMembersStatus_MOVED() {
     try {
 
       const integratedGuildStatus = document.getElementById('integratedGuildStatus');
@@ -7577,7 +7578,8 @@
   }
   // Generate Trade Slide HTML for individual member
 
-  function generateTradeSlideHTML(member) {
+  // Generate Trade Slide HTML - moved to guild-members-status.js
+  function generateTradeSlideHTML_MOVED(member) {
 
     const hasPosition = member.openPosition !== null;
 
@@ -7937,7 +7939,7 @@
 
       if (slideElement && slideElement.style.display !== 'none') {
 
-        slideElement.innerHTML = generateTradeSlideHTML(member);
+        slideElement.innerHTML = window.generateTradeSlideHTML ? window.generateTradeSlideHTML(member) : 'Trade slide not available';
 
       }
 
@@ -8152,7 +8154,9 @@
 
       
 
-      updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      if (window.updateGuildMembersStatus) {
+        window.updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      }
       pushOrderLogLine(`[${new Date().toLocaleString()}] All guild members rested. Stamina +20, HP -5`);
 
     } catch (e) {
@@ -8183,7 +8187,9 @@
 
       
 
-      updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      if (window.updateGuildMembersStatus) {
+        window.updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      }
       pushOrderLogLine(`[${new Date().toLocaleString()}] All guild members healed. HP +15, Stamina -10`);
 
     } catch (e) {
@@ -8611,7 +8617,9 @@
 
       // Update displays
 
-      updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      if (window.updateGuildMembersStatus) {
+        window.updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      }
       updateRealTimeTradingStatus().catch(e => console.error('Error updating real-time trading status:', e));
       
 
@@ -8659,7 +8667,9 @@
 
   // Initialize and start auto updates
 
-  updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+  if (window.updateGuildMembersStatus) {
+    window.updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+  }
   updateStaminaSystem();
 
   
@@ -8689,7 +8699,9 @@
 
   setInterval(() => {
 
-    updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+    if (window.updateGuildMembersStatus) {
+    window.updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+  }
     updateStaminaSystem();
 
     updateAutoTradingStatus();
@@ -8701,7 +8713,8 @@
 
   // Get Guild Members Status for specific interval
 
-  function getGuildMembersStatusForInterval(interval) {
+  // Get Guild Members Status for specific interval - moved to guild-members-status.js
+  function getGuildMembersStatusForInterval_MOVED(interval) {
 
     try {
 
@@ -9488,7 +9501,9 @@
 
       updateStaminaSystem();
 
-      updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      if (window.updateGuildMembersStatus) {
+        window.updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+      }
       
 
       // Log the emergency reset
@@ -12977,7 +12992,8 @@
 
   // Update Auto Trading Status Display (now integrated into updateGuildMembersStatus)
 
-  function updateAutoTradingStatus() {
+  // Update Auto Trading Status Display - moved to guild-members-status.js
+  function updateAutoTradingStatus_MOVED() {
 
     // This function is now integrated into updateGuildMembersStatus
 
@@ -12986,7 +13002,8 @@
   }
   // Force start auto trading for testing
 
-  function forceStartAutoTrading() {
+  // Force start auto trading for testing - moved to guild-members-status.js
+  function forceStartAutoTrading_MOVED() {
 
     try {
 
@@ -13782,5 +13799,15 @@
       console.log('⚠️ 마을 학습 시스템 초기화 함수를 찾을 수 없습니다');
     }
   }, 5000); // 5초 후 마을 학습 시스템 초기화
+
+  // 길드 멤버 상태 시스템 초기화
+  setTimeout(() => {
+    if (typeof window.initializeGuildMembersStatusSystem === 'function') {
+      window.initializeGuildMembersStatusSystem();
+      console.log('✅ 길드 멤버 상태 시스템 초기화 완료');
+    } else {
+      console.log('⚠️ 길드 멤버 상태 시스템 초기화 함수를 찾을 수 없습니다');
+    }
+  }, 6000); // 6초 후 길드 멤버 상태 시스템 초기화
 
 })();
