@@ -1,11 +1,11 @@
 // ========================================
-// 길드 멤버 상태 관리 시스템 (Guild Members Status)
+// 길드 멤버 카드 시스템 (Guild Members Card System)
 // ========================================
 
-// Guild Members Status 업데이트 메인 함수
+// Guild Members Card System 업데이트 메인 함수
 async function updateGuildMembersStatus() {
   try {
-    console.log('🔄 Updating Guild Members Status...');
+    console.log('🃏 Updating Guild Members Card System...');
     
     const guildContainer = document.getElementById('integratedGuildStatus');
     if (!guildContainer) {
@@ -13,14 +13,12 @@ async function updateGuildMembersStatus() {
       return;
     }
 
-    // Check if guildMembers is available
-    if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
-      console.log('⚠️ Guild members not initialized yet in updateGuildMembersStatus');
+    // 카드 시스템 상태 가져오기
+    const cardSystemStatus = await fetchCardSystemStatus();
+    if (!cardSystemStatus) {
+      console.error('❌ Failed to fetch card system status');
       return;
     }
-
-    const guildMembers = window.guildMembers;
-    console.log('📊 Found guild members:', Object.keys(guildMembers));
 
     // Clear existing content
     guildContainer.innerHTML = '';
@@ -28,31 +26,37 @@ async function updateGuildMembersStatus() {
     // Create header
     const headerDiv = document.createElement('div');
     headerDiv.style.cssText = 'font-size: 11px; color: #d9e2f3; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);';
-    headerDiv.textContent = 'Guild Members Status';
+    headerDiv.textContent = 'Guild Members Card System';
     guildContainer.appendChild(headerDiv);
 
     // Create member cards
-    Object.values(guildMembers).forEach(member => {
+    Object.values(cardSystemStatus.members).forEach(member => {
       const memberDiv = createMemberCard(member);
       guildContainer.appendChild(memberDiv);
     });
 
-    // 모든 길드 멤버의 상태 업데이트
-    Object.values(guildMembers).forEach(member => {
-      // AI 설명 업데이트 - getAIExplanation 함수 직접 호출
-      if (typeof window.getAIExplanation === 'function') {
-        window.getAIExplanation(member.name).catch(e => {
-          console.error('Error updating AI explanation:', e);
-          const aiElement = document.getElementById(`ai-explanation-${member.name}`);
-          if (aiElement) {
-            aiElement.innerHTML = '🤖 AI 트레이딩 설명: 분석 오류';
-          }
-        });
-      }
-    });
+    // 전체 카드 시스템 통계 표시
+    const statsDiv = createCardSystemStats(cardSystemStatus);
+    guildContainer.appendChild(statsDiv);
 
   } catch (e) {
-    console.error('Error updating integrated guild status:', e);
+    console.error('Error updating guild members card system:', e);
+  }
+}
+
+// 카드 시스템 상태 가져오기
+async function fetchCardSystemStatus() {
+  try {
+    const response = await fetch('/api/village/card-system/status');
+    if (response.ok) {
+      return await response.json();
+    } else {
+      console.error('Failed to fetch card system status:', response.status);
+      return null;
+    }
+  } catch (e) {
+    console.error('Error fetching card system status:', e);
+    return null;
   }
 }
 
@@ -72,13 +76,13 @@ function createMemberCard(member) {
 
   // 멤버 정보 생성
   const memberInfo = generateMemberInfoHTML(member);
-  const tradeSlide = generateTradeSlideHTML(member);
-  const memberStatus = generateMemberStatusHTML(member);
+  const cardStatus = generateCardStatusHTML(member);
+  const cardActions = generateCardActionsHTML(member);
 
   memberDiv.innerHTML = `
     ${memberInfo}
-    ${tradeSlide}
-    ${memberStatus}
+    ${cardStatus}
+    ${cardActions}
   `;
 
   return memberDiv;
@@ -86,145 +90,208 @@ function createMemberCard(member) {
 
 // 멤버 기본 정보 HTML 생성
 function generateMemberInfoHTML(member) {
-  const currentPrice = typeof window.getCurrentPrice === 'function' ? window.getCurrentPrice() : 160000000;
-  const warehouseValue = member.nbCoins * currentPrice;
-  const profitColor = member.totalProfit > 0 ? '#0ecb81' : member.totalProfit < 0 ? '#f6465d' : '#ffffff';
+  const successRate = (member.analysisSuccessRate * 100).toFixed(1);
+  const successColor = member.analysisSuccessRate > 0.7 ? '#0ecb81' : member.analysisSuccessRate > 0.5 ? '#ffb703' : '#f6465d';
   
   return `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-weight: 600; color: #ffffff; font-size: 12px;">${member.name}</span>
+        <span style="font-weight: 600; color: #ffffff; font-size: 12px;">${member.memberName}</span>
         <span style="font-size: 10px; color: #888888;">(${member.role})</span>
         <span style="font-size: 9px; color: #ffb703; background: rgba(255,183,3,0.1); padding: 2px 6px; border-radius: 10px;">
-          Level ${member.skillLevel.toFixed(1)}
+          카드 ${member.totalCardsAnalyzed}개
         </span>
       </div>
-      <div style="font-size: 10px; color: ${profitColor};">
-        ${member.totalProfit > 0 ? '+' : ''}${member.totalProfit.toFixed(2)}%
+      <div style="font-size: 10px; color: ${successColor};">
+        성공률: ${successRate}%
       </div>
     </div>
     
     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
       <div style="font-size: 10px; color: #888888;">
-        N/B 코인: ${member.nbCoins.toFixed(8)} (≈ ${Math.round(warehouseValue).toLocaleString()} KRW)
+        담당 분봉: ${member.assignedTimeframes.join(', ')}
       </div>
       <div style="font-size: 10px; color: #888888;">
-        승률: ${member.winRate.toFixed(1)}% (${member.totalTrades || 0}회)
+        평균 수익: ${member.averageProfit > 0 ? '+' : ''}${member.averageProfit.toFixed(2)}%
       </div>
     </div>
   `;
 }
 
-// 트레이드 슬라이드 HTML 생성
-function generateTradeSlideHTML(member) {
-  const hasPosition = member.openPosition !== null;
-  const currentPrice = typeof window.getCurrentPrice === 'function' ? window.getCurrentPrice() : 160000000;
-  
-  if (!hasPosition) {
-    return `
-      <div style="font-size:11px; color:#888888; padding:8px; background:rgba(255,255,255,0.05); border-radius:4px; text-align:center;">
-        📊 No active position
-      </div>
-    `;
-  }
-  
-  const entryPrice = member.averagePrice || member.openPosition.price;
-  const coinAmount = member.totalPositionSize || member.openPosition.coinAmount;
-  const positionSide = member.openPosition.side;
-  const tradeStartTime = new Date(member.openPosition.timestamp);
-  const timeHeld = Date.now() - tradeStartTime.getTime();
-  const minutesHeld = Math.floor(timeHeld / (1000 * 60));
-  
-  // Calculate P&L
-  let currentPnl = 0;
-  if (positionSide === 'BUY') {
-    currentPnl = ((currentPrice - entryPrice) / entryPrice) * 100;
-  } else {
-    currentPnl = ((entryPrice - currentPrice) / entryPrice) * 100;
-  }
-  
-  const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
-  
-  // Sell prediction logic
-  const sellPrediction = calculateSellPrediction(member, currentPnl, minutesHeld);
+// 카드 상태 HTML 생성
+function generateCardStatusHTML(member) {
+  const activeCards = member.activeCards;
+  const completedCards = member.completedCards;
+  const failedCards = member.failedCards;
+  const currentAnalysis = member.currentAnalysis;
   
   return `
-    <div style="font-size:11px; color:#ffffff; background:rgba(0,209,255,0.1); border-radius:6px; padding:8px; border-left:3px solid #00d1ff;">
-      <div class="mb-2">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <span style="font-size:10px; color:#ffffff;">📊 ${positionSide} ${coinAmount.toFixed(8)} BTC</span>
-          <span style="font-size:10px; color:${pnlColor}; font-weight:600;">
-            ${currentPnl > 0 ? '+' : ''}${currentPnl.toFixed(2)}%
-          </span>
-        </div>
-        
-        <!-- P&L Progress Bar -->
-        <div style="width:100%; height:6px; background:#2b3139; border-radius:3px; overflow:hidden;">
-          <div style="width:${Math.min(100, Math.abs(currentPnl) * 10)}%; height:100%; background:${pnlColor}; transition: width 0.3s ease;"></div>
-        </div>
-        
-        <div style="font-size:9px; color:#888888; margin-top:2px;">
-          진입: ${Math.round(entryPrice).toLocaleString()} KRW | 현재: ${Math.round(currentPrice).toLocaleString()} KRW
-        </div>
-        <div style="font-size:9px; color:#888888;">
-          보유시간: ${minutesHeld}분 | ${sellPrediction}
-        </div>
+    <div style="margin-bottom: 8px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 10px; color: #00d1ff;">활성 카드: ${activeCards}개</span>
+        <span style="font-size: 10px; color: #0ecb81;">완료: ${completedCards}개</span>
+        <span style="font-size: 10px; color: #f6465d;">실패: ${failedCards}개</span>
       </div>
+      
+      ${currentAnalysis ? `
+        <div style="font-size: 9px; color: #ffb703; background: rgba(255,183,3,0.1); padding: 4px; border-radius: 4px; text-align: center;">
+          🔍 분석 중: 카드 #${currentAnalysis}
+        </div>
+      ` : `
+        <div style="font-size: 9px; color: #888888; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 4px; text-align: center;">
+          대기 중
+        </div>
+      `}
     </div>
   `;
 }
 
-// 멤버 상태 HTML 생성
-function generateMemberStatusHTML(member) {
+// 카드 액션 HTML 생성
+function generateCardActionsHTML(member) {
   return `
-    <!-- 촌장 지침 상태 -->
-    <div style="font-size: 9px; color: #888888; margin-top: 8px;" id="mayor-guidance-${member.name}">
-      🏛️ 촌장 지침: ${member.role} 역할 - ${member.specialty || '전략 분석 중'}
-    </div>
-    
-    <!-- 자동 학습 상태 표시 -->
-    <div style="font-size: 8px; color: #888888; margin-top: 2px;" id="auto-learning-status-${member.name}">
-      자동 학습: ${member.autoTradingEnabled ? '활성화' : '비활성화'}
-    </div>
-    
-    <!-- AI 거래 설명 -->
-    <div style="font-size: 9px; color: #888888; margin-top: 4px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 3px;" id="ai-explanation-${member.name}">
-      🤖 AI 트레이딩 설명: 로딩 중...
-    </div>
-    
-    <!-- 촌장 지침 학습 모델 훈련 버튼 -->
-    <div style="margin-top: 6px; display: flex; gap: 4px;">
-      <button class="btn btn-sm btn-outline-primary" onclick="trainMayorGuidanceModel()" style="font-size: 8px; padding: 2px 4px;">
-        촌장 지침 학습
+    <div style="margin-top: 8px; display: flex; gap: 4px;">
+      <button class="btn btn-sm btn-outline-primary" onclick="createNewCard('${member.memberName}')" style="font-size: 8px; padding: 2px 4px;">
+        새 카드 생성
       </button>
-      <button class="btn btn-sm btn-outline-success" onclick="toggleAutoLearning()" style="font-size: 8px; padding: 2px 4px; margin-left: 2px;">
-        자동 학습
+      <button class="btn btn-sm btn-outline-success" onclick="viewCardHistory('${member.memberName}')" style="font-size: 8px; padding: 2px 4px;">
+        카드 히스토리
+      </button>
+      <button class="btn btn-sm btn-outline-info" onclick="viewCardStats('${member.memberName}')" style="font-size: 8px; padding: 2px 4px;">
+        통계 보기
       </button>
     </div>
   `;
 }
 
-// 매도 예측 계산
-function calculateSellPrediction(member, currentPnl, minutesHeld) {
-  // 기본 매도 예측 로직
-  if (currentPnl > 5) {
-    return "매도 신호 강함";
-  } else if (currentPnl > 2) {
-    return "매도 고려";
-  } else if (currentPnl < -3) {
-    return "손절 고려";
-  } else if (minutesHeld > 60) {
-    return "장기 보유";
-  } else {
-    return "관찰 중";
+// 카드 시스템 통계 생성
+function createCardSystemStats(cardSystemStatus) {
+  const totalActive = cardSystemStatus.activeCards;
+  const totalCompleted = cardSystemStatus.completedCards;
+  const totalFailed = cardSystemStatus.failedCards;
+  const totalCards = cardSystemStatus.totalCards;
+  
+  const successRate = totalCompleted > 0 ? ((totalCompleted - totalFailed) / totalCompleted * 100).toFixed(1) : 0;
+  
+  return `
+    <div style="background: rgba(0,209,255,0.1); border: 1px solid rgba(0,209,255,0.3); border-radius: 8px; padding: 12px; margin-top: 12px;">
+      <div style="font-size: 11px; color: #00d1ff; margin-bottom: 8px; text-align: center;">
+        📊 카드 시스템 통계
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 9px; color: #888888;">총 카드:</span>
+        <span style="font-size: 9px; color: #ffffff;">${totalCards}개</span>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 9px; color: #888888;">활성 카드:</span>
+        <span style="font-size: 9px; color: #00d1ff;">${totalActive}개</span>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 9px; color: #888888;">완료된 카드:</span>
+        <span style="font-size: 9px; color: #0ecb81;">${totalCompleted}개</span>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 9px; color: #888888;">실패한 카드:</span>
+        <span style="font-size: 9px; color: #f6465d;">${totalFailed}개</span>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 9px; color: #888888;">전체 성공률:</span>
+        <span style="font-size: 9px; color: #ffb703;">${successRate}%</span>
+      </div>
+    </div>
+  `;
+}
+
+// 새 카드 생성 함수
+async function createNewCard(memberName) {
+  try {
+    console.log(`🃏 Creating new card for ${memberName}...`);
+    
+    // 현재 선택된 분봉 가져오기
+    const currentTimeframe = document.getElementById('timeframe')?.value || 'minute1';
+    
+    const response = await fetch('/api/village/card-system/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        member_name: memberName,
+        timeframe: currentTimeframe,
+        pattern_data: {
+          timestamp: Date.now(),
+          timeframe: currentTimeframe
+        }
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`✅ New card created: ${result.card_id}`);
+      
+      // 카드 분석 시작
+      await analyzeCard(result.card_id, memberName);
+      
+      // UI 업데이트
+      updateGuildMembersStatus();
+    } else {
+      console.error('Failed to create card:', response.status);
+    }
+  } catch (e) {
+    console.error('Error creating new card:', e);
   }
 }
 
-// Get Guild Members Status for specific interval
+// 카드 분석 함수
+async function analyzeCard(cardId, memberName) {
+  try {
+    console.log(`🔍 Analyzing card ${cardId} for ${memberName}...`);
+    
+    const response = await fetch(`/api/village/card-system/analyze/${cardId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        member_name: memberName
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`✅ Card analysis completed: ${result.strategy.buyCondition}`);
+    } else {
+      console.error('Failed to analyze card:', response.status);
+    }
+  } catch (e) {
+    console.error('Error analyzing card:', e);
+  }
+}
+
+// 카드 히스토리 보기 함수
+function viewCardHistory(memberName) {
+  console.log(`📚 Viewing card history for ${memberName}...`);
+  // TODO: 카드 히스토리 모달 또는 페이지 구현
+  alert(`${memberName}의 카드 히스토리를 보여줍니다.`);
+}
+
+// 카드 통계 보기 함수
+function viewCardStats(memberName) {
+  console.log(`📊 Viewing card stats for ${memberName}...`);
+  // TODO: 카드 통계 모달 또는 페이지 구현
+  alert(`${memberName}의 카드 통계를 보여줍니다.`);
+}
+
+// Get Guild Members Status for specific interval (카드 시스템 기반)
 function getGuildMembersStatusForInterval(interval) {
   try {
-    // Check if guildMembers is available
-    if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
+    // 카드 시스템 상태를 기반으로 길드 상태 계산
+    const cardSystemStatus = fetchCardSystemStatus();
+    if (!cardSystemStatus) {
       return {
         nbEnergy: 50,
         nbEnergyColor: '#ffb703',
@@ -233,16 +300,19 @@ function getGuildMembersStatusForInterval(interval) {
       };
     }
     
-    const guildMembers = window.guildMembers;
+    // 활성 카드 수에 따른 에너지 계산
+    const totalActiveCards = cardSystemStatus.activeCards;
+    const totalCompletedCards = cardSystemStatus.completedCards;
     
-    // Calculate active members (those with stamina > 30)
-    const activeMembers = Object.values(guildMembers).filter(member => member.stamina > 30).length;
-    
-    // Calculate N/B Energy percentage - check if nbEnergy is available
-    let nbEnergyPercent = 50; // default value
-    if (typeof window.nbEnergy !== 'undefined' && window.nbEnergy) {
-      nbEnergyPercent = Math.round((window.nbEnergy.current / window.nbEnergy.max) * 100);
+    // 카드 성과에 따른 에너지 계산
+    let nbEnergyPercent = 50; // 기본값
+    if (totalCompletedCards > 0) {
+      const successRate = (totalCompletedCards - cardSystemStatus.failedCards) / totalCompletedCards;
+      nbEnergyPercent = Math.round(successRate * 100);
     }
+    
+    // 활성 멤버 수 계산 (활성 카드가 있는 멤버)
+    const activeMembers = Object.values(cardSystemStatus.members).filter(member => member.activeCards > 0).length;
     
     // Determine N/B Energy color
     let nbEnergyColor = '#f6465d'; // red
@@ -252,27 +322,11 @@ function getGuildMembersStatusForInterval(interval) {
       nbEnergyColor = '#ffb703'; // yellow
     }
     
-    // Different intervals have different guild member distributions
-    const intervalModifiers = {
-      'minute1': { energyBonus: 5, activeBonus: 1 },
-      'minute3': { energyBonus: 3, activeBonus: 1 },
-      'minute5': { energyBonus: 2, activeBonus: 0 },
-      'minute10': { energyBonus: 0, activeBonus: 0 },
-      'minute15': { energyBonus: -2, activeBonus: -1 },
-      'minute30': { energyBonus: -3, activeBonus: -1 },
-      'minute60': { energyBonus: -5, activeBonus: -2 },
-      'day': { energyBonus: -10, activeBonus: -3 }
-    };
-    
-    const modifier = intervalModifiers[interval] || { energyBonus: 0, activeBonus: 0 };
-    const adjustedEnergy = Math.max(0, Math.min(100, nbEnergyPercent + modifier.energyBonus));
-    const adjustedActive = Math.max(0, Math.min(4, activeMembers + modifier.activeBonus));
-    
     return {
-      nbEnergy: adjustedEnergy,
-      nbEnergyColor: adjustedEnergy > 70 ? '#4285f4' : adjustedEnergy > 40 ? '#ffb703' : '#f6465d',
-      activeMembers: adjustedActive,
-      treasuryAccess: adjustedEnergy >= 80
+      nbEnergy: nbEnergyPercent,
+      nbEnergyColor: nbEnergyColor,
+      activeMembers: activeMembers,
+      treasuryAccess: nbEnergyPercent >= 80
     };
 
   } catch (e) {
@@ -286,41 +340,9 @@ function getGuildMembersStatusForInterval(interval) {
   }
 }
 
-// Update Auto Trading Status Display
-function updateAutoTradingStatus() {
-  // This function is now integrated into updateGuildMembersStatus
-  // Keeping it for compatibility but it's no longer needed
-}
-
-// Force start auto trading for testing
-function forceStartAutoTrading() {
-  try {
-    if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
-      console.log('Guild members not initialized yet');
-      return;
-    }
-    
-    const guildMembers = window.guildMembers;
-    
-    Object.values(guildMembers).forEach(member => {
-      if (!member.autoTrading) {
-        member.autoTrading = true;
-        member.lastTradeTime = Date.now();
-        console.log(`🚀 Force started auto trading for ${member.name}`);
-      }
-    });
-    
-    // Update display
-    updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
-    
-  } catch (e) {
-    console.error('Error force starting auto trading:', e);
-  }
-}
-
-// Initialize guild members status system
+// Initialize guild members card system
 function initializeGuildMembersStatusSystem() {
-  console.log('🏰 Guild Members Status System 초기화 시작...');
+  console.log('🃏 Guild Members Card System 초기화 시작...');
   
   // Check if required elements exist
   const guildContainer = document.getElementById('integratedGuildStatus');
@@ -330,41 +352,31 @@ function initializeGuildMembersStatusSystem() {
   }
   console.log('✅ integratedGuildStatus found');
   
-  // Check if guildMembers is available
-  if (typeof window.guildMembers === 'undefined' || !window.guildMembers) {
-    console.log('⚠️ Guild members not initialized yet, waiting...');
-    // Retry after 3 seconds
-    setTimeout(() => {
-      initializeGuildMembersStatusSystem();
-    }, 3000);
-    return;
-  }
-  console.log('✅ guildMembers available:', Object.keys(window.guildMembers));
-  
   // Set up periodic updates
   setInterval(() => {
-    updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
-    updateAutoTradingStatus();
+    updateGuildMembersStatus().catch(e => console.error('Error updating guild members card system:', e));
   }, 5 * 1000); // Every 5 seconds
 
   // Initial update
   setTimeout(() => {
-    console.log('🔄 Initial guild members status update...');
-    updateGuildMembersStatus().catch(e => console.error('Error updating guild members status:', e));
+    console.log('🔄 Initial guild members card system update...');
+    updateGuildMembersStatus().catch(e => console.error('Error updating guild members card system:', e));
   }, 2000); // 2초 후 초기 업데이트
 
   // Expose functions globally
   window.updateGuildMembersStatus = updateGuildMembersStatus;
   window.createMemberCard = createMemberCard;
   window.generateMemberInfoHTML = generateMemberInfoHTML;
-  window.generateTradeSlideHTML = generateTradeSlideHTML;
-  window.generateMemberStatusHTML = generateMemberStatusHTML;
-  window.calculateSellPrediction = calculateSellPrediction;
+  window.generateCardStatusHTML = generateCardStatusHTML;
+  window.generateCardActionsHTML = generateCardActionsHTML;
+  window.createCardSystemStats = createCardSystemStats;
   window.getGuildMembersStatusForInterval = getGuildMembersStatusForInterval;
-  window.updateAutoTradingStatus = updateAutoTradingStatus;
-  window.forceStartAutoTrading = forceStartAutoTrading;
+  window.createNewCard = createNewCard;
+  window.analyzeCard = analyzeCard;
+  window.viewCardHistory = viewCardHistory;
+  window.viewCardStats = viewCardStats;
   
-  console.log('✅ Guild Members Status System initialized successfully');
+  console.log('✅ Guild Members Card System initialized successfully');
 }
 
 // Export functions for module usage
@@ -373,12 +385,14 @@ if (typeof module !== 'undefined' && module.exports) {
     updateGuildMembersStatus,
     createMemberCard,
     generateMemberInfoHTML,
-    generateTradeSlideHTML,
-    generateMemberStatusHTML,
-    calculateSellPrediction,
+    generateCardStatusHTML,
+    generateCardActionsHTML,
+    createCardSystemStats,
     getGuildMembersStatusForInterval,
-    updateAutoTradingStatus,
-    forceStartAutoTrading,
+    createNewCard,
+    analyzeCard,
+    viewCardHistory,
+    viewCardStats,
     initializeGuildMembersStatusSystem
   };
 }
