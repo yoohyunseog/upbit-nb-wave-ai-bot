@@ -5441,13 +5441,14 @@ def api_trainer_storage_modify():
             # Update last update time
             _trainer_storage[trainer]['last_update'] = int(time.time())
             
-            # Add to trade history
+            # Add to trade history with consistent structure
             _trainer_storage[trainer]['trades'].append({
-                'timestamp': int(time.time()),
+                'ts': int(time.time() * 1000),  # milliseconds timestamp
                 'action': 'MANUAL_MODIFY',
-                'amount': amount,
                 'price': current_price,
-                'new_balance': new_coins
+                'size': abs(amount),  # Use 'size' instead of 'amount'
+                'profit': 0.0,
+                'trade_match': data.get('trade_match')  # Include trade matching info if provided
             })
             
             # Save to file
@@ -5487,11 +5488,11 @@ def api_trainer_storage_reset():
             
             # 거래 기록에 추가
             _trainer_storage[trainer]['trades'].append({
-                'timestamp': int(time.time()),
+                'ts': int(time.time() * 1000),  # milliseconds timestamp
                 'action': 'RESET_AVG_PRICE',
-                'amount': 0.0,
                 'price': 0.0,
-                'new_balance': _trainer_storage[trainer]['coins']
+                'size': 0.0,
+                'profit': 0.0
             })
             
             # Save to file
@@ -5532,9 +5533,12 @@ def api_trainer_storage_tick():
             
             # 거래 기록에 추가
             _trainer_storage[trainer]['trades'].append({
-                'timestamp': int(time.time()),
+                'ts': int(time.time() * 1000),  # milliseconds timestamp
                 'action': 'MANUAL_TICK',
-                'delta': delta,
+                'price': 0.0,
+                'size': 0.0,
+                'profit': 0.0,
+                'tick_delta': delta,
                 'old_ticks': current_ticks,
                 'new_ticks': new_ticks
             })
