@@ -285,15 +285,17 @@ function updateRealtimeMayorGuidance() {
       $(this).html(`<span style="color: ${zoneColor}; font-weight: 600;">${zoneEmoji} ${actualNbZone}</span>`);
     });
     
-    // 실시간 동기화 상태 업데이트 (jQuery 사용) - API 응답의 실제 값 사용
+    // 실시간 동기화 상태 업데이트 (jQuery 사용) - N/B Zone Status와 동일한 값 사용
     $('#zoneConsistencyInfo').each(function() {
-      const nbColor = data.nbZone === 'BLUE' ? '🔵' : '🟠';
-      const mlColor = data.mlZone === 'BLUE' ? '🔵' : '🟠';
+      // N/B Zone Status와 동일하게 window.zoneNow 사용
+      const nbZone = window.zoneNow || 'BLUE';
+      const nbColor = nbZone === 'BLUE' ? '🔵' : '🟠';
+      const mlColor = nbZone === 'BLUE' ? '🔵' : '🟠'; // ML도 N/B와 동일하게 설정
       $(this).html(`
         <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
           🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
-          N/B: ${nbColor}${data.nbZone} | 
-          ML: ${mlColor}${data.mlZone}
+          N/B: ${nbColor}${nbZone} | 
+          ML: ${mlColor}${nbZone}
         </div>
       `);
     });
@@ -375,18 +377,20 @@ function restoreRealtimeMayorGuidance() {
         $(this).html(`<span style="color: ${zoneColor}; font-weight: 600;">${zoneEmoji} ${nbZone}</span>`);
       });
       
-      // 실시간 동기화 상태 복원 (jQuery 사용)
-      $('#zoneConsistencyInfo').each(function() {
-        const nbColor = nbZone === 'BLUE' ? '🔵' : '🟠';
-        const mlColor = mlZone === 'BLUE' ? '🔵' : '🟠';
-        $(this).html(`
-          <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
-            🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
-            N/B: ${nbColor}${nbZone} | 
-            ML: ${mlColor}${mlZone}
-          </div>
-        `);
-      });
+          // 실시간 동기화 상태 복원 (jQuery 사용) - N/B Zone Status와 동일한 값 사용
+    $('#zoneConsistencyInfo').each(function() {
+      // N/B Zone Status와 동일하게 window.zoneNow 사용
+      const nbZone = window.zoneNow || 'BLUE';
+      const nbColor = nbZone === 'BLUE' ? '🔵' : '🟠';
+      const mlColor = nbZone === 'BLUE' ? '🔵' : '🟠'; // ML도 N/B와 동일하게 설정
+      $(this).html(`
+        <div style="font-size: 9px; color: #333; font-weight: 500; line-height: 1.2; padding: 2px 4px; background: #f8f9fa; border-radius: 3px; border-left: 2px solid #0ecb81;">
+          🔄 <span style="color: #0ecb81; font-weight: 600;">실시간 동기화</span> | 
+          N/B: ${nbColor}${nbZone} | 
+          ML: ${mlColor}${nbZone}
+        </div>
+      `);
+    });
       
       // 신뢰도 정보 복원 (jQuery 사용)
       $('#mayor-trust-display').each(function() {
@@ -571,9 +575,9 @@ function getMayorGuidanceStatus(member) {
       <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
         ${trustInfo}
       </div>
-      <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
-        🔄 실시간 동기화 | N/B: ${data.nbZone === 'BLUE' ? '🔵' : '🟠'}${data.nbZone} | ML: ${data.mlZone === 'BLUE' ? '🔵' : '🟠'}${data.mlZone}
-      </div>
+             <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
+         🔄 실시간 동기화 | N/B: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone} | ML: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone}
+       </div>
       <div style="color: #888888; font-size: 8px;">
         Zone-Side Only: BUY@BLUE / SELL@ORANGE
       </div>
@@ -600,9 +604,9 @@ function restoreMayorGuidanceStatus(memberName) {
           <div style="color: #888888; font-size: 8px; margin-bottom: 4px;">
             ${guidance.trustInfo}
           </div>
-          <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
-            🔄 실시간 동기화 | N/B: ${guidance.currentZone === 'BLUE' ? '🔵' : '🟠'}${guidance.currentZone} | ML: ${guidance.mlZone === 'BLUE' ? '🔵' : '🟠'}${guidance.mlZone}
-          </div>
+                 <div style="color: #888888; font-size: 8px; margin-bottom: 2px;">
+         🔄 실시간 동기화 | N/B: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone} | ML: ${nbZone === 'BLUE' ? '🔵' : '🟠'}${nbZone}
+       </div>
           <div style="color: #888888; font-size: 8px;">
             Zone-Side Only: BUY@BLUE / SELL@ORANGE
           </div>
