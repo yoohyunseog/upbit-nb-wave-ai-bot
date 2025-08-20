@@ -36,8 +36,8 @@ async function updateGuildMembersStatus() {
     });
 
     // 전체 카드 시스템 통계 표시
-    const statsDiv = createCardSystemStats(cardSystemStatus);
-    guildContainer.appendChild(statsDiv);
+    const statsHTML = createCardSystemStats(cardSystemStatus);
+    guildContainer.innerHTML += statsHTML;
 
   } catch (e) {
     console.error('Error updating guild members card system:', e);

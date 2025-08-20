@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8BIT 마을 거래 시뮬레이터</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        .game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(180deg, #87CEEB 0%, #98FB98 50%, #F0E68C 100%);
+            border: 3px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .village-map {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%2398FB98"/><circle cx="20" cy="20" r="2" fill="%236B8E23"/><circle cx="80" cy="30" r="2" fill="%236B8E23"/><circle cx="40" cy="70" r="2" fill="%236B8E23"/></svg>');
+        }
+
+        /* 건물들 */
+        .building {
+            position: absolute;
+            border: 2px solid #333;
+            background: #8B4513;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 1px #000;
+        }
+
+        .trading-center {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 80px;
+            background: #4169E1;
+            border-radius: 10px;
+        }
+
+        .scout-house {
+            top: 20%;
+            left: 15%;
+            width: 80px;
+            height: 60px;
+            background: #228B22;
+        }
+
+        .guardian-house {
+            top: 20%;
+            right: 15%;
+            width: 80px;
+            height: 60px;
+            background: #DC143C;
+        }
+
+        .analyst-house {
+            bottom: 20%;
+            left: 15%;
+            width: 80px;
+            height: 60px;
+            background: #FF8C00;
+        }
+
+        .elder-house {
+            bottom: 20%;
+            right: 15%;
+            width: 80px;
+            height: 60px;
+            background: #9932CC;
+        }
+
+        .mayor-office {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 70px;
+            background: #FFD700;
+            border-radius: 15px;
+            z-index: 10;
+        }
+
+        .warehouse {
+            bottom: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 50px;
+            background: #696969;
+        }
+
+        /* 캐릭터들 */
+        .character {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #000;
+            transition: all 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 1px #000;
+            cursor: pointer;
+        }
+
+        .scout {
+            background: #32CD32;
+            top: 25%;
+            left: 20%;
+        }
+
+        .guardian {
+            background: #FF4500;
+            top: 25%;
+            right: 20%;
+        }
+
+        .analyst {
+            background: #FFD700;
+            bottom: 25%;
+            left: 20%;
+        }
+
+        .elder {
+            background: #9370DB;
+            bottom: 25%;
+            right: 20%;
+        }
+
+        .mayor {
+            background: #FFD700;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 25px;
+            height: 25px;
+            z-index: 15;
+            border: 3px solid #FF8C00;
+        }
+
+        /* UI 패널 */
+        .ui-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #666;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 12px;
+            max-width: 300px;
+        }
+
+        .status-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #666;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 11px;
+        }
+
+        .energy-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border: 1px solid #666;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+            transition: width 0.3s ease;
+        }
+
+        .log-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 400px;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #666;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 10px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px;
+            border-left: 2px solid #666;
+            padding-left: 5px;
+        }
+
+        .log-time {
+            color: #888;
+            font-size: 9px;
+        }
+
+        /* 애니메이션 */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .active {
+            animation: pulse 1s infinite;
+        }
+
+        .trading {
+            background: #FFD700 !important;
+            animation: pulse 0.5s infinite;
+        }
+
+        .warehouse-panel {
+            position: absolute;
+            top: 320px;
+            right: 10px;
+            width: 400px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #666;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 10px;
+            overflow-y: auto;
+        }
+
+        .warehouse-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 2px 0;
+            padding: 2px;
+            border-bottom: 1px solid #333;
+        }
+
+        .warehouse-controls {
+            display: flex;
+            gap: 2px;
+        }
+
+        .warehouse-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 2px;
+            padding: 2px 4px;
+            font-size: 8px;
+            cursor: pointer;
+        }
+
+        .warehouse-btn:hover {
+            background: #45a049;
+        }
+
+        .mayor-panel {
+            position: absolute;
+            top: 10px;
+            left: 320px;
+            width: 300px;
+            height: 150px;
+            background: rgba(255, 215, 0, 0.9);
+            border: 2px solid #FF8C00;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 10px;
+            color: #000;
+        }
+
+        .mayor-panel h4 {
+            margin: 0 0 10px 0;
+            color: #8B4513;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="village-map">
+            <!-- 건물들 -->
+            <div class="building trading-center">거래소</div>
+            <div class="building scout-house">Scout<br>Gate</div>
+            <div class="building guardian-house">Guardian<br>Market</div>
+            <div class="building analyst-house">Analyst<br>Tower</div>
+            <div class="building elder-house">Elder<br>Inn</div>
+            <div class="building mayor-office">촌장<br>Office</div>
+            <div class="building warehouse">창고</div>
+
+            <!-- 캐릭터들 -->
+            <div class="character mayor" id="mayor" onclick="mayorAction()">M</div>
+            <div class="character scout" id="scout" onclick="startCharacterTrading('scout')">S</div>
+            <div class="character guardian" id="guardian" onclick="startCharacterTrading('guardian')">G</div>
+            <div class="character analyst" id="analyst" onclick="startCharacterTrading('analyst')">A</div>
+            <div class="character elder" id="elder" onclick="startCharacterTrading('elder')">E</div>
+        </div>
+
+        <!-- UI 패널 -->
+        <div class="ui-panel">
+            <h3>🏘️ 8BIT 마을</h3>
+            <div>현재 시간: <span id="current-time">--:--:--</span></div>
+            <div>마을 에너지: <span id="village-energy">0</span>/100</div>
+            <div>누적 에너지: <span id="energy-accumulated">0</span></div>
+            <div class="energy-bar">
+                <div class="energy-fill" id="energy-fill" style="width: 0%"></div>
+            </div>
+            <div>활성 거래자: <span id="active-traders">0</span>/4</div>
+            <div>마을 평판: <span id="village-reputation">보통</span></div>
+            <div>현재 구역: <span id="current-zone">BLUE</span></div>
+            <div>현재 가격: <span id="current-price">160,000,000</span> KRW</div>
+            <div>촌장 권한: <span id="mayor-authority">100</span>/100</div>
+            <div>차트 변경: <span id="chart-changes">0</span>/<span id="profitable-changes">0</span> 수익성</div>
+            <button onclick="fillEnergy()" style="background: #4caf50; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin-top: 5px;">+100 에너지 추가</button>
+        </div>
+
+        <!-- 촌장 명령 패널 -->
+        <div class="mayor-panel">
+            <h4>🏛️ 촌장 명령</h4>
+            <div style="margin-bottom: 10px;">
+                <button onclick="mayorCommand('start_trading', 'all')" style="background: #4caf50; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin: 2px;">전체 거래 시작</button>
+                <button onclick="mayorCommand('stop_trading')" style="background: #f44336; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin: 2px;">거래 중단</button>
+                <button onclick="mayorCommand('fill_energy')" style="background: #2196F3; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer; margin: 2px;">+100 에너지</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <select id="announce-zone" style="font-size: 10px; margin-right: 5px;">
+                    <option value="BLUE">BLUE 구역</option>
+                    <option value="ORANGE">ORANGE 구역</option>
+                </select>
+                <select id="announce-strategy" style="font-size: 10px; margin-right: 5px;">
+                    <option value="BUY">BUY 전략</option>
+                    <option value="SELL">SELL 전략</option>
+                    <option value="HOLD">HOLD 전략</option>
+                </select>
+                <button onclick="mayorAnnounce()" style="background: #FF9800; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 10px; cursor: pointer;">공지사항</button>
+            </div>
+        </div>
+
+        <!-- 상태바 -->
+        <div class="status-bar">
+            <div style="display: flex; justify-content: space-between;">
+                <span>촌장: <span id="mayor-status">지휘중</span> (HP: <span id="mayor-hp">100</span>, Stamina: <span id="mayor-stamina">100</span>)</span>
+                <span>Scout: <span id="scout-status">대기중</span> (HP: <span id="scout-hp">85</span>, Stamina: <span id="scout-stamina">70</span>)</span>
+                <span>Guardian: <span id="guardian-status">대기중</span> (HP: <span id="guardian-hp">95</span>, Stamina: <span id="guardian-stamina">80</span>)</span>
+                <span>Analyst: <span id="analyst-status">대기중</span> (HP: <span id="analyst-hp">60</span>, Stamina: <span id="analyst-stamina">90</span>)</span>
+                <span>Elder: <span id="elder-status">대기중</span> (HP: <span id="elder-hp">75</span>, Stamina: <span id="elder-stamina">85</span>)</span>
+            </div>
+        </div>
+
+        <!-- 로그 패널 -->
+        <div class="log-panel">
+            <h4>📝 마을 로그</h4>
+            <div id="log-content">
+                <div class="log-entry">
+                    <span class="log-time">[시스템]</span> 8BIT 마을 시뮬레이터가 시작되었습니다.
+                </div>
+            </div>
+        </div>
+
+        <!-- 창고 패널 -->
+        <div class="warehouse-panel">
+            <h4>🏪 창고 관리</h4>
+            <div id="warehouse-content">
+                <!-- 창고 내용이 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 마을 시뮬레이터 로직
+        class VillageSimulator {
+            constructor() {
+                this.gameState = {
+                    village_energy: 50,
+                    active_traders: 0,
+                    village_reputation: '보통',
+                    characters: {},
+                    warehouse: {},
+                    logs: [],
+                    current_zone: 'BLUE',
+                    current_price: 160000000
+                };
+                this.init();
+            }
+
+            async init() {
+                await this.loadGameState();
+                this.updateUI();
+                this.startRealTimeUpdates();
+            }
+
+            async loadGameState() {
+                try {
+                    const response = await fetch('/api/game/state');
+                    const data = await response.json();
+                    if (data.ok) {
+                        this.gameState = data.state;
+                    }
+                } catch (error) {
+                    console.error('게임 상태 로드 실패:', error);
+                }
+            }
+
+            async updateGameState() {
+                await this.loadGameState();
+                this.updateUI();
+            }
+
+            updateUI() {
+                // 기본 정보 업데이트
+                document.getElementById('current-time').textContent = this.gameState.current_time;
+                document.getElementById('village-energy').textContent = this.gameState.village_energy;
+                document.getElementById('energy-fill').style.width = this.gameState.village_energy + '%';
+                document.getElementById('active-traders').textContent = this.gameState.active_traders;
+                document.getElementById('village-reputation').textContent = this.gameState.village_reputation;
+                document.getElementById('current-zone').textContent = this.gameState.current_zone;
+                document.getElementById('current-price').textContent = this.gameState.current_price.toLocaleString();
+                document.getElementById('mayor-authority').textContent = this.gameState.mayor_authority;
+                document.getElementById('energy-accumulated').textContent = this.gameState.energy_accumulated;
+                document.getElementById('chart-changes').textContent = this.gameState.chart_changes;
+                document.getElementById('profitable-changes').textContent = this.gameState.profitable_changes;
+
+                // 캐릭터 상태 업데이트
+                Object.keys(this.gameState.characters).forEach(char => {
+                    const charData = this.gameState.characters[char];
+                    document.getElementById(char + '-status').textContent = charData.status;
+                    document.getElementById(char + '-hp').textContent = charData.hp;
+                    document.getElementById(char + '-stamina').textContent = charData.stamina;
+                    
+                    const charElement = document.getElementById(char);
+                    if (charData.status === '거래중') {
+                        charElement.classList.add('trading');
+                        charElement.style.left = '50%';
+                        charElement.style.top = '50%';
+                    } else {
+                        charElement.classList.remove('trading');
+                        this.resetCharacterPosition(char);
+                    }
+                });
+
+                // 창고 업데이트
+                this.updateWarehouseUI();
+            }
+
+            resetCharacterPosition(char) {
+                const charElement = document.getElementById(char);
+                switch(char) {
+                    case 'mayor':
+                        charElement.style.left = '50%';
+                        charElement.style.top = '50%';
+                        break;
+                    case 'scout':
+                        charElement.style.left = '20%';
+                        charElement.style.top = '25%';
+                        break;
+                    case 'guardian':
+                        charElement.style.left = '80%';
+                        charElement.style.top = '25%';
+                        break;
+                    case 'analyst':
+                        charElement.style.left = '20%';
+                        charElement.style.top = '75%';
+                        break;
+                    case 'elder':
+                        charElement.style.left = '80%';
+                        charElement.style.top = '75%';
+                        break;
+                }
+            }
+
+            updateWarehouseUI() {
+                const warehouseContent = document.getElementById('warehouse-content');
+                warehouseContent.innerHTML = '';
+
+                Object.keys(this.gameState.warehouse).forEach(char => {
+                    const warehouse = this.gameState.warehouse[char];
+                    const item = document.createElement('div');
+                    item.className = 'warehouse-item';
+                    item.innerHTML = `
+                        <div>
+                            <strong>${char.toUpperCase()}:</strong> ${warehouse.coins.toFixed(8)} BTC
+                            <br><small>틱: ${warehouse.ticks} | 평균가: ${warehouse.entry_price > 0 ? warehouse.entry_price.toLocaleString() : '초기화됨'}</small>
+                        </div>
+                        <div class="warehouse-controls">
+                            <button class="warehouse-btn" onclick="modifyWarehouse('${char}', -0.001)">--</button>
+                            <button class="warehouse-btn" onclick="modifyWarehouse('${char}', -0.0001)">-</button>
+                            <button class="warehouse-btn" onclick="modifyWarehouse('${char}', 0.0001)">+</button>
+                            <button class="warehouse-btn" onclick="modifyWarehouse('${char}', 0.001)">++</button>
+                        </div>
+                    `;
+                    warehouseContent.appendChild(item);
+                });
+            }
+
+            async updateLogs() {
+                try {
+                    const response = await fetch('/api/game/logs');
+                    const data = await response.json();
+                    if (data.ok) {
+                        this.updateLogUI(data.logs);
+                    }
+                } catch (error) {
+                    console.error('로그 업데이트 실패:', error);
+                }
+            }
+
+            updateLogUI(logs) {
+                const logContent = document.getElementById('log-content');
+                logContent.innerHTML = '';
+
+                logs.forEach(log => {
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry';
+                    logEntry.innerHTML = `
+                        <span class="log-time">[${log.timestamp}]</span> ${log.message}
+                    `;
+                    logContent.appendChild(logEntry);
+                });
+
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+
+            startRealTimeUpdates() {
+                // 1초마다 게임 상태 업데이트
+                setInterval(() => this.updateGameState(), 1000);
+                
+                // 2초마다 로그 업데이트
+                setInterval(() => this.updateLogs(), 2000);
+            }
+        }
+
+        // 전역 함수들
+        async function fillEnergy() {
+            try {
+                const response = await fetch('/api/game/energy/fill', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    console.log(`✅ 에너지 추가: ${data.previous_energy} → ${data.new_energy}`);
+                }
+            } catch (error) {
+                console.error('에너지 추가 실패:', error);
+            }
+        }
+
+        async function startCharacterTrading(charName) {
+            try {
+                const response = await fetch(`/api/game/character/${charName}/action`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    console.log(`🎯 ${charName.toUpperCase()} 거래 시작!`);
+                } else {
+                    console.log(`❌ ${charName.toUpperCase()} 거래 시작 실패: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('캐릭터 액션 실패:', error);
+            }
+        }
+
+        async function modifyWarehouse(charName, delta) {
+            try {
+                const response = await fetch(`/api/game/warehouse/${charName}/modify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ delta: delta })
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    console.log(`📦 ${charName.toUpperCase()} 창고 수정: ${data.old_coins} → ${data.new_coins}`);
+                }
+            } catch (error) {
+                console.error('창고 수정 실패:', error);
+            }
+        }
+
+        async function mayorAction() {
+            console.log("🏛️ 촌장을 클릭했습니다!");
+            // 촌장 클릭 시 특별한 액션
+        }
+
+        async function mayorCommand(command, target = 'all') {
+            try {
+                const response = await fetch(`/api/game/mayor/command`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: command, target: target })
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    console.log(`🏛️ 촌장 명령 실행: ${command} (${target})`);
+                } else {
+                    console.log(`❌ 촌장 명령 실행 실패: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('촌장 명령 실행 실패:', error);
+            }
+        }
+
+        async function mayorAnnounce() {
+            const zone = document.getElementById('announce-zone').value;
+            const strategy = document.getElementById('announce-strategy').value;
+
+            try {
+                const response = await fetch(`/api/game/mayor/announce`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ zone: zone, strategy: strategy })
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    console.log(`🏛️ 촌장 공지 발행: ${zone} 구역에서 ${strategy} 전략`);
+                } else {
+                    console.log(`❌ 촌장 공지 발행 실패: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('촌장 공지 발행 실패:', error);
+            }
+        }
+
+        // 시뮬레이터 시작
+        const villageSim = new VillageSimulator();
+    </script>
+</body>
+</html>

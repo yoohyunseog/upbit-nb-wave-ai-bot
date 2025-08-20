@@ -1,10 +1,34 @@
 // Lightweight Charts UI (pan only) + order markers using bot server APIs
 
-(function(){
+// Global chart variables
+let chart = null;
+let candle = null;
+let emaF = null;
+let emaS = null;
+let sma50Series = null;
+let sma100Series = null;
+let sma200Series = null;
+let ema9Series = null;
+let ema12Series = null;
+let ema26Series = null;
+let ichiTenkanSeries = null;
+let ichiKijunSeries = null;
+let zoneIndicatorSeries = null;
+let nbWaveSeries = null;
 
+// Chart initialization function
+function initChart() {
+  // Prevent duplicate chart initialization
+  if (window.chartInitialized) {
+    console.log('📊 Chart already initialized, skipping...');
+    return;
+  }
+  
   const container = document.getElementById('tvChart');
-
-  if (!container) return;
+  if (!container) {
+    console.error('❌ Chart container not found');
+    return;
+  }
 
   const tfEl = document.getElementById('timeframe');
 
@@ -1332,6 +1356,8 @@
   // Check if LightweightCharts is loaded before creating chart
   if (typeof LightweightCharts === 'undefined') {
     console.error('❌ LightweightCharts library not loaded. Please wait for the page to fully load.');
+    // Retry after 1 second
+    setTimeout(initChart, 1000);
     return;
   }
 
@@ -4837,8 +4863,8 @@
        // Update zone strip - show N/B 라인 전체 데이터 (static display)
 
        if (strip) {
-
-         strip.innerHTML = '';
+         
+             strip.innerHTML = '';
 
          if (displayZones.length === 0) {
 
@@ -6432,9 +6458,9 @@
 
   // Guild Members Data Structure
 
-    let guildMembers = {
+  let guildMembers = {
 
-      scout: { 
+    scout: { 
 
       name: 'Scout', 
 
@@ -10197,8 +10223,8 @@
 
           appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 📈 ${positionSide === 'BUY' ? 'SELL' : 'BUY'} ${coinAmount} BTC @ ${Number(lastPrice).toLocaleString()} | 진입가: ${Number(entryPrice).toLocaleString()}`);
 
-                            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 실제 수익: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}% (${profitValue > 0 ? '+' : ''}${Number(profitValue).toLocaleString()} KRW)`);
-                
+          appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 💰 실제 수익: ${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}% (${profitValue > 0 ? '+' : ''}${Number(profitValue).toLocaleString()} KRW)`);
+
                   // Update server trainer storage for SELL transaction with trade matching
                   try {
                     const response = await fetch('/api/trainer/storage/modify', {
@@ -10366,8 +10392,8 @@
 
             
 
-                              appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 사용: -${coinAmount.toFixed(6)} | 잔액: ${member.nbCoins.toFixed(6)}`);
-                
+            appendMockTradeLine(`[${new Date().toLocaleTimeString()}] 🪙 N/B 코인 사용: -${coinAmount.toFixed(6)} | 잔액: ${member.nbCoins.toFixed(6)}`);
+
                   // Update server trainer storage with trade matching info
                   try {
                     const response = await fetch('/api/trainer/storage/modify', {
@@ -13164,7 +13190,7 @@
 
   // Force start auto trading after initialization
 
-  setTimeout(forceStartAutoTrading, 3000);
+  // setTimeout(forceStartAutoTrading, 3000); // 함수가 정의되지 않아 주석 처리
 
   
 
@@ -13895,5 +13921,144 @@
       console.log('⚠️ 길드 멤버 상태 시스템 초기화 함수를 찾을 수 없습니다');
     }
   }, 6000); // 6초 후 길드 멤버 상태 시스템 초기화
+  
+  // Mark chart as initialized to prevent duplicates
+  window.chartInitialized = true;
+  console.log('✅ Chart initialization completed');
+  
+  // Auto-enable toggles after 3 seconds
+  setTimeout(() => {
+    enableAutoToggles();
+  }, 3000);
+}
 
-})();
+// Initialize chart when DOM is ready - but only if not called from dynamic loading
+if (typeof window.tradingDashboardLoaded === 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    // Delay initialization to allow libraries to load
+    setTimeout(initChart, 500);
+  }
+} else {
+  // If trading dashboard is already loaded, don't auto-initialize chart
+  console.log('📊 Trading Dashboard already loaded, skipping auto chart initialization');
+}
+
+// Auto-enable toggles function
+function enableAutoToggles() {
+  try {
+    console.log('🎛️ Auto-enabling toggles...');
+    
+    // Auto Trade 토글 활성화
+    const autoTradeToggle = document.getElementById('autoTradeToggle');
+    if (autoTradeToggle && !autoTradeToggle.checked) {
+      autoTradeToggle.checked = true;
+      autoTradeToggle.dispatchEvent(new Event('change'));
+      console.log('✅ Auto Trade 토글 활성화됨');
+    }
+    
+    // ML Auto 토글 활성화
+    const mlAutoToggle = document.getElementById('mlAuto');
+    if (mlAutoToggle && !mlAutoToggle.checked) {
+      mlAutoToggle.checked = true;
+      mlAutoToggle.dispatchEvent(new Event('change'));
+      console.log('✅ ML Auto 토글 활성화됨');
+    }
+    
+    // ML-only Auto Trade 토글 활성화 (있는 경우)
+    const mlOnlyToggle = document.getElementById('mlOnlyToggle');
+    if (mlOnlyToggle && !mlOnlyToggle.checked) {
+      mlOnlyToggle.checked = true;
+      mlOnlyToggle.dispatchEvent(new Event('change'));
+      console.log('✅ ML-only Auto Trade 토글 활성화됨');
+    }
+    
+    console.log('🎛️ 모든 토글 자동 활성화 완료');
+    
+    // 마을 에너지도 함께 충전
+    chargeVillageEnergy();
+  } catch (error) {
+    console.error('❌ 토글 자동 활성화 중 오류:', error);
+  }
+}
+
+// Auto-charge village energy function
+function chargeVillageEnergy() {
+  try {
+    console.log('⚡ Auto-charging village energy...');
+    
+    // 마을 에너지 관련 요소들 찾기
+    const energyElements = [
+      'villageEnergy',
+      'mayorEnergy', 
+      'energyBar',
+      'energyLevel',
+      'villageEnergyBar'
+    ];
+    
+    let energyCharged = false;
+    
+    // 각 에너지 요소에 대해 최대값으로 설정
+    energyElements.forEach(elementId => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        // progress bar인 경우
+        if (element.tagName === 'PROGRESS' || element.classList.contains('progress-bar')) {
+          element.value = 100;
+          element.style.width = '100%';
+          element.textContent = '100%';
+          energyCharged = true;
+          console.log(`✅ ${elementId} 에너지 충전됨 (100%)`);
+        }
+        // 일반 텍스트인 경우
+        else if (element.tagName === 'SPAN' || element.tagName === 'DIV') {
+          element.textContent = '100';
+          element.style.color = '#0ecb81';
+          energyCharged = true;
+          console.log(`✅ ${elementId} 에너지 충전됨 (100)`);
+        }
+      }
+    });
+    
+    // 마을 이동 관련 토글들 활성화
+    const moveToggles = [
+      'villageMoveToggle',
+      'mayorMoveToggle',
+      'autoMoveToggle'
+    ];
+    
+    moveToggles.forEach(toggleId => {
+      const toggle = document.getElementById(toggleId);
+      if (toggle && !toggle.checked) {
+        toggle.checked = true;
+        toggle.dispatchEvent(new Event('change'));
+        console.log(`✅ ${toggleId} 마을 이동 토글 활성화됨`);
+      }
+    });
+    
+    // 마을 이동 버튼들 활성화
+    const moveButtons = document.querySelectorAll('[data-action="move"], [data-action="village-move"], .move-btn, .village-move-btn');
+    moveButtons.forEach(button => {
+      if (button.disabled) {
+        button.disabled = false;
+        button.classList.remove('disabled');
+        console.log('✅ 마을 이동 버튼 활성화됨');
+      }
+    });
+    
+    if (energyCharged) {
+      console.log('⚡ 마을 에너지 자동 충전 완료');
+    } else {
+      console.log('⚠️ 마을 에너지 요소를 찾을 수 없습니다');
+    }
+    
+  } catch (error) {
+    console.error('❌ 마을 에너지 충전 중 오류:', error);
+  }
+}
+
+// Expose functions globally
+window.initChart = initChart;
+window.enableAutoToggles = enableAutoToggles;
+window.chargeVillageEnergy = chargeVillageEnergy;

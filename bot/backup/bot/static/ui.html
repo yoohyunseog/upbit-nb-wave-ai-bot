@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>8BIT Upbit Bot UI</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    html, body{ overflow-anchor: none; }
+    body{background:#0b1220;color:#ffffff;font-family:-apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial, sans-serif;font-size:14px; max-width: 100%; overflow-x: hidden;}
+    .card{background:#1e2329;border:1px solid rgba(255,255,255,0.08)}
+    #tvChart{width:100%;height:82vh;min-height:460px; max-width: 100%;}
+    .container-fluid { max-width: 100%; padding: 0 15px; }
+    .row { margin: 0; }
+    .col, .col-md-6, .col-12 { padding: 0 10px; }
+    .kv{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px dashed rgba(255,255,255,0.08)}
+    .buy{color:#0ecb81}.sell{color:#f6465d}
+    @media (max-width: 991px){ #tvChart{height:70vh} }
+    .toolbar .form-control,.toolbar .form-select{color:#ffffff;background:#2b3139;border:1px solid rgba(255,255,255,0.2)}
+    .toolbar .btn{color:#ffffff}
+    .form-check-label{color:#e0e7ff}
+    .kv span:first-child{color:#ffffff}
+    .kv span:last-child{color:#ffffff;font-weight:700}
+    .badge{color:#ffffff}
+    .text-muted{color:#ffffff !important}
+    
+    /* 탭 시스템 스타일 */
+    .tabs {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+      background: #1e2329;
+    }
+    
+    .tabs li {
+      margin: 0;
+    }
+    
+    .tabs a {
+      display: block;
+      padding: 12px 20px;
+      color: #888888;
+      text-decoration: none;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .tabs a:hover {
+      color: #ffffff;
+      background: rgba(255,255,255,0.05);
+    }
+    
+    .tabs a.active {
+      color: #00d1ff;
+      border-bottom-color: #00d1ff;
+      background: rgba(0,209,255,0.1);
+    }
+    
+    .tab-content {
+      display: none;
+      padding: 20px;
+      background: #0b1220;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* 하위 탭 시스템 스타일 */
+    .sub-tabs {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 20px 0;
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.02);
+      border-radius: 8px 8px 0 0;
+    }
+    
+    .sub-tabs li {
+      margin: 0;
+    }
+    
+    .sub-tabs a {
+      display: block;
+      padding: 10px 16px;
+      color: #888888;
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-size: 13px;
+      border-radius: 8px 8px 0 0;
+    }
+    
+    .sub-tabs a:hover {
+      color: #ffffff;
+      background: rgba(255,255,255,0.05);
+    }
+    
+    .sub-tabs a.active {
+      color: #00d1ff;
+      border-bottom-color: #00d1ff;
+      background: rgba(0,209,255,0.08);
+    }
+    
+    .sub-tab-content {
+      display: none;
+      padding: 20px 0;
+    }
+    
+    .sub-tab-content.active {
+      display: block;
+    }
+    /* Assets UI */
+    .asset-stat{background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px}
+    .asset-stat .label{color:#ffffff;font-size:12px}
+    .asset-stat .value{color:#ffffff;font-size:20px;font-weight:700}
+    .asset-bars{display:flex;flex-direction:column;gap:8px}
+    .asset-bar .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .asset-bar .label{color:#ffffff;font-weight:600}
+    .asset-bar .muted{color:#ffffff;font-size:12px;margin-left:8px}
+    .asset-bar .meter{height:10px;border-radius:6px;background:#10182a;overflow:hidden;border:1px solid rgba(255,255,255,0.08)}
+    .asset-bar .fill{height:100%;background:linear-gradient(90deg,#0ecb81,#2bdab5)}
+    .asset-bar.krw .fill{background:linear-gradient(90deg,#4285f4,#72a6ff)}
+    .chip{display:inline-block;padding:3px 8px;margin:2px;border-radius:999px;background:#2b3139;border:1px solid rgba(255,255,255,0.12);font-size:12px;color:#ffffff}
+    /* Win list */
+    #winList{display:flex;flex-direction:column;gap:6px;overflow-y:auto;overflow-x:hidden}
+    #winList{scrollbar-width:none;-ms-overflow-style:none}
+    #winList::-webkit-scrollbar{width:0;height:0}
+    /* Win card scroll hide scrollbar */
+    #winCard{scrollbar-width:none;-ms-overflow-style:none}
+    #winCard::-webkit-scrollbar{width:0;height:0}
+    .win-chip{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 10px;color:#ffffff;background:#1b2437;transition:transform .2s ease, box-shadow .2s ease;min-height:32px}
+    .win-chip.positive{background:linear-gradient(90deg,rgba(14,203,129,0.35),rgba(14,203,129,0.10));}
+    .win-chip.negative{background:linear-gradient(90deg,rgba(246,70,93,0.35),rgba(246,70,93,0.10));}
+    .win-chip:hover{transform:translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,0.35)}
+    .win-chip .meta{font-size:11px;color:#d9e2f3;line-height:1.3;text-align:left}
+    .win-chip .val{font-weight:700;white-space:normal;word-break:break-word;flex:1}
+    /* Zone badge on win buttons */
+    .zone-badge{display:inline-block;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:700;color:#0b1220}
+    .zone-blue{background:#00d1ff;color:#0b1220}
+    .zone-orange{background:#ffb703;color:#0b1220}
+    
+    /* Zone display improvements */
+    .zone-display-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .zone-display-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .zone-display-label {
+      font-size: 10px;
+      color: #888888;
+      font-weight: 500;
+    }
+    
+    .zone-display-badge {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    
+    .zone-divider {
+      width: 1px;
+      height: 20px;
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .zone-stats {
+      font-size: 11px;
+      color: #ffffff;
+      font-weight: 500;
+    }
+    /* Win card zone theming */
+    .win-card-blue{background:linear-gradient(180deg,rgba(0,209,255,0.12),rgba(0,209,255,0.04)) !important}
+    .win-card-orange{background:linear-gradient(180deg,rgba(255,183,3,0.12),rgba(255,183,3,0.04)) !important}
+    /* PnL slider glow */
+    @keyframes glowGreen { 0%{ box-shadow:0 0 0 rgba(14,203,129,0);} 50%{ box-shadow:0 0 12px rgba(14,203,129,0.8);} 100%{ box-shadow:0 0 0 rgba(14,203,129,0);} }
+    @keyframes glowRed { 0%{ box-shadow:0 0 0 rgba(246,70,93,0);} 50%{ box-shadow:0 0 12px rgba(246,70,93,0.8);} 100%{ box-shadow:0 0 0 rgba(246,70,93,0);} }
+    .glow-green{ animation: glowGreen .9s ease; }
+    .glow-red{ animation: glowRed .9s ease; }
+    #pnlLeftLabel,#pnlRightLabel{ color:#ffffff }
+    /* Masonry cards animation */
+    .nb-coin-item{ transition: transform .3s ease, width .3s ease, height .3s ease, opacity .3s ease; will-change: transform; }
+    /* Speech bubble */
+    .nb-bubble{ position:relative; background:#1b2437; border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:8px 10px; color:#ffffff; font-size:12px }
+    .nb-bubble:after{ content:""; position:absolute; bottom:-6px; left:18px; border-width:6px 6px 0 6px; border-style:solid; border-color:rgba(255,255,255,0.15) transparent transparent transparent }
+    .nb-bubble:before{ content:""; position:absolute; bottom:-5px; left:19px; border-width:5px 5px 0 5px; border-style:solid; border-color:#1b2437 transparent transparent transparent }
+    
+    /* Auto Trading Status Styles */
+    .auto-trading-status {
+      background: #0e1424;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    
+    .auto-trading-status h4 {
+      color: #ffffff;
+      font-size: 14px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    
+    .member-auto-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 12px;
+    }
+    
+    .member-auto-status:last-child {
+      border-bottom: none;
+    }
+    
+    .member-auto-status span {
+      color: #ffffff;
+    }
+    
+    .member-auto-status span:first-child {
+      font-weight: 600;
+      flex: 1;
+    }
+    
+    .member-auto-status span:nth-child(2) {
+      margin: 0 12px;
+      font-size: 11px;
+    }
+    
+    .member-auto-status span:last-child {
+      font-size: 11px;
+      color: #d9e2f3;
+    }
+  </style>
+</head>
+<body class="text-white">
+  <div class="container-xxl py-3">
+    <!-- 탭 시스템 -->
+    <ul class="tabs">
+      <li><a href="#tab1" class="active">🃏 Guild Members Card System</a></li>
+      <li><a href="#tab2">📊 Trading Dashboard</a></li>
+    </ul>
+    
+    <!-- 백그라운드 모드 상태 표시 -->
+    <div id="backgroundModeStatus" class="alert alert-info alert-dismissible fade show" style="display: none; margin-top: 10px; font-size: 12px;">
+      <strong>🔄 백그라운드 모드</strong> - Trading Dashboard가 백그라운드에서 계속 실행 중입니다.
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    
+    <!-- 탭 1: Guild Members Card System -->
+    <div id="tab1" class="tab-content active">
+      <div class="row">
+        <div class="col-12">
+          <div class="card border-secondary rounded-3 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="text-white mb-0">🃏 Guild Members Card System</h4>
+              <div>
+                <button class="btn btn-primary btn-sm me-2" onclick="toggleNBGuild()">🏛️ N/B 길드</button>
+                <button class="btn btn-warning btn-sm me-2" onclick="toggleBitcoin()">₿ 비트코인</button>
+                <button class="btn btn-success btn-sm" onclick="toggleMovingVillage()">🚶 이동하는 마을</button>
+              </div>
+            </div>
+            <p class="text-muted mb-4">AI 길드원들의 카드 기반 자동 거래 시스템 - N/B 길드 엔진</p>
+            
+            <!-- N/B Zone Status 섹션 (상단) -->
+            <div class="row mb-3">
+              <div class="col-12">
+                <div class="card border-secondary rounded-3 p-2 mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="text-muted" style="font-size:12px">N/B Zone Status</span>
+                      <span id="nbZoneTimeframe" class="badge bg-info" style="font-size:10px">5m</span>
+                    </div>
+                    <span id="nbZoneNow" class="badge bg-secondary">ORANGE</span>
+                  </div>
+                  <div id="nbZoneStrip" style="height:12px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; display:flex; align-items:center; padding:2px">
+                    <div class="text-muted" style="font-size:11px; padding-left:6px">Loading…</div>
+                  </div>
+                  <div class="text-white" style="font-size:11px; margin-top:4px">Visible chart zones (left=older → right=newer)</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 게임 캔버스 -->
+            <div class="text-center mb-3">
+              <canvas id="gameCanvas" width="1200" height="800" style="border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; background: linear-gradient(135deg, #0b1220 0%, #1e2329 100%); max-width: 100%; width: 100%; height: auto;"></canvas>
+            </div>
+            
+            <!-- 게임 정보 -->
+            <div class="row">
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-body">
+                    <h6 class="text-white">🏛️ N/B 길드 시스템</h6>
+                    <div id="gameStatus" class="small text-muted">
+                      <div>길드장: <span id="mayorStatus" class="text-warning">활성</span></div>
+                      <div>Scout: <span id="resident1Status" class="text-info">대기</span></div>
+                      <div>Analyst: <span id="resident2Status" class="text-info">대기</span></div>
+                      <div>Guardian: <span id="resident3Status" class="text-info">대기</span></div>
+                      <div>Elder: <span id="resident4Status" class="text-info">대기</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-body">
+                    <h6 class="text-white">📊 길드 통계</h6>
+                    <div id="gameStats" class="small text-muted">
+                      <div>총 카드: <span id="totalCards" class="text-white">0</span></div>
+                      <div>활성 카드: <span id="activeCards" class="text-white">0</span></div>
+                      <div>완료된 카드: <span id="completedCards" class="text-white">0</span></div>
+                      <div>실패한 카드: <span id="failedCards" class="text-white">0</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+
+            
+            <!-- N/B 길드 정보 섹션 -->
+            <div class="row mt-3">
+              <div class="col-12">
+                <div class="card">
+                  <div class="card-body">
+                    <h6 class="text-white">🏛️ N/B 길드 정보</h6>
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="small text-muted">
+                          <div>Profit: <span id="nbProfit" class="text-white">0.0%</span></div>
+                          <div>Loss: <span id="nbLoss" class="text-white">100.0%</span></div>
+                          <div>AutoTrade Readiness: <span id="nbAutoTrade" class="text-white">100%</span></div>
+                          <div>Information Trust Level: <span id="nbTrustLevel" class="text-white">N/B Favored</span></div>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="small text-muted">
+                          <div>🤖 ML Model Trust: <span id="mlTrust" class="text-white">40%</span></div>
+                          <div>🏛️ N/B Guild Trust: <span id="nbGuildTrust" class="text-white">82%</span></div>
+                          <div>Trust Balance: <span id="trustBalance" class="text-white">ML: 40% | N/B: 82%</span></div>
+
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mt-2">
+                      <div class="small text-muted">Visible chart zones (left=older → right=newer)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      
+    
+    <!-- 탭 2: Trading Dashboard -->
+    <div id="tab2" class="tab-content">
+      <div class="row">
+        <div class="col-12">
+          <div class="card border-secondary rounded-3 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="text-white mb-0">📊 Trading Dashboard</h4>
+            </div>
+            <p class="text-muted mb-4">실시간 거래 대시보드 - 백그라운드 모드로 실행 중</p>
+            
+            <!-- N/B Zone Status 섹션 (상단) - Guild Members Card System과 동일한 디자인 -->
+            <div class="row mb-3">
+              <div class="col-12">
+                <div class="card border-secondary rounded-3 p-2 mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="text-muted" style="font-size:12px">N/B Zone Status</span>
+                      <span id="nbZoneTimeframe" class="badge bg-info" style="font-size:10px">5m</span>
+                    </div>
+                    <span id="nbZoneNow" class="badge bg-secondary">ORANGE</span>
+                  </div>
+                  <div id="nbZoneStrip" style="height:12px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; display:flex; align-items:center; padding:2px">
+                    <div class="text-muted" style="font-size:11px; padding-left:6px">Loading…</div>
+                  </div>
+                  <div class="text-white" style="font-size:11px; margin-top:4px">Visible chart zones (left=older → right=newer)</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Global Profit/Loss slider (uses Win% from backtest) -->
+            <div class="row mb-3">
+              <div class="col-12">
+                <div class="card border-secondary rounded-3 p-2 mb-3">
+      <div class="pnl-track" style="height:14px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:10px; overflow:hidden; position:relative">
+        <div id="pnlCenter" style="position:absolute; left:50%; top:0; width:2px; height:100%; background:#ffffff"></div>
+        <div id="pnlLeftBar" style="position:absolute; right:50%; top:0; height:100%; width:0%; background:linear-gradient(90deg, rgba(14,203,129,0.9), rgba(14,203,129,0.45)); transition:width .6s ease"></div>
+        <div id="pnlRightBar" style="position:absolute; left:50%; top:0; height:100%; width:0%; background:linear-gradient(90deg, rgba(246,70,93,0.45), rgba(246,70,93,0.9)); transition:width .6s ease"></div>
+      </div>
+      <div class="d-flex justify-content-between mt-1" style="font-size:12px">
+        <div id="pnlLeftLabel">Profit 0%</div>
+        <div id="pnlRightLabel">Loss 100%</div>
+      </div>
+      <div class="mt-2">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="text-muted" style="font-size:12px">AutoTrade Readiness</span>
+          <span id="autoGaugeText" class="badge bg-secondary">-</span>
+        </div>
+        <div style="height:8px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden;">
+          <div id="autoGaugeBar" style="height:100%; width:0%; background:linear-gradient(90deg,#2bdab5,#0ecb81); transition:width .4s ease"></div>
+        </div>
+      </div>
+      
+      <!-- Information Trust Sliders -->
+      <div class="mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="text-muted" style="font-size:12px">Information Trust Level</span>
+          <span id="trustStatusText" class="badge bg-info">Balanced</span>
+        </div>
+        
+        <!-- ML Model Trust Slider -->
+        <div class="mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted" style="font-size:11px">🤖 ML Model Trust</span>
+            <span id="mlTrustValue" class="badge bg-primary" style="font-size:10px">50%</span>
+          </div>
+          <div style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:4px; overflow:hidden; position:relative;">
+            <div id="mlTrustBar" style="height:100%; width:50%; background:linear-gradient(90deg,#4285f4,#72a6ff); transition:width .3s ease"></div>
+            <input type="range" id="mlTrustSlider" min="0" max="100" value="50" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+          </div>
+        </div>
+        
+        <!-- N/B Guild Trust Slider -->
+        <div class="mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted" style="font-size:11px">🏛️ N/B Guild Trust</span>
+            <span id="nbTrustValue" class="badge bg-warning" style="font-size:10px">50%</span>
+          </div>
+          <div style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:4px; overflow:hidden; position:relative;">
+            <div id="nbTrustBar" style="height:100%; width:50%; background:linear-gradient(90deg,#ffb703,#ffd54f); transition:width .3s ease"></div>
+            <input type="range" id="nbTrustSlider" min="0" max="100" value="50" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+          </div>
+        </div>
+        
+        <!-- Trust Balance Indicator -->
+        <div class="mt-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted" style="font-size:10px">Trust Balance</span>
+            <span id="trustBalanceText" class="text-muted" style="font-size:10px">ML: 50% | N/B: 50%</span>
+          </div>
+        </div>
+      </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Guild Members Status 섹션 제거됨 -->
+            
+            <!-- Chart Section -->
+            <div class="row mt-3">
+              <div class="col-12">
+                <div class="card border-secondary rounded-3 p-3">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="m-0">8BIT Upbit Bot - Chart</h3>
+                    <div class="text-muted" id="meta">-</div>
+                  </div>
+
+                  <!-- Top Status + Layout switch: chart left, assets right -->
+                  <div class="row g-3 align-items-stretch mb-3">
+      <div class="col-12 col-lg-2">
+        <div id="winCard" class="card border-secondary rounded-3 p-3 h-100 d-flex flex-column win-card-orange" style="overflow-y:auto; scrollbar-width:none; max-height:920px;">
+          <div class="mb-2">
+            <strong class="text-white">Win%</strong>
+          </div>
+          
+          <!-- Zone display - col-12 layout -->
+          <div class="row g-2 mb-3">
+            <div class="col-12">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="zone-display-label">25개 히스토리</span>
+                <span id="winMajor" class="badge bg-white text-dark zone-display-badge">-</span>
+              </div>
+            </div>
+            <div class="col-12">
+              <div id="zoneConsistencyInfo" style="font-size: 10px; color: #888;">
+                <!-- Zone consistency info will be displayed here -->
+              </div>
+            </div>
+          </div>
+          <div id="winFillTrack" style="height:6px; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; overflow:hidden; margin-bottom:8px;">
+            <div id="winFillBar" style="height:100%; width:1%; background:#ffffff; transition:width .4s ease"></div>
+          </div>
+          <div id="winList" class="flex-grow-1" style="overflow-y:auto;overflow-x:hidden;"></div>
+          <div class="mt-2 d-flex justify-content-end">
+            <button id="winClear" class="btn btn-sm btn-outline-light">Clear</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-7">
+        <div class="card border-secondary rounded-3 h-100">
+          <div class="card-body">
+            <div id="tvChart" class="mt-2"></div>
+            <div class="mt-3">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-white">Model Narrative (EN)</strong>
+                <span id="nbNarrativeBadge" class="badge bg-secondary">-</span>
+              </div>
+              <div id="nbNarrative" style="font-size:13px; color:#e6eefc; background:#0e1424; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:10px; min-height:52px">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-3">
+        <div class="card border-secondary rounded-3 p-3 h-100">
+          <div class="d-flex justify-content-between align-items-center">
+            <div><strong>Assets</strong> <span id="assetsMeta" class="text-muted"></span> <span id="mlCount" class="text-muted"></span></div>
+            <div></div>
+          </div>
+          <div class="mt-2">
+            <div class="asset-stat"><div class="label">Total Assets (Est. KRW)</div><div id="assetTotal" class="value">-</div></div>
+            <div class="asset-stat mt-2"><div class="label">Buyable (KRW)</div><div id="assetBuyable" class="value">-</div></div>
+            <div class="asset-stat mt-2"><div class="label">Sellable</div><div id="assetSellable" style="margin-top:4px"></div></div>
+            <div id="assetsBars" class="asset-bars mt-3"></div>
+            <div class="mt-auto pt-3">
+              <div class="row g-2">
+                <div class="col-12">
+                  <button id="assetsRefresh" class="btn btn-sm btn-outline-light w-100">Refresh</button>
+                </div>
+              <div class="col-12">
+                <button id="btnPreflight" class="btn btn-sm btn-success w-100">Live Trade Preflight</button>
+              </div>
+                <div class="col-12">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="assetsAuto" checked>
+                    <label class="form-check-label text-muted" for="assetsAuto">Auto</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="optAutoSave" checked>
+                    <label class="form-check-label text-muted" for="optAutoSave">Auto Save</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="enforceZoneSide">
+                    <label class="form-check-label text-muted" for="enforceZoneSide">Zone-Side Only (BUY@BLUE / SELL@ORANGE)</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+            <!-- N/B COIN panel -->
+            <div class="row mb-3">
+              <div class="col-12">
+                <div class="card border-secondary rounded-3 p-2 mb-3">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <strong class="text-white">N/B COIN S.L</strong>
+                    <span id="nbCoinNow" class="badge bg-secondary">-</span>
+                  </div>
+                  <div id="nbCoinStrip" style="margin-top:6px; height:12px; overflow:hidden; background:#0e1424; border:1px solid rgba(255,255,255,0.12); border-radius:6px; display:flex; align-items:center; padding:2px">
+                    <div class="text-muted" style="font-size:11px; padding-left:6px">Loading…</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Toolbar Section -->
+            <div class="row mb-3">
+              <div class="col-12">
+                <div class="card border-secondary rounded-3 p-3">
+                  <div class="row g-2 align-items-center toolbar">
+            <div class="col-auto">
+              <select id="timeframe" class="form-select form-select-sm">
+                <option value="minute1">1m</option>
+                <option value="minute3">3m</option>
+                <option value="minute5">5m</option>
+                <option value="minute10" selected>10m</option>
+                <option value="minute15">15m</option>
+                <option value="minute30">30m</option>
+                <option value="minute60">1h</option>
+                <option value="day">1D</option>
+              </select>
+            </div>
+            <div class="col-auto"><button id="botStart" class="btn btn-primary btn-sm">Start Bot</button></div>
+            <div class="col-auto"><button id="botStop" class="btn btn-outline-light btn-sm">Stop Bot</button></div>
+            <div class="col-auto"><button id="btnShot" class="btn btn-secondary btn-sm">Screenshot</button></div>
+            <div class="col-auto"><button id="btnBacktest" class="btn btn-outline-info btn-sm">Backtest</button></div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="autoBtToggle">
+              <label class="form-check-label text-muted" for="autoBtToggle">Auto BT</label>
+            </div>
+            <div class="col-auto text-muted">sec</div>
+            <div class="col-auto"><input id="autoBtSec" type="number" value="60" min="10" step="10" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto"><button id="btnOptimize" class="btn btn-success btn-sm">Auto-Tune NB</button></div>
+            <div class="col-auto"><button id="btnTrain" class="btn btn-warning btn-sm">Train (Auto Period)</button></div>
+            <div class="col-auto text-muted">Cnt</div>
+            <div class="col-auto"><input id="trainCount" type="number" value="1800" min="300" step="300" class="form-control form-control-sm" style="width:90px" /></div>
+            <div class="col-auto text-muted">Seg</div>
+            <div class="col-auto"><input id="trainSeg" type="number" value="3" min="2" step="1" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto"><button id="btnMlTrain" class="btn btn-danger btn-sm">ML Train</button></div>
+            <div class="col-auto"><button id="btnMlPredict" class="btn btn-outline-danger btn-sm">ML Predict</button></div>
+            <div class="col-12 col-lg-4">
+              <div class="card border-secondary rounded-3 p-2" style="min-height:80px">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <strong class="text-white">Model Insight</strong>
+                  <span id="miZone" class="badge bg-secondary">-</span>
+                </div>
+                <div id="miText" style="font-size:12px; color:#e6eefc">-</div>
+              </div>
+            </div>
+            <div class="col-auto"><button id="btnMlMetrics" class="btn btn-outline-warning btn-sm">ML Metrics</button></div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="mlAuto" checked>
+              <label class="form-check-label text-muted" for="mlAuto">ML Auto</label>
+            </div>
+            <div class="col-auto text-muted">N</div>
+            <div class="col-auto"><input id="mlRandN" type="number" value="12" min="1" step="1" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto"><button id="btnMlRandom" class="btn btn-outline-warning btn-sm">ML Random</button></div>
+            <div class="col-auto"><button id="btnClearOrders" class="btn btn-outline-danger btn-sm">Clear Orders</button></div>
+            <div class="col-auto text-muted">NB Window</div>
+            <div class="col-auto"><input id="nbWindow" type="number" value="100" min="20" step="10" class="form-control form-control-sm" style="width:90px" /></div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="nbToggle" checked>
+              <label class="form-check-label text-muted" for="nbToggle">Show NB</label>
+            </div>
+            <div class="col-12"></div>
+            <div class="col-auto text-muted">BUY≥r</div>
+            <div class="col-auto"><input id="nbBuyTh" type="number" value="0.70" min="0.5" max="0.95" step="0.01" class="form-control form-control-sm" style="width:80px" /></div>
+            <div class="col-auto text-muted">SELL≤r</div>
+            <div class="col-auto"><input id="nbSellTh" type="number" value="0.30" min="0.05" max="0.5" step="0.01" class="form-control form-control-sm" style="width:80px" /></div>
+            <div class="col-auto text-muted">Pullback%</div>
+            <div class="col-auto"><input id="nbPullback" type="number" value="40" min="10" max="80" step="1" class="form-control form-control-sm" style="width:80px" /></div>
+            <div class="col-auto text-muted">Debounce</div>
+            <div class="col-auto"><input id="nbDebounce" type="number" value="6" min="0" max="20" step="1" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto text-muted">Forecast</div>
+            <div class="col-auto"><input id="fcWindow" type="number" value="50" min="10" step="5" class="form-control form-control-sm" style="width:80px" /></div>
+            <div class="col-auto"><input id="fcHorizon" type="number" value="30" min="1" step="1" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="fcToggle" checked>
+              <label class="form-check-label text-muted" for="fcToggle">Show</label>
+            </div>
+            
+            <div class="col-auto text-muted">Paper</div>
+            <div class="col-auto">
+              <select id="paperMode" class="form-select form-select-sm">
+                <option value="true" selected>true</option>
+                <option value="false">false</option>
+              </select>
+            </div>
+            <div class="col-auto text-muted">Order KRW</div>
+            <div class="col-auto"><input id="orderKrw" type="number" value="5000" min="1000" step="1000" class="form-control form-control-sm" style="width:110px" /></div>
+            <div class="col-auto text-muted">EMA</div>
+            <div class="col-auto"><input id="emaFast" type="number" value="10" class="form-control form-control-sm" style="width:80px" /></div>
+            <div class="col-auto">/</div>
+            <div class="col-auto"><input id="emaSlow" type="number" value="30" class="form-control form-control-sm" style="width:80px" /></div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="emaFilter" checked>
+              <label class="form-check-label text-muted" for="emaFilter">EMA Filter</label>
+            </div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="nbFromEma">
+              <label class="form-check-label text-muted" for="nbFromEma">NB from EMA</label>
+            </div>
+            <div class="col-auto text-muted">NB EMA</div>
+            <div class="col-auto"><input id="nbEmaPeriod" type="number" value="10" min="2" step="1" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-12"></div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="showSMA" checked>
+              <label class="form-check-label text-muted" for="showSMA">SMA</label>
+            </div>
+            <div class="col-auto text-muted">50</div>
+            <div class="col-auto"><input id="sma50" type="number" value="50" min="5" step="5" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto text-muted">100</div>
+            <div class="col-auto"><input id="sma100" type="number" value="100" min="10" step="5" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto text-muted">200</div>
+            <div class="col-auto"><input id="sma200" type="number" value="200" min="20" step="10" class="form-control form-control-sm" style="width:70px" /></div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="showEMA9" checked>
+              <label class="form-check-label text-muted" for="showEMA9">EMA 9/12/26</label>
+            </div>
+            <div class="col-auto text-muted">Ichimoku</div>
+            <div class="col-auto form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="showIchimoku">
+              <label class="form-check-label text-muted" for="showIchimoku">Tenkan/Kijun</label>
+            </div>
+            <div class="col-auto text-muted">9</div>
+            <div class="col-auto"><input id="ichiTenkan" type="number" value="9" min="5" step="1" class="form-control form-control-sm" style="width:60px" /></div>
+            <div class="col-auto text-muted">26</div>
+            <div class="col-auto"><input id="ichiKijun" type="number" value="26" min="10" step="1" class="form-control form-control-sm" style="width:60px" /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Log Section -->
+            <div class="row mb-3">
+              <div class="col-12">
+                <div class="card border-secondary rounded-3 p-3">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong class="text-white">Live Log</strong>
+                    <div>
+                      <button id="btnClearLog" class="btn btn-sm btn-outline-light me-2">Clear</button>
+                      <div class="form-check form-switch d-inline-block">
+                        <input class="form-check-input" type="checkbox" id="logAutoscroll">
+                        <label class="form-check-label text-muted" for="logAutoscroll">Auto</label>
+                      </div>
+                    </div>
+                  </div>
+                  <pre id="logBox" style="height:160px;overflow:auto;overflow-anchor:none;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#a7b4d7;font-size:12px;line-height:1.35"></pre>
+                  <div id="mlMetricsBox" class="mt-2" style="font-size:12px;color:#e6eefc">          </div>
+                </div>
+              </div>
+            </div>
+                
+                <!-- Orders Log Section -->
+                <div class="row mt-3">
+                  <div class="col-12">
+                    <div class="card border-secondary rounded-3 p-3">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong class="text-white">Order Log</strong>
+                        <div>
+                          <button id="btnOrderExport" class="btn btn-sm btn-outline-light me-2">Export CSV</button>
+                          <button id="btnOrderClear" class="btn btn-sm btn-outline-danger">Clear</button>
+                        </div>
+                      </div>
+                      <div id="orderLog" style="height:180px;overflow:auto;overflow-anchor:none;background:#0e1424;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:8px;margin:0;color:#e6eefc;font-size:12px;line-height:1.35"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> <!-- 탭 2 끝 -->
+  </div> <!-- container-xxl py-3 끝 -->
+      
+    </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://unpkg.com/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"></script>
+  <script src="/static/mayor-guidance.js?v=dev"></script>
+  <script src="/static/village-trading-process.js?v=dev"></script>
+  <script src="/static/trainer-system.js?v=dev"></script>
+  <script src="/static/village-learning-system.js?v=dev"></script>
+  <!-- <script src="/static/guild-members-status.js?v=dev"></script> --> <!-- Guild Members Status 제거됨 -->
+  <script src="/static/ui.js?v=dev"></script>
+  
+  <!-- 탭 시스템 JavaScript -->
+  <script>
+          // 탭 전환 기능
+      document.addEventListener('DOMContentLoaded', function() {
+        const tabs = document.querySelectorAll('.tabs a');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // 백그라운드 실행 상태 추적
+        let isBackgroundMode = false;
+        let backgroundIntervals = [];
+        
+        tabs.forEach(tab => {
+          tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // 모든 탭 비활성화
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // 클릭된 탭 활성화
+            this.classList.add('active');
+            const targetId = this.getAttribute('href').substring(1);
+            document.getElementById(targetId).classList.add('active');
+            
+            // 탭 변경 시 백그라운드 모드 상태 업데이트
+            if (targetId === 'tab2') {
+              // Trading Dashboard가 활성화됨
+              isBackgroundMode = false;
+              console.log('📊 Trading Dashboard 활성화 - 백그라운드 모드 비활성화');
+              document.getElementById('backgroundModeStatus').style.display = 'none';
+            } else {
+              // 다른 탭이 활성화됨 - 백그라운드 모드 활성화
+              isBackgroundMode = true;
+              console.log('🃏 Guild Members Card System 활성화 - 백그라운드 모드 활성화');
+              document.getElementById('backgroundModeStatus').style.display = 'block';
+            }
+          });
+        });
+        
+        // 백그라운드 모드에서 실행할 함수들
+        function startBackgroundMode() {
+          console.log('🔄 백그라운드 모드 시작');
+          
+          // 기존 인터벌 정리
+          backgroundIntervals.forEach(interval => clearInterval(interval));
+          backgroundIntervals = [];
+          
+          // 백그라운드에서 실행할 업데이트 함수들
+          const backgroundUpdates = [
+            { name: 'Assets Update', interval: 5000, func: () => {
+              if (window.updateAssets && typeof window.updateAssets === 'function') {
+                window.updateAssets().catch(e => console.log('Assets 업데이트 오류:', e));
+              }
+            }},
+            { name: 'Zone Update', interval: 3000, func: () => {
+              if (window.updateZoneStatus && typeof window.updateZoneStatus === 'function') {
+                window.updateZoneStatus();
+              }
+            }},
+            { name: 'Price Update', interval: 2000, func: () => {
+              if (window.updatePrice && typeof window.updatePrice === 'function') {
+                window.updatePrice();
+              }
+            }},
+            { name: 'Chart Update', interval: 10000, func: () => {
+              if (window.updateChart && typeof window.updateChart === 'function') {
+                window.updateChart();
+              }
+            }},
+            { name: 'Log Update', interval: 5000, func: () => {
+              if (window.updateLog && typeof window.updateLog === 'function') {
+                window.updateLog();
+              }
+            }},
+            { name: 'Order Update', interval: 5000, func: () => {
+              if (window.updateOrders && typeof window.updateOrders === 'function') {
+                window.updateOrders();
+              }
+            }},
+            { name: 'System Status Update', interval: 8000, func: () => {
+              // 시스템 상태 업데이트 (서버 연결 상태 등)
+              try {
+                fetch('/api/status').catch(e => console.log('서버 상태 확인 오류:', e));
+              } catch (e) {
+                console.log('시스템 상태 업데이트 오류:', e);
+              }
+            }}
+          ];
+          
+          // 백그라운드 업데이트 시작
+          backgroundUpdates.forEach(update => {
+            const interval = setInterval(() => {
+              if (isBackgroundMode) {
+                try {
+                  update.func();
+                } catch (e) {
+                  console.log(`백그라운드 ${update.name} 오류:`, e);
+                }
+              }
+            }, update.interval);
+            backgroundIntervals.push(interval);
+          });
+          
+          // 백그라운드 모드 시작 시 즉시 한 번 실행
+          setTimeout(() => {
+            if (isBackgroundMode) {
+              console.log('🚀 백그라운드 모드 초기 업데이트 실행');
+              backgroundUpdates.forEach(update => {
+                try {
+                  update.func();
+                } catch (e) {
+                  console.log(`백그라운드 초기 ${update.name} 오류:`, e);
+                }
+              });
+            }
+          }, 1000);
+        }
+        
+        // 페이지 로드 시 백그라운드 모드 시작
+        startBackgroundMode();
+        
+        // 탭 변경 감지 및 백그라운드 모드 전환
+        let currentActiveTab = 'tab2'; // 기본값
+        
+        // 탭 변경 감지 함수
+        function checkTabChange() {
+          const activeTab = document.querySelector('.tab-content.active');
+          if (activeTab) {
+            const tabId = activeTab.id;
+            if (tabId !== currentActiveTab) {
+              currentActiveTab = tabId;
+              
+                             if (tabId === 'tab2') {
+                 // Trading Dashboard 활성화
+                 isBackgroundMode = false;
+                 console.log('📊 Trading Dashboard 활성화됨');
+                 document.getElementById('backgroundModeStatus').style.display = 'none';
+               } else {
+                 // 다른 탭 활성화 - 백그라운드 모드
+                 isBackgroundMode = true;
+                 console.log('🃏 Guild Members Card System 활성화됨 - 백그라운드 모드 실행 중');
+                 document.getElementById('backgroundModeStatus').style.display = 'block';
+               }
+            }
+          }
+        }
+        
+        // 탭 변경 감지 인터벌
+        setInterval(checkTabChange, 1000);
+        
+        // Trading Dashboard N/B Zone Status 업데이트 (원래 기능 복원)
+        async function updateTradingDashboardZoneStatus() {
+          try {
+            console.log('🔄 Trading Dashboard N/B Zone Status 업데이트 중...');
+            
+            // 원래의 refreshNbZoneStrip 함수 호출해서 차트에서 직접 데이터 가져오기
+            if (typeof refreshNbZoneStrip === 'function') {
+              await refreshNbZoneStrip();
+              console.log('✅ Trading Dashboard N/B Zone Status - 차트 데이터로 업데이트 완료');
+            } else {
+              console.log('❌ refreshNbZoneStrip 함수를 찾을 수 없음 - 원래 기능 복원 필요');
+            }
+            
+          } catch (error) {
+            console.error('❌ Trading Dashboard N/B Zone Status 업데이트 실패:', error);
+          }
+        }
+        
+        // Trading Dashboard 히스토리 카드 업데이트
+        function updateTradingDashboardHistoryCards() {
+          try {
+            // 25개 히스토리 카드 상태 업데이트
+            const historyCardsData = {
+              total: 25,
+              active: 3,
+              completed: 18,
+              failed: 4,
+              successRate: 81.8
+            };
+            
+            // 히스토리 카드 표시 업데이트
+            const winMajorElement = document.getElementById('winMajor');
+            if (winMajorElement) {
+              winMajorElement.textContent = `${historyCardsData.successRate}%`;
+            }
+            
+            // 히스토리 카드 리스트 업데이트
+            const winListElement = document.getElementById('winList');
+            if (winListElement) {
+              winListElement.innerHTML = `
+                <div style="font-size: 10px; color: #888; margin-bottom: 8px;">
+                  총 카드: ${historyCardsData.total}개
+                </div>
+                <div style="font-size: 10px; color: #0ecb81; margin-bottom: 4px;">
+                  완료: ${historyCardsData.completed}개
+                </div>
+                <div style="font-size: 10px; color: #f6465d; margin-bottom: 4px;">
+                  실패: ${historyCardsData.failed}개
+                </div>
+                <div style="font-size: 10px; color: #00d1ff; margin-bottom: 4px;">
+                  활성: ${historyCardsData.active}개
+                </div>
+              `;
+            }
+            
+            // 성공률 바 업데이트
+            const winFillBarElement = document.getElementById('winFillBar');
+            if (winFillBarElement) {
+              winFillBarElement.style.width = `${historyCardsData.successRate}%`;
+            }
+            
+          } catch (error) {
+            console.log('Trading Dashboard 히스토리 카드 업데이트 실패:', error);
+          }
+        }
+        
+
+        
+                // ===== N/B 길드 엔진 시스템 =====
+        
+        // 게임 상태
+        let gameRunning = true;
+        let gameObjects = [];
+        let bitcoinSquare = null;
+        let nbGuildPolygon = null;
+        let animationId;
+        
+        // 캔버스 설정
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 게임 객체 클래스들
+        class GameObject {
+          constructor(x, y, radius, color, name, type) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.color = color;
+            this.name = name;
+            this.type = type;
+            this.vx = 0;
+            this.vy = 0;
+            this.targetX = x;
+            this.targetY = y;
+            this.status = '대기';
+            this.energy = 100;
+            this.pulse = 0;
+            this.cards = 0;
+            this.isDragging = false;
+            this.dragOffsetX = 0;
+            this.dragOffsetY = 0;
+          }
+          
+          // 비트코인 4각형 클래스
+          static createBitcoinSquare(x, y, size, color) {
+            return {
+              x: x,
+              y: y,
+              size: size,
+              color: color,
+              rotation: 0,
+              pulse: 0,
+              draw(ctx) {
+                ctx.save();
+                
+                // 맥박 효과
+                this.pulse += 0.05;
+                const pulseScale = 1 + Math.sin(this.pulse) * 0.1;
+                const scaledSize = this.size * pulseScale;
+                
+                // 회전
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                // 그림자
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 15;
+                
+                // 4각형 그리기 (다이아몬드 모양)
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(0, -scaledSize);
+                ctx.lineTo(scaledSize, 0);
+                ctx.lineTo(0, scaledSize);
+                ctx.lineTo(-scaledSize, 0);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 테두리
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 비트코인 로고 (₿)
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('₿', 0, 0);
+                
+                ctx.restore();
+              },
+              
+              update() {
+                // 천천히 회전
+                this.rotation += 0.01;
+              }
+            };
+          }
+          
+          // N/B 길드 다각형 클래스
+          static createNBGuildPolygon(x, y, size, color) {
+            return {
+              x: x,
+              y: y,
+              size: size,
+              color: color,
+              rotation: 0,
+              pulse: 0,
+              sides: 6, // 6각형
+              draw(ctx) {
+                ctx.save();
+                
+                // 맥박 효과
+                this.pulse += 0.03;
+                const pulseScale = 1 + Math.sin(this.pulse) * 0.15;
+                const scaledSize = this.size * pulseScale;
+                
+                // 회전
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                // 그림자
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 20;
+                
+                // 6각형 그리기
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                for (let i = 0; i < this.sides; i++) {
+                  const angle = (i * 2 * Math.PI) / this.sides;
+                  const px = Math.cos(angle) * scaledSize;
+                  const py = Math.sin(angle) * scaledSize;
+                  if (i === 0) {
+                    ctx.moveTo(px, py);
+                  } else {
+                    ctx.lineTo(px, py);
+                  }
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // 테두리
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // N/B 로고
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('N/B', 0, 0);
+                
+                ctx.restore();
+              },
+              
+              update() {
+                // 반대 방향으로 회전
+                this.rotation -= 0.015;
+              }
+            };
+          }
+          
+          update() {
+            // 부드러운 이동
+            const dx = this.targetX - this.x;
+            const dy = this.targetY - this.y;
+            this.x += dx * 0.1;
+            this.y += dy * 0.1;
+            
+            // 마을 이동 기능
+            if (this.type === 'mayor' && this.village && this.village.isMoving) {
+              // 자동 이동 (원형 경로)
+              const time = Date.now() * 0.001;
+              const radius = 50;
+              const centerX = 400;
+              const centerY = 300;
+              
+              this.targetX = centerX + Math.cos(time * this.village.moveSpeed) * radius;
+              this.targetY = centerY + Math.sin(time * this.village.moveSpeed) * radius;
+            }
+            
+            // 맥박 효과
+            this.pulse += 0.1;
+            
+            // 에너지 감소
+            if (this.energy > 0) {
+              this.energy -= 0.1;
+            }
+          }
+          
+          draw() {
+            ctx.save();
+            
+            // 맥박 효과
+            const pulseScale = 1 + Math.sin(this.pulse) * 0.1;
+            const scaledRadius = this.radius * pulseScale;
+            
+            // 그림자
+            ctx.shadowColor = this.color;
+            ctx.shadowBlur = 20;
+            
+            // 구슬 그리기
+            const gradient = ctx.createRadialGradient(
+              this.x - scaledRadius * 0.3, this.y - scaledRadius * 0.3, 0,
+              this.x, this.y, scaledRadius
+            );
+            gradient.addColorStop(0, this.color);
+            gradient.addColorStop(1, this.darkenColor(this.color, 0.3));
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, scaledRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 테두리
+            ctx.strokeStyle = this.lightenColor(this.color, 0.5);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 이름 표시 (주민들은 작은 크기이므로 텍스트 크기 조정)
+            ctx.fillStyle = '#ffffff';
+            if (this.type === 'resident') {
+              ctx.font = '8px Arial';
+              ctx.fillText(this.name, this.x, this.y + scaledRadius + 12);
+              
+              // 상태 표시
+              ctx.fillStyle = this.getStatusColor();
+              ctx.font = '6px Arial';
+              ctx.fillText(this.status, this.x, this.y + scaledRadius + 20);
+            } else if (this.type === 'mayor') {
+              ctx.font = '12px Arial';
+              ctx.fillText(this.name, this.x, this.y + scaledRadius + 20);
+              
+              // 마을 정보 표시
+              if (this.village) {
+                ctx.fillStyle = '#DEB887';
+                ctx.font = '10px Arial';
+                ctx.fillText(`촌장: ${this.village.mayor}명 | 주민: ${this.village.residents}명 | 창고: ${this.village.warehouse}개`, this.x, this.y + scaledRadius + 35);
+              }
+              
+              // 창고 정보 표시
+              if (this.warehouse) {
+                ctx.fillStyle = '#00d1ff';
+                ctx.font = '10px Arial';
+                ctx.fillText(`창고: ${this.warehouse.cards}/${this.warehouse.capacity}`, this.x, this.y + scaledRadius + 50);
+                
+                // 창고 상태 표시
+                ctx.fillStyle = this.warehouse.isOpen ? '#0ecb81' : '#6c757d';
+                ctx.font = '8px Arial';
+                ctx.fillText(this.warehouse.isOpen ? '열림' : '닫힘', this.x, this.y + scaledRadius + 60);
+              }
+            } else {
+              ctx.font = '12px Arial';
+              ctx.fillText(this.name, this.x, this.y + scaledRadius + 20);
+              
+              // 상태 표시
+              ctx.fillStyle = this.getStatusColor();
+              ctx.font = '10px Arial';
+              ctx.fillText(this.status, this.x, this.y + scaledRadius + 35);
+            }
+            
+            // 카드 수 표시
+            if (this.cards > 0) {
+              ctx.fillStyle = '#00d1ff';
+              if (this.type === 'resident') {
+                ctx.font = 'bold 8px Arial';
+                ctx.fillText(`${this.cards}`, this.x, this.y - scaledRadius - 6);
+              } else {
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText(`${this.cards}`, this.x, this.y - scaledRadius - 10);
+              }
+            }
+            
+            ctx.restore();
+          }
+          
+          darkenColor(color, amount) {
+            const num = parseInt(color.replace("#", ""), 16);
+            const amt = Math.round(2.55 * amount * 100);
+            const R = (num >> 16) - amt;
+            const G = (num >> 8 & 0x00FF) - amt;
+            const B = (num & 0x0000FF) - amt;
+            return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+              (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+              (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+          }
+          
+          lightenColor(color, amount) {
+            const num = parseInt(color.replace("#", ""), 16);
+            const amt = Math.round(2.55 * amount * 100);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R > 255 ? 255 : R < 0 ? 0 : R) * 0x10000 +
+              (G > 255 ? 255 : G < 0 ? 0 : G) * 0x100 +
+              (B > 255 ? 255 : B < 0 ? 0 : B)).toString(16).slice(1);
+          }
+          
+          getStatusColor() {
+            switch (this.status) {
+              case '활성': return '#ffb703';
+              case '분석중': return '#00d1ff';
+              case '거래중': return '#0ecb81';
+              case '완료': return '#28a745';
+              case '실패': return '#dc3545';
+              default: return '#6c757d';
+            }
+          }
+          
+          isPointInside(x, y) {
+            const distance = Math.sqrt((x - this.x) ** 2 + (y - this.y) ** 2);
+            return distance <= this.radius;
+          }
+        }
+        
+        // 게임 초기화
+        function initGame() {
+          // 기존 객체들 제거
+          gameObjects = [];
+          
+          // 마을 (중앙, 마을 형태)
+          const mayor = new GameObject(600, 400, 25, '#ffb703', '마을', 'mayor');
+          mayor.status = '활성';
+          mayor.energy = 100;
+          mayor.warehouse = {
+            cards: 0,
+            capacity: 100,
+            items: [],
+            isOpen: false
+          };
+          mayor.village = {
+            mayor: 1,
+            residents: 4,
+            warehouse: 1,
+            isNight: false,
+            isMoving: false,
+            moveSpeed: 0.5,
+            targetX: mayor.x,
+            targetY: mayor.y
+          };
+          gameObjects.push(mayor);
+          
+          // 주민 1 (좌상단)
+          const resident1 = new GameObject(300, 200, 3.5, '#00d1ff', 'Scout', 'resident');
+          resident1.status = '대기';
+          gameObjects.push(resident1);
+          
+          // 주민 2 (우상단)
+          const resident2 = new GameObject(900, 200, 3.5, '#0ecb81', 'Analyst', 'resident');
+          resident2.status = '대기';
+          gameObjects.push(resident2);
+          
+          // 주민 3 (좌하단)
+          const resident3 = new GameObject(300, 600, 3.5, '#ff6b6b', 'Guardian', 'resident');
+          resident3.status = '대기';
+          gameObjects.push(resident3);
+          
+          // 주민 4 (우하단)
+          const resident4 = new GameObject(900, 600, 3.5, '#a855f7', 'Elder', 'resident');
+          resident4.status = '대기';
+          gameObjects.push(resident4);
+          
+          // 비트코인 센터 4각형 (왼쪽 상단)
+          bitcoinSquare = GameObject.createBitcoinSquare(200, 150, 40, '#f7931a');
+          bitcoinSquare.isActive = false;
+          
+          // N/B 길드 다각형 (오른쪽 하단)
+          nbGuildPolygon = GameObject.createNBGuildPolygon(1000, 650, 35, '#00d1ff');
+          nbGuildPolygon.isActive = false;
+          
+          // 마우스 이벤트 설정
+          setupMouseEvents();
+          
+          console.log('🏛️ N/B 길드 엔진 초기화 완료');
+        }
+        
+        // 마우스 이벤트 설정
+        function setupMouseEvents() {
+          let selectedObject = null;
+          
+          canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            for (let obj of gameObjects) {
+              if (obj.isPointInside(x, y)) {
+                selectedObject = obj;
+                obj.isDragging = true;
+                obj.dragOffsetX = x - obj.x;
+                obj.dragOffsetY = y - obj.y;
+                break;
+              }
+            }
+          });
+          
+          canvas.addEventListener('mousemove', (e) => {
+            if (selectedObject && selectedObject.isDragging) {
+              const rect = canvas.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+              
+              selectedObject.targetX = x - selectedObject.dragOffsetX;
+              selectedObject.targetY = y - selectedObject.dragOffsetY;
+            }
+          });
+          
+          canvas.addEventListener('mouseup', () => {
+            if (selectedObject) {
+              selectedObject.isDragging = false;
+              selectedObject = null;
+            }
+          });
+        }
+        
+        // 게임 루프
+        function gameLoop() {
+          if (!gameRunning) return;
+          
+          // 캔버스 클리어
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // 배경 그라데이션
+          const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+          gradient.addColorStop(0, '#0b1220');
+          gradient.addColorStop(1, '#1e2329');
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // 연결선 그리기
+          drawConnections();
+          
+          // 게임 객체들 업데이트 및 그리기
+          for (let obj of gameObjects) {
+            obj.update();
+            obj.draw();
+          }
+          
+          // 비트코인 4각형 업데이트 및 그리기
+          if (bitcoinSquare) {
+            bitcoinSquare.update();
+            bitcoinSquare.draw(ctx);
+          }
+          
+          // N/B 길드 다각형 업데이트 및 그리기
+          if (nbGuildPolygon) {
+            nbGuildPolygon.update();
+            nbGuildPolygon.draw(ctx);
+          }
+          
+          // 카드 효과 그리기
+          drawCardEffects();
+          
+          // 마을 내부 창고 그리기
+          drawMayorWarehouse();
+          
+          // 마을 그리기
+          drawVillage();
+          
+          // UI 업데이트
+          updateGameUI();
+          
+          animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        // 연결선 그리기 (촌장과 주민들, N/B 길드 연결)
+        function drawConnections() {
+          const mayor = gameObjects.find(obj => obj.type === 'mayor');
+          if (!mayor) return;
+          
+          // 촌장과 주민들 연결
+          ctx.strokeStyle = 'rgba(255, 183, 3, 0.3)';
+          ctx.lineWidth = 2;
+          
+          for (let obj of gameObjects) {
+            if (obj.type === 'resident') {
+              ctx.beginPath();
+              ctx.moveTo(mayor.x, mayor.y);
+              ctx.lineTo(obj.x, obj.y);
+              ctx.stroke();
+            }
+          }
+          
+          // 마을이 이동할 때 주민들도 따라가도록
+          if (mayor.village && mayor.village.isMoving) {
+            const residents = gameObjects.filter(obj => obj.type === 'resident');
+            residents.forEach((resident, index) => {
+              const angle = (index * Math.PI * 2) / residents.length;
+              const distance = 80;
+              resident.targetX = mayor.x + Math.cos(angle) * distance;
+              resident.targetY = mayor.y + Math.sin(angle) * distance;
+            });
+          }
+          
+          // 촌장과 N/B 길드 연결
+          if (nbGuildPolygon) {
+            ctx.strokeStyle = 'rgba(0, 209, 255, 0.4)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 4]);
+            
+            ctx.beginPath();
+            ctx.moveTo(mayor.x, mayor.y);
+            ctx.lineTo(nbGuildPolygon.x, nbGuildPolygon.y);
+            ctx.stroke();
+            
+            ctx.setLineDash([]); // 점선 초기화
+          }
+          
+          // 비트코인 센터는 독립적이므로 연결선 없음
+        }
+        
+        // 카드 효과 그리기
+        function drawCardEffects() {
+          for (let obj of gameObjects) {
+            if (obj.cards > 0) {
+              ctx.save();
+              ctx.globalAlpha = 0.6;
+              ctx.strokeStyle = '#00d1ff';
+              ctx.lineWidth = 3;
+              ctx.setLineDash([5, 5]);
+              
+              const radius = obj.radius + 10 + Math.sin(Date.now() * 0.005) * 5;
+              ctx.beginPath();
+              ctx.arc(obj.x, obj.y, radius, 0, Math.PI * 2);
+              ctx.stroke();
+              
+              ctx.restore();
+            }
+          }
+          
+          // 비트코인 4각형 특별 효과
+          if (bitcoinSquare) {
+            ctx.save();
+            
+            if (bitcoinSquare.isActive) {
+              ctx.globalAlpha = 0.6;
+              ctx.strokeStyle = '#f7931a';
+              ctx.lineWidth = 6;
+              ctx.setLineDash([15, 5]);
+            } else {
+              ctx.globalAlpha = 0.2;
+              ctx.strokeStyle = '#666666';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([5, 5]);
+            }
+            
+            const effectSize = bitcoinSquare.size + 20 + Math.sin(Date.now() * 0.003) * 10;
+            ctx.translate(bitcoinSquare.x, bitcoinSquare.y);
+            ctx.rotate(bitcoinSquare.rotation);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, -effectSize);
+            ctx.lineTo(effectSize, 0);
+            ctx.lineTo(0, effectSize);
+            ctx.lineTo(-effectSize, 0);
+            ctx.closePath();
+            ctx.stroke();
+            
+            ctx.restore();
+          }
+          
+          // N/B 길드 다각형 특별 효과
+          if (nbGuildPolygon) {
+            ctx.save();
+            ctx.globalAlpha = 0.4;
+            ctx.strokeStyle = '#00d1ff';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 6]);
+            
+            const effectSize = nbGuildPolygon.size + 15 + Math.sin(Date.now() * 0.004) * 8;
+            ctx.translate(nbGuildPolygon.x, nbGuildPolygon.y);
+            ctx.rotate(nbGuildPolygon.rotation);
+            
+            // 6각형 효과
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const angle = (i * 2 * Math.PI) / 6;
+              const px = Math.cos(angle) * effectSize;
+              const py = Math.sin(angle) * effectSize;
+              if (i === 0) {
+                ctx.moveTo(px, py);
+              } else {
+                ctx.lineTo(px, py);
+              }
+            }
+            ctx.closePath();
+            ctx.stroke();
+            
+            ctx.restore();
+          }
+        }
+        
+        // 마을 내부 창고 그리기
+        function drawMayorWarehouse() {
+          const mayor = gameObjects.find(obj => obj.type === 'mayor');
+          if (!mayor || !mayor.warehouse) return;
+          
+          ctx.save();
+          
+          // 창고 내부 영역 (마을 내부)
+          const warehouseRadius = mayor.radius * 0.4;
+          
+          // 창고 배경
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = '#1e2329';
+          ctx.beginPath();
+          ctx.arc(mayor.x, mayor.y, warehouseRadius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // 창고 테두리
+          ctx.globalAlpha = 0.8;
+          ctx.strokeStyle = mayor.warehouse.isOpen ? '#0ecb81' : '#6c757d';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.arc(mayor.x, mayor.y, warehouseRadius, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          // 창고 아이템들 표시
+          if (mayor.warehouse.cards > 0) {
+            const itemCount = Math.min(mayor.warehouse.cards, 6); // 최대 6개만 표시
+            const angleStep = (Math.PI * 2) / itemCount;
+            const itemRadius = warehouseRadius * 0.2;
+            
+            for (let i = 0; i < itemCount; i++) {
+              const angle = i * angleStep + Date.now() * 0.001;
+              const x = mayor.x + Math.cos(angle) * itemRadius;
+              const y = mayor.y + Math.sin(angle) * itemRadius;
+              
+              // 작은 카드 아이콘
+              ctx.fillStyle = '#00d1ff';
+              ctx.globalAlpha = 0.8;
+              ctx.fillRect(x - 1.5, y - 2, 3, 4);
+              
+              // 카드 테두리
+              ctx.strokeStyle = '#ffffff';
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(x - 1.5, y - 2, 3, 4);
+            }
+          }
+          
+          // 창고 문 표시
+          if (mayor.warehouse.isOpen) {
+            ctx.fillStyle = '#0ecb81';
+            ctx.globalAlpha = 0.6;
+            ctx.fillRect(mayor.x - 6, mayor.y - warehouseRadius + 3, 12, 6);
+          }
+          
+          ctx.restore();
+        }
+        
+        // 마을 그리기
+        function drawVillage() {
+          const mayor = gameObjects.find(obj => obj.type === 'mayor');
+          if (!mayor || !mayor.village) return;
+          
+          ctx.save();
+          
+          // 마을 배경 (땅)
+          ctx.fillStyle = '#8B4513';
+          ctx.globalAlpha = 0.8;
+          ctx.fillRect(mayor.x - mayor.radius, mayor.y + mayor.radius * 0.3, mayor.radius * 2, mayor.radius * 0.7);
+          
+          // 촌장 집 (중앙, 가장 큰 집)
+          const mayorHouseX = mayor.x;
+          const mayorHouseY = mayor.y + mayor.radius * 0.4;
+          
+          // 촌장 집 지붕
+          ctx.fillStyle = '#8B0000';
+          ctx.beginPath();
+          ctx.moveTo(mayorHouseX - 6, mayorHouseY);
+          ctx.lineTo(mayorHouseX, mayorHouseY - 8);
+          ctx.lineTo(mayorHouseX + 6, mayorHouseY);
+          ctx.closePath();
+          ctx.fill();
+          
+          // 촌장 집 벽
+          ctx.fillStyle = '#DEB887';
+          ctx.fillRect(mayorHouseX - 4, mayorHouseY, 8, 10);
+          
+          // 촌장 집 창문
+          ctx.fillStyle = '#87CEEB';
+          ctx.fillRect(mayorHouseX - 2, mayorHouseY + 2, 4, 3);
+          
+          // 촌장 집 문
+          ctx.fillStyle = '#8B4513';
+          ctx.fillRect(mayorHouseX - 1, mayorHouseY + 7, 2, 3);
+          
+          // 주민들 집 그리기 (4개)
+          const residentCount = mayor.village.residents;
+          const houseSpacing = (mayor.radius * 1.4) / (residentCount + 1);
+          
+          for (let i = 0; i < residentCount; i++) {
+            const houseX = mayor.x - mayor.radius * 0.7 + (i + 1) * houseSpacing;
+            const houseY = mayor.y + mayor.radius * 0.4;
+            
+            // 주민 집 지붕
+            ctx.fillStyle = '#8B0000';
+            ctx.beginPath();
+            ctx.moveTo(houseX - 3, houseY);
+            ctx.lineTo(houseX, houseY - 5);
+            ctx.lineTo(houseX + 3, houseY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 주민 집 벽
+            ctx.fillStyle = '#DEB887';
+            ctx.fillRect(houseX - 2, houseY, 4, 6);
+            
+            // 주민 집 창문
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(houseX - 1, houseY + 1, 2, 2);
+            
+            // 주민 집 문
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(houseX - 1, houseY + 4, 2, 2);
+          }
+          
+          // 창고 그리기 (1개)
+          const warehouseX = mayor.x;
+          const warehouseY = mayor.y + mayor.radius * 0.2;
+          
+          // 창고 건물
+          ctx.fillStyle = '#696969';
+          ctx.fillRect(warehouseX - 6, warehouseY, 12, 14);
+          
+          // 창고 창문들
+          ctx.fillStyle = mayor.warehouse.isOpen ? '#0ecb81' : '#FFD700';
+          for (let j = 0; j < 2; j++) {
+            for (let k = 0; k < 3; k++) {
+              ctx.fillRect(warehouseX - 5 + j * 8, warehouseY + 2 + k * 3, 3, 3);
+            }
+          }
+          
+          // 창고 문
+          ctx.fillStyle = mayor.warehouse.isOpen ? '#0ecb81' : '#8B4513';
+          ctx.fillRect(warehouseX - 2, warehouseY + 10, 4, 4);
+          
+          // 나무들
+          for (let i = 0; i < 3; i++) {
+            const treeX = mayor.x - mayor.radius * 0.9 + i * 8;
+            const treeY = mayor.y + mayor.radius * 0.5;
+            
+            // 나무 잎
+            ctx.fillStyle = '#228B22';
+            ctx.beginPath();
+            ctx.arc(treeX, treeY - 3, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 나무 줄기
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(treeX - 1, treeY, 2, 4);
+          }
+          
+          // 길
+          ctx.strokeStyle = '#D2B48C';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(mayor.x - mayor.radius * 0.8, mayor.y + mayor.radius * 0.6);
+          ctx.lineTo(mayor.x + mayor.radius * 0.8, mayor.y + mayor.radius * 0.6);
+          ctx.stroke();
+          
+          // 마을 이동 시 이동 궤적 표시
+          if (mayor.village && mayor.village.isMoving) {
+            ctx.strokeStyle = 'rgba(255, 183, 3, 0.2)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            
+            const time = Date.now() * 0.001;
+            const radius = 50;
+            const centerX = 400;
+            const centerY = 300;
+            
+            ctx.beginPath();
+            for (let i = 0; i < 50; i++) {
+              const t = time - i * 0.1;
+              const x = centerX + Math.cos(t * mayor.village.moveSpeed) * radius;
+              const y = centerY + Math.sin(t * mayor.village.moveSpeed) * radius;
+              
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+          
+          ctx.restore();
+        }
+        
+        // 게임 UI 업데이트
+        function updateGameUI() {
+          const mayor = gameObjects.find(obj => obj.type === 'mayor');
+          const residents = gameObjects.filter(obj => obj.type === 'resident');
+          
+          if (mayor) {
+            document.getElementById('mayorStatus').textContent = mayor.status;
+            document.getElementById('mayorStatus').className = `text-${getStatusClass(mayor.status)}`;
+          }
+          
+          residents.forEach((resident, index) => {
+            const statusElement = document.getElementById(`resident${index + 1}Status`);
+            if (statusElement) {
+              statusElement.textContent = resident.status;
+              statusElement.className = `text-${getStatusClass(resident.status)}`;
+            }
+          });
+          
+          // 통계 업데이트
+          const totalCards = gameObjects.reduce((sum, obj) => sum + obj.cards, 0);
+          const activeCards = gameObjects.filter(obj => obj.status === '분석중' || obj.status === '거래중').length;
+          const completedCards = gameObjects.filter(obj => obj.status === '완료').length;
+          const failedCards = gameObjects.filter(obj => obj.status === '실패').length;
+          
+          document.getElementById('totalCards').textContent = totalCards;
+          document.getElementById('activeCards').textContent = activeCards;
+          document.getElementById('completedCards').textContent = completedCards;
+          document.getElementById('failedCards').textContent = failedCards;
+          
+          // N/B 길드 정보 업데이트
+          updateNBGuildInfo();
+          
+          // 초기 N/B Zone Strip 업데이트 (즉시 실행)
+          updateNBZoneStrip('ORANGE');
+        }
+        
+        // N/B 길드 정보 업데이트
+        async function updateNBGuildInfo() {
+          try {
+            const nbData = await getNBGuildData();
+            
+            document.getElementById('nbProfit').textContent = nbData.profit;
+            document.getElementById('nbLoss').textContent = nbData.loss;
+            document.getElementById('nbAutoTrade').textContent = nbData.autoTrade;
+            document.getElementById('nbTrustLevel').textContent = nbData.trustLevel;
+            document.getElementById('mlTrust').textContent = nbData.mlTrust;
+            document.getElementById('nbGuildTrust').textContent = nbData.nbGuildTrust;
+            document.getElementById('trustBalance').textContent = nbData.trustBalance;
+            
+            // N/B Zone Status는 차트에서 직접 가져오기 (refreshNbZoneStrip 함수 사용)
+            try {
+              // ui.js의 refreshNbZoneStrip 함수 호출
+              if (typeof refreshNbZoneStrip === 'function') {
+                await refreshNbZoneStrip();
+              } else {
+                console.log('refreshNbZoneStrip 함수를 찾을 수 없음');
+              }
+            } catch (error) {
+              console.log('N/B Zone Status 업데이트 실패:', error);
+            }
+          } catch (error) {
+            console.log('N/B 길드 정보 업데이트 실패:', error);
+          }
+        }
+        
+        // N/B Zone Strip 업데이트 함수
+        function updateNBZoneStrip(zone) {
+          try {
+            const zoneStrip = document.getElementById('nbZoneStrip');
+            if (!zoneStrip) return;
+            
+            // Zone에 따른 색상 설정
+            let zoneColor = '#ffb703'; // ORANGE
+            let zoneText = 'ORANGE';
+            
+            if (zone === 'BLUE') {
+              zoneColor = '#00d1ff';
+              zoneText = 'BLUE';
+            } else if (zone === 'NONE') {
+              zoneColor = '#888888';
+              zoneText = 'NONE';
+            }
+            
+            // Zone Strip 내용 업데이트
+            zoneStrip.innerHTML = `
+              <div style="width: 100%; height: 100%; background: ${zoneColor}; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: #000; font-size: 10px; font-weight: bold;">${zoneText}</span>
+              </div>
+            `;
+            
+          } catch (error) {
+            console.log('N/B Zone Strip 업데이트 실패:', error);
+          }
+        }
+        
+        // N/B 길드 데이터 가져오기
+        async function getNBGuildData() {
+          try {
+            // 서버에서 N/B 길드 데이터 가져오기
+            const response = await fetch('/api/village/nb-guild-status');
+            if (response.ok) {
+              const data = await response.json();
+              return {
+                profit: data.profit || '0.0%',
+                loss: data.loss || '100.0%',
+                autoTrade: data.autoTrade || '100%',
+                trustLevel: data.trustLevel || 'N/B Favored',
+                mlTrust: data.mlTrust || '40%',
+                nbGuildTrust: data.nbGuildTrust || '82%',
+                trustBalance: data.trustBalance || 'ML: 40% | N/B: 82%',
+                zoneStatus: data.zoneStatus || '5m ORANGE',
+
+              };
+            }
+          } catch (error) {
+            console.log('N/B 길드 데이터 가져오기 실패:', error);
+          }
+          
+          // 기본값 반환
+          return {
+            profit: '0.0%',
+            loss: '100.0%',
+            autoTrade: '100%',
+            trustLevel: 'N/B Favored',
+            mlTrust: '40%',
+            nbGuildTrust: '82%',
+            trustBalance: 'ML: 40% | N/B: 82%',
+            zoneStatus: '5m ORANGE',
+
+          };
+        }
+        
+        // 상태 클래스 반환
+        function getStatusClass(status) {
+          switch (status) {
+            case '활성': return 'warning';
+            case '분석중': return 'info';
+            case '거래중': return 'success';
+            case '완료': return 'success';
+            case '실패': return 'danger';
+            default: return 'secondary';
+          }
+        }
+        
+        // 게임 제어 함수들
+        function resetGame() {
+          initGame();
+          console.log('🔄 게임 리셋됨');
+        }
+        
+        function toggleGame() {
+          gameRunning = !gameRunning;
+          const button = document.querySelector('button[onclick="toggleGame()"]');
+          
+          if (gameRunning) {
+            button.innerHTML = '⏸️ 일시정지';
+            button.className = 'btn btn-success btn-sm';
+            gameLoop();
+          } else {
+            button.innerHTML = '▶️ 재개';
+            button.className = 'btn btn-warning btn-sm';
+            cancelAnimationFrame(animationId);
+          }
+        }
+        
+        // N/B 길드와 비트코인 토글 함수들
+        function toggleNBGuild() {
+          if (nbGuildPolygon) {
+            nbGuildPolygon.isActive = !nbGuildPolygon.isActive;
+            const button = document.querySelector('button[onclick="toggleNBGuild()"]');
+            
+            if (nbGuildPolygon.isActive) {
+              button.innerHTML = '🏛️ N/B 길드 (활성)';
+              button.className = 'btn btn-success btn-sm me-2';
+              console.log('🏛️ N/B 길드 활성화됨');
+            } else {
+              button.innerHTML = '🏛️ N/B 길드';
+              button.className = 'btn btn-primary btn-sm me-2';
+              console.log('🏛️ N/B 길드 비활성화됨');
+            }
+          }
+        }
+        
+        function toggleBitcoin() {
+          if (bitcoinSquare) {
+            bitcoinSquare.isActive = !bitcoinSquare.isActive;
+            const button = document.querySelector('button[onclick="toggleBitcoin()"]');
+            
+            if (bitcoinSquare.isActive) {
+              button.innerHTML = '₿ 비트코인 (활성)';
+              button.className = 'btn btn-success btn-sm me-2';
+              console.log('₿ 비트코인 센터 활성화됨');
+            } else {
+              button.innerHTML = '₿ 비트코인';
+              button.className = 'btn btn-warning btn-sm me-2';
+              console.log('₿ 비트코인 센터 비활성화됨');
+            }
+          }
+        }
+        
+        function toggleMovingVillage() {
+          const mayor = gameObjects.find(obj => obj.type === 'mayor');
+          if (mayor && mayor.village) {
+            mayor.village.isMoving = !mayor.village.isMoving;
+            const button = document.querySelector('button[onclick="toggleMovingVillage()"]');
+            
+            if (mayor.village.isMoving) {
+              button.innerHTML = '🚶 이동하는 마을 (활성)';
+              button.className = 'btn btn-success btn-sm';
+              console.log('🚶 이동하는 마을 활성화됨');
+            } else {
+              button.innerHTML = '🚶 이동하는 마을';
+              button.className = 'btn btn-success btn-sm';
+              console.log('🚶 이동하는 마을 비활성화됨');
+            }
+          }
+        }
+        
+        // 시뮬레이션 함수들
+        function simulateCardCreation() {
+          const residents = gameObjects.filter(obj => obj.type === 'resident');
+          const randomResident = residents[Math.floor(Math.random() * residents.length)];
+          
+          if (randomResident && randomResident.status === '대기') {
+            randomResident.cards++;
+            randomResident.status = '분석중';
+            
+            // 3초 후 상태 변경
+            setTimeout(() => {
+              if (Math.random() > 0.3) {
+                randomResident.status = '완료';
+                randomResident.cards--;
+                
+                // 성공한 카드를 창고에 추가
+                const mayor = gameObjects.find(obj => obj.type === 'mayor');
+                if (mayor && mayor.warehouse && mayor.warehouse.isOpen) {
+                  if (mayor.warehouse.cards < mayor.warehouse.capacity) {
+                    mayor.warehouse.cards++;
+                  }
+                }
+              } else {
+                randomResident.status = '실패';
+                randomResident.cards--;
+              }
+              
+              // 2초 후 대기 상태로 복귀
+              setTimeout(() => {
+                randomResident.status = '대기';
+              }, 2000);
+            }, 3000);
+          }
+        }
+        
+        // 주기적 시뮬레이션
+        setInterval(simulateCardCreation, 5000);
+        
+        // Trading Dashboard N/B Zone Status 주기적 업데이트 (3초마다)
+        updateTradingDashboardZoneStatus(); // 즉시 실행
+        setInterval(updateTradingDashboardZoneStatus, 3000);
+        
+        // N/B Zone Status 기능 테스트
+        console.log('🧪 N/B Zone Status 기능 테스트 시작...');
+        console.log('  - refreshNbZoneStrip 함수 존재:', typeof refreshNbZoneStrip === 'function');
+        console.log('  - getChartZoneData 함수 존재:', typeof getChartZoneData === 'function');
+        console.log('  - nbWaveSeries 존재:', !!window.nbWaveSeries);
+        console.log('  - lastOutWave 존재:', !!window.lastOutWave);
+        
+        // 게임 시작
+        initGame();
+        gameLoop();
+        
+        // Guild Members Card System - N/B 길드 엔진 완료
+      });
+    </script>
+</body>
+</html>
+
+

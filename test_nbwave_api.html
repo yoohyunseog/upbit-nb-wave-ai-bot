@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N/B Wave API 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.loading {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .result-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .result-section h3 {
+            margin-top: 0;
+            color: #495057;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .zone-count {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+        .zone-count.orange {
+            border-left-color: #ff6b35;
+        }
+        .zone-count.blue {
+            border-left-color: #00d1ff;
+        }
+        .zone-item {
+            background: white;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 3px solid;
+            font-size: 12px;
+        }
+        .zone-item.orange {
+            border-left-color: #ff6b35;
+        }
+        .zone-item.blue {
+            border-left-color: #00d1ff;
+        }
+        .color-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .color-preview {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        .current-zone {
+            text-align: center;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .current-zone.orange {
+            background-color: rgba(255, 183, 3, 0.2);
+            color: #ff6b35;
+            border: 2px solid #ff6b35;
+        }
+        .current-zone.blue {
+            background-color: rgba(0, 209, 255, 0.2);
+            color: #00d1ff;
+            border: 2px solid #00d1ff;
+        }
+        .json-view {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔵🟠 N/B Wave API 테스트</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="interval">시간대:</label>
+                <select id="interval">
+                    <option value="minute1">1분</option>
+                    <option value="minute5" selected>5분</option>
+                    <option value="minute10">10분</option>
+                    <option value="minute15">15분</option>
+                    <option value="minute30">30분</option>
+                    <option value="hour1">1시간</option>
+                    <option value="hour4">4시간</option>
+                    <option value="day1">1일</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="count">캔들 개수:</label>
+                <input type="number" id="count" value="300" min="50" max="1000">
+            </div>
+            
+            <div class="control-group">
+                <label for="window">윈도우:</label>
+                <input type="number" id="window" value="50" min="10" max="200">
+            </div>
+            
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button onclick="fetchNbWaveData()">🔍 데이터 가져오기</button>
+            </div>
+        </div>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div id="results" style="display: none;">
+            <div class="current-zone" id="currentZoneDisplay"></div>
+            
+            <div class="results">
+                <div class="result-section">
+                    <h3>📊 구역 통계</h3>
+                    <div id="zoneStats"></div>
+                </div>
+                
+                <div class="result-section">
+                    <h3>🎨 색상 정보</h3>
+                    <div id="colorInfo"></div>
+                </div>
+            </div>
+            
+            <div class="result-section">
+                <h3>📋 상세 데이터</h3>
+                <div class="json-view">
+                    <pre id="jsonData"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchNbWaveData() {
+            const interval = document.getElementById('interval').value;
+            const count = document.getElementById('count').value;
+            const window = document.getElementById('window').value;
+            
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            // 로딩 상태 표시
+            statusDiv.className = 'status loading';
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = '🔄 데이터를 가져오는 중...';
+            resultsDiv.style.display = 'none';
+            
+            try {
+                const url = `/api/nb/wave-zones?interval=${interval}&count=${count}&window=${window}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    displayResults(data);
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ 데이터를 성공적으로 가져왔습니다!';
+                } else {
+                    throw new Error(data.error || '알 수 없는 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ 오류: ${error.message}`;
+                console.error('API 호출 오류:', error);
+            }
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const currentZoneDisplay = document.getElementById('currentZoneDisplay');
+            const zoneStats = document.getElementById('zoneStats');
+            const colorInfo = document.getElementById('colorInfo');
+            const jsonData = document.getElementById('jsonData');
+            
+            // 현재 구역 표시
+            currentZoneDisplay.className = `current-zone ${data.currentZone.toLowerCase()}`;
+            currentZoneDisplay.innerHTML = `
+                현재 구역: ${data.currentZone === 'ORANGE' ? '🟠 ORANGE' : '🔵 BLUE'}<br>
+                R값: ${data.currentR.toFixed(3)}
+            `;
+            
+            // 구역 통계
+            zoneStats.innerHTML = `
+                <div class="zone-count orange">
+                    <span>🟠 ORANGE 구역</span>
+                    <span><strong>${data.orangeCount}</strong>개</span>
+                </div>
+                <div class="zone-count blue">
+                    <span>🔵 BLUE 구역</span>
+                    <span><strong>${data.blueCount}</strong>개</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <h4>최근 ORANGE 구역 (최대 5개):</h4>
+                    ${data.orangeZones.slice(-5).reverse().map(zone => `
+                        <div class="zone-item orange">
+                            <strong>${new Date(zone.time).toLocaleString()}</strong><br>
+                            가격: ${zone.close.toFixed(2)} | R: ${zone.r.toFixed(3)}
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top: 15px;">
+                    <h4>최근 BLUE 구역 (최대 5개):</h4>
+                    ${data.blueZones.slice(-5).reverse().map(zone => `
+                        <div class="zone-item blue">
+                            <strong>${new Date(zone.time).toLocaleString()}</strong><br>
+                            가격: ${zone.close.toFixed(2)} | R: ${zone.r.toFixed(3)}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // 색상 정보
+            colorInfo.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <h4>색상 매핑:</h4>
+                    <div class="color-item">
+                        <div class="color-preview" style="background-color: rgba(255,183,3,0.70);"></div>
+                        <span>ORANGE 구역: rgba(255,183,3,0.70)</span>
+                    </div>
+                    <div class="color-item">
+                        <div class="color-preview" style="background-color: rgba(0,209,255,0.70);"></div>
+                        <span>BLUE 구역: rgba(0,209,255,0.70)</span>
+                    </div>
+                </div>
+                <div>
+                    <h4>최근 색상 데이터 (최대 10개):</h4>
+                    ${data.nbWaveColorArray.slice(-10).reverse().map(color => `
+                        <div class="color-item">
+                            <div class="color-preview" style="background-color: ${color.color};"></div>
+                            <span>${new Date(color.time).toLocaleString()} - ${color.zone} (R: ${color.r.toFixed(3)})</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // JSON 데이터
+            jsonData.textContent = JSON.stringify(data, null, 2);
+            
+            resultsDiv.style.display = 'block';
+        }
+        
+        // 페이지 로드 시 자동으로 데이터 가져오기
+        window.addEventListener('load', fetchNbWaveData);
+    </script>
+</body>
+</html>

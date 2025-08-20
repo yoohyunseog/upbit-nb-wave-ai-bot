@@ -1,0 +1,736 @@
+{
+  "Scout": {
+    "coins": 0.002,
+    "entry_price": 161000000.0,
+    "last_update": 1755628024,
+    "total_profit": 0.0,
+    "trades": [
+      {
+        "timestamp": 1755493749,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.10310372434509e-05,
+        "price": 0.0,
+        "new_balance": 3.10310372434509e-05
+      },
+      {
+        "timestamp": 1755494923,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.1045873382509996e-05,
+        "price": 0.0,
+        "new_balance": 6.207691062596089e-05
+      },
+      {
+        "timestamp": 1755494924,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.1045873382509996e-05,
+        "price": 0.0,
+        "new_balance": 9.312278400847089e-05
+      },
+      {
+        "timestamp": 1755494925,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.1045873382509996e-05,
+        "price": 0.0,
+        "new_balance": 0.0001241686573909809
+      },
+      {
+        "timestamp": 1755494927,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 0.0,
+        "new_balance": 2.4168657390980888e-05
+      },
+      {
+        "timestamp": 1755494927,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755494927,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755494929,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.104625892579944e-05,
+        "price": 0.0,
+        "new_balance": 3.104625892579944e-05
+      },
+      {
+        "timestamp": 1755495001,
+        "action": "MANUAL_MODIFY",
+        "amount": -3.105e-05,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755495005,
+        "action": "MANUAL_MODIFY",
+        "amount": 0.0001,
+        "price": 0.0,
+        "new_balance": 0.0001
+      },
+      {
+        "timestamp": 1755495255,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.110207077587226e-05,
+        "price": 161000000,
+        "new_balance": 0.00013110207077587227
+      },
+      {
+        "timestamp": 1755495260,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 161000000,
+        "new_balance": 3.1102070775872266e-05
+      },
+      {
+        "timestamp": 1755495322,
+        "action": "MANUAL_MODIFY",
+        "amount": 0.0,
+        "price": 161000000,
+        "new_balance": 3.1102070775872266e-05
+      },
+      {
+        "timestamp": 1755495530,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755495532,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.112356053532524e-05,
+        "price": 161000000,
+        "new_balance": 3.112356053532524e-05
+      },
+      {
+        "timestamp": 1755540673,
+        "action": "MANUAL_TICK",
+        "delta": 1,
+        "old_ticks": 0,
+        "new_ticks": 1
+      },
+      {
+        "ts": 1755605933081,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755605932997",
+          "upbit_size": 0.001,
+          "upbit_price": 160568000,
+          "upbit_time": "2025-08-19T12:18:52.997Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755606110385,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755606110274",
+          "upbit_size": 0.001,
+          "upbit_price": 160568000,
+          "upbit_time": "2025-08-19T12:21:50.274Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755607338293,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607340126,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607344792,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607349153,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607361017,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607414690,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607421525,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607427900,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755607427830",
+          "upbit_size": 0.001,
+          "upbit_price": 160500000,
+          "upbit_time": "2025-08-19T12:43:47.830Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755607466299,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607477314,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607488467,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607496076,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607496324,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607496541,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607496728,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755610475705,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755610475695",
+          "upbit_size": 0.001,
+          "upbit_price": 160380000,
+          "upbit_time": "2025-08-19T13:34:35.695Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755628024177,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.002,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755628024150",
+          "upbit_size": 0.001,
+          "upbit_price": 158502000,
+          "upbit_time": "2025-08-19T18:27:04.150Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      }
+    ],
+    "ticks": 1
+  },
+  "Guardian": {
+    "coins": 0.002,
+    "entry_price": 161000000.0,
+    "last_update": 1755612741,
+    "total_profit": 0.0,
+    "trades": [
+      {
+        "timestamp": 1755495248,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.109916903020351e-05,
+        "price": 161000000,
+        "new_balance": 3.109916903020351e-05
+      },
+      {
+        "timestamp": 1755495251,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755495534,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755495535,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.112356053532524e-05,
+        "price": 161000000,
+        "new_balance": 3.112356053532524e-05
+      },
+      {
+        "timestamp": 1755495538,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755496809,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540178,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540179,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540179,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540180,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 161000000,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540510,
+        "action": "RESET_AVG_PRICE",
+        "amount": 0.0,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540514,
+        "action": "RESET_AVG_PRICE",
+        "amount": 0.0,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540514,
+        "action": "RESET_AVG_PRICE",
+        "amount": 0.0,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540515,
+        "action": "RESET_AVG_PRICE",
+        "amount": 0.0,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540664,
+        "action": "RESET_AVG_PRICE",
+        "amount": 0.0,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540667,
+        "action": "MANUAL_TICK",
+        "delta": 1,
+        "old_ticks": 0,
+        "new_ticks": 1
+      },
+      {
+        "timestamp": 1755540669,
+        "action": "RESET_AVG_PRICE",
+        "amount": 0.0,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "timestamp": 1755540671,
+        "action": "MANUAL_TICK",
+        "delta": -1,
+        "old_ticks": 1,
+        "new_ticks": 0
+      },
+      {
+        "timestamp": 1755540672,
+        "action": "MANUAL_TICK",
+        "delta": -1,
+        "old_ticks": 0,
+        "new_ticks": 0
+      },
+      {
+        "timestamp": 1755540675,
+        "action": "MANUAL_TICK",
+        "delta": -1,
+        "old_ticks": 0,
+        "new_ticks": 0
+      },
+      {
+        "timestamp": 1755540675,
+        "action": "MANUAL_TICK",
+        "delta": -1,
+        "old_ticks": 0,
+        "new_ticks": 0
+      },
+      {
+        "timestamp": 1755603185,
+        "action": "MANUAL_MODIFY",
+        "amount": 0.001,
+        "price": 161000000,
+        "new_balance": 0.001
+      },
+      {
+        "ts": 1755605963067,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755605962964",
+          "upbit_size": 0.001,
+          "upbit_price": 160568000,
+          "upbit_time": "2025-08-19T12:19:22.964Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755606110395,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755606110282",
+          "upbit_size": 0.001,
+          "upbit_price": 160568000,
+          "upbit_time": "2025-08-19T12:21:50.282Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755607353628,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607355029,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607357001,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607358220,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607359228,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607359531,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607359794,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607424107,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607427922,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755607427840",
+          "upbit_size": 0.001,
+          "upbit_price": 160500000,
+          "upbit_time": "2025-08-19T12:43:47.840Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755607467764,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607479163,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607489394,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607497318,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607497374,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607497564,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755607497770,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755612115579,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755612115547",
+          "upbit_size": 0.001,
+          "upbit_price": 160270000,
+          "upbit_time": "2025-08-19T14:01:55.547Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755612741232,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.002,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755612741215",
+          "upbit_size": 0.001,
+          "upbit_price": 159843000,
+          "upbit_time": "2025-08-19T14:12:21.215Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      }
+    ],
+    "ticks": 0
+  },
+  "Analyst": {
+    "coins": 0.0029,
+    "entry_price": 161000000.0,
+    "last_update": 1755612115,
+    "total_profit": 0.0,
+    "trades": [
+      {
+        "timestamp": 1755493729,
+        "action": "MANUAL_MODIFY",
+        "amount": 3.1031422418340814e-05,
+        "price": 0.0,
+        "new_balance": 3.1031422418340814e-05
+      },
+      {
+        "timestamp": 1755493731,
+        "action": "MANUAL_MODIFY",
+        "amount": -0.0001,
+        "price": 0.0,
+        "new_balance": 0.0
+      },
+      {
+        "ts": 1755605963076,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755605962981",
+          "upbit_size": 0.001,
+          "upbit_price": 160568000,
+          "upbit_time": "2025-08-19T12:19:22.981Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755607423315,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      },
+      {
+        "ts": 1755610475724,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0019,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755610475715",
+          "upbit_size": 0.001,
+          "upbit_price": 160380000,
+          "upbit_time": "2025-08-19T13:34:35.715Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755612115603,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0029,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755612115560",
+          "upbit_size": 0.001,
+          "upbit_price": 160270000,
+          "upbit_time": "2025-08-19T14:01:55.560Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      }
+    ],
+    "ticks": 0
+  },
+  "Elder": {
+    "coins": 0.0,
+    "entry_price": 0.0,
+    "last_update": 1755607422,
+    "total_profit": 0.0,
+    "trades": [
+      {
+        "ts": 1755607422824,
+        "action": "MANUAL_MODIFY",
+        "price": 161000000,
+        "size": 0.0001,
+        "profit": 0.0
+      }
+    ],
+    "ticks": 0
+  }
+}

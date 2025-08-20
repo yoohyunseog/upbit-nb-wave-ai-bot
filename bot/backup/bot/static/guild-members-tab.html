@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guild Members Card System - 8BIT</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+  <style>
+    body {
+      background: #0b1220;
+      color: #ffffff;
+      font-family: -apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial, sans-serif;
+    }
+    
+    .card {
+      background: #1e2329;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 15px;
+    }
+    
+    .member-card {
+      background: linear-gradient(135deg, #1e2329, #2b3139);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+    
+    .status-waiting { color: #888888; }
+    .status-analyzing { color: #ffb703; }
+    .status-trading { color: #0ecb81; }
+    .status-learning { color: #00d1ff; }
+    
+    .back-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    
+    .back-btn:hover {
+      background: rgba(255,255,255,0.2);
+      color: #ffffff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid p-4">
+    <a href="ui.html" class="back-btn">← 메인 UI로 돌아가기</a>
+    
+    <div class="card">
+      <div class="card-body">
+        <h4>🃏 Guild Members Card System</h4>
+        <p class="text-muted">AI 주민들의 카드 기반 자동 거래 시스템</p>
+        <button class="btn btn-primary btn-sm" onclick="refreshGuildMembers()">🔄 새로고침</button>
+      </div>
+    </div>
+    
+    <div id="guildMembersContainer" class="row">
+      <!-- 주민 카드들이 여기에 생성됩니다 -->
+    </div>
+    
+    <div class="card">
+      <div class="card-body">
+        <h5>📊 시스템 통계</h5>
+        <div id="systemStats" class="row">
+          <!-- 시스템 통계가 여기에 표시됩니다 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function updateGuildMembersStatus() {
+      try {
+        const response = await fetch('/api/village/card-system/status');
+        if (response.ok) {
+          const data = await response.json();
+          renderGuildMembers(data);
+          renderSystemStats(data);
+        }
+      } catch (e) {
+        console.error('Error:', e);
+      }
+    }
+
+    function renderGuildMembers(data) {
+      const container = document.getElementById('guildMembersContainer');
+      container.innerHTML = '';
+
+      if (data.members) {
+        Object.entries(data.members).forEach(([memberName, member]) => {
+          const status = getMemberStatus(member);
+          const statusClass = `status-${status}`;
+          
+          const card = document.createElement('div');
+          card.className = 'col-md-6 col-lg-3 mb-3';
+          card.innerHTML = `
+            <div class="member-card">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">${memberName}</h6>
+                <span class="badge ${statusClass}">${getStatusText(status)}</span>
+              </div>
+              <div class="small text-muted mb-2">${member.role || 'Resident'}</div>
+              <div class="small mb-2">
+                담당: ${(member.assignedTimeframes || []).join(', ')}
+              </div>
+              <div class="row text-center">
+                <div class="col-6">
+                  <div class="small text-muted">제조 카드</div>
+                  <div class="fw-bold">${member.manufacturingCards || 0}</div>
+                </div>
+                <div class="col-6">
+                  <div class="small text-muted">성공률</div>
+                  <div class="fw-bold">${((member.analysisSuccessRate || 0) * 100).toFixed(1)}%</div>
+                </div>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
+    }
+
+    function getMemberStatus(member) {
+      if (member.isAnalyzing) return 'analyzing';
+      if (member.isTrading) return 'trading';
+      if (member.manufacturingCards > 0) return 'learning';
+      return 'waiting';
+    }
+
+    function getStatusText(status) {
+      switch (status) {
+        case 'analyzing': return 'AI 분석 중';
+        case 'trading': return '거래 실행 중';
+        case 'learning': return 'AI 학습 중';
+        default: return '대기 중';
+      }
+    }
+
+    function renderSystemStats(data) {
+      const container = document.getElementById('systemStats');
+      container.innerHTML = `
+        <div class="col-md-3">
+          <div class="text-center">
+            <div class="small text-muted">총 카드</div>
+            <div class="h5">${data.totalCards || 0}</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-center">
+            <div class="small text-muted">활성 카드</div>
+            <div class="h5">${data.activeCards || 0}</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-center">
+            <div class="small text-muted">완료된 카드</div>
+            <div class="h5">${data.completedCards || 0}</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-center">
+            <div class="small text-muted">실패한 카드</div>
+            <div class="h5">${data.failedCards || 0}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function refreshGuildMembers() {
+      updateGuildMembersStatus();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      updateGuildMembersStatus();
+      setInterval(updateGuildMembersStatus, 5000);
+    });
+  </script>
+</body>
+</html>
