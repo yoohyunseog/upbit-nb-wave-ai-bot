@@ -4120,7 +4120,27 @@ def api_ml_metrics():
         cur_interval = str(req_iv or (state.get('candle') or load_config().candle))
         pack = _load_ml(cur_interval)
         if not pack:
-            return jsonify({'ok': False, 'error': 'model_not_trained'}), 400
+            # Return default metrics instead of error for untrained intervals
+            default_metrics = {
+                'in_sample': {
+                    'report': {
+                        'macro avg': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0},
+                        'weighted avg': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0}
+                    },
+                    'confusion': [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+                },
+                'cv': {'f1_macro': 0.0, 'pnl_sum': 0.0},
+                'params': None
+            }
+            return jsonify({
+                'ok': True, 
+                'interval': cur_interval, 
+                'metrics': default_metrics, 
+                'params': None, 
+                'trained_at': None, 
+                'train_count': 0,
+                'note': 'model_not_trained_using_defaults'
+            })
         metrics = pack.get('metrics', {}) or {}
         # If metrics missing (old model), recompute lightweight metrics on recent data
         if not metrics or not metrics.get('in_sample'):
@@ -6282,6 +6302,40 @@ def api_npc_generate():
         return jsonify({'ok': True, 'count': len(out), 'items': out})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/village/nb-guild-status', methods=['GET'])
+def api_village_nb_guild_status():
+    """N/B 길드 상태 정보 반환"""
+    try:
+        # N/B 길드 상태 정보 구성 (기본값)
+        nb_guild_status = {
+            'profit': '0.0%',
+            'loss': '100.0%',
+            'autoTrade': '100%',
+            'trustLevel': 'N/B Favored',
+            'mlTrust': '40%',
+            'nbGuildTrust': '82%',
+            'trustBalance': 'ML: 40% | N/B: 82%',
+            'zoneStatus': '5m ORANGE',
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(nb_guild_status)
+        
+    except Exception as e:
+        print(f"❌ N/B 길드 상태 API 오류: {e}")
+        return jsonify({
+            'error': str(e),
+            'profit': '0.0%',
+            'loss': '100.0%',
+            'autoTrade': '100%',
+            'trustLevel': 'N/B Favored',
+            'mlTrust': '40%',
+            'nbGuildTrust': '82%',
+            'trustBalance': 'ML: 40% | N/B: 82%',
+            'zoneStatus': '5m ORANGE',
+        }), 500
 
 
 def run():

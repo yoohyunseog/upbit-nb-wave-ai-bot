@@ -253,15 +253,7 @@ CARD_SYSTEM = {
     "completedCards": {},  # 완성된 카드들
     "failedCards": {},  # 실패한 카드들
     "cardCounter": 0,  # 카드 ID 카운터
-    "lastCardUpdate": None,  # 마지막 카드 업데이트 시간
-    
-    # 히스토리 카드 시스템 (25개 히스토리 카드)
-    "historyCards": {},  # 히스토리 카드들 (분봉별로 저장)
-    "historyCardCounter": 0,  # 히스토리 카드 ID 카운터
-    
-    # 제조 시스템
-    "manufacturingCards": {},  # 제조 중인 카드들 (Guild Members Card System)
-    "manufacturingCounter": 0  # 제조 카드 ID 카운터
+    "lastCardUpdate": None  # 마지막 카드 업데이트 시간
 }
 
 # 카드 시스템 함수들
@@ -310,12 +302,12 @@ def analyze_card(card_id, member_name):
     strategy = generate_trading_strategy(member, card["timeframe"], card["patternData"])
     
     # 카드 업데이트
-    card["status"] = "analyzed"  # analyzing에서 analyzed로 변경
+    card["status"] = "analyzing"
     card["strategy"] = strategy
     card["analyzedAt"] = time.time()
     
-    # 주민의 현재 분석 상태 초기화 (분석 완료)
-    member["cardSystem"]["currentAnalysis"] = None
+    # 주민의 현재 분석 상태 업데이트
+    member["cardSystem"]["currentAnalysis"] = card_id
     member["cardSystem"]["cardAnalysisHistory"].append({
         "cardId": card_id,
         "timeframe": card["timeframe"],
@@ -392,9 +384,6 @@ def execute_card_sell(card_id, sell_info):
         
         # 현재 분석 상태 초기화
         member["cardSystem"]["currentAnalysis"] = None
-    
-    # 창고에 영구 저장 (기존 창고 시스템 제거됨)
-    # store_completed_card(card_id, card, card_type)
     
     print(f"✅ 카드 완성: {member_name} - 카드 {card_id} (수익: {performance['profit']:.2f}%)")
     return True
@@ -494,9 +483,6 @@ def get_member_card_status(member_name):
     member = VILLAGE_RESIDENTS[member_name]
     card_system = member["cardSystem"]
     
-    # 제조 카드 정보 추가
-    manufacturing_cards = card_system.get("manufacturingCards", [])
-    
     return {
         "memberName": member_name,
         "role": member["role"],
@@ -504,176 +490,53 @@ def get_member_card_status(member_name):
         "activeCards": len(card_system["activeCards"]),
         "completedCards": len(card_system["completedCards"]),
         "failedCards": len(card_system["failedCards"]),
-        "manufacturingCards": len(manufacturing_cards),  # 제조 카드 수 추가
         "analysisSuccessRate": card_system["analysisSuccessRate"],
         "totalCardsAnalyzed": card_system["totalCardsAnalyzed"],
         "successfulCards": card_system["successfulCards"],
         "averageProfit": card_system["averageProfit"],
         "totalProfit": card_system["totalProfit"],
-        "currentAnalysis": card_system["currentAnalysis"],
-        "isAnalyzing": card_system["currentAnalysis"] is not None,  # 분석 중 여부
-        "isTrading": False  # 거래 중 여부 (추후 구현)
+        "currentAnalysis": card_system["currentAnalysis"]
     }
 
-# ========================================
-# 🏗️ 새로운 창고 시스템 준비 중...
-# ========================================
-
-# 기존 창고 시스템 완전 제거됨
-# 새로운 창고 시스템 설계 대기 중...
-
-# ========================================
-# 🏪 새로운 창고 시스템 (트레이너 주민별 개별 창고)
-# ========================================
-NEW_WAREHOUSE_SYSTEM = {
-    "scout": {
-        "name": "Scout 창고",
-        "owner": "scout",
-        "capacity": 1000,  # 최대 저장 가능한 카드 수
-        "current_cards": 0,
-        "total_profit": 0.0,
-        "total_volume": 0.0,
-        "success_rate": 0.0,
-        "last_updated": None,
-        "cards": []  # 저장된 카드들
-    },
-    "guardian": {
-        "name": "Guardian 창고",
-        "owner": "guardian", 
-        "capacity": 1000,
-        "current_cards": 0,
-        "total_profit": 0.0,
-        "total_volume": 0.0,
-        "success_rate": 0.0,
-        "last_updated": None,
-        "cards": []
-    },
-    "analyst": {
-        "name": "Analyst 창고",
-        "owner": "analyst",
-        "capacity": 1000,
-        "current_cards": 0,
-        "total_profit": 0.0,
-        "total_volume": 0.0,
-        "success_rate": 0.0,
-        "last_updated": None,
-        "cards": []
-    },
-    "elder": {
-        "name": "Elder 창고",
-        "owner": "elder",
-        "capacity": 1000,
-        "current_cards": 0,
-        "total_profit": 0.0,
-        "total_volume": 0.0,
-        "success_rate": 0.0,
-        "last_updated": None,
-        "cards": []
-    }
-}
-
-def initialize_new_warehouse_system():
-    """새로운 창고 시스템 초기화"""
-    global NEW_WAREHOUSE_SYSTEM
-    print("🏪 새로운 창고 시스템 초기화 중...")
-    
-    for warehouse_name, warehouse_data in NEW_WAREHOUSE_SYSTEM.items():
-        warehouse_data["last_updated"] = time.time()
-        warehouse_data["cards"] = []
-        warehouse_data["current_cards"] = 0
-        print(f"  - {warehouse_data['name']} 초기화 완료")
-    
-    print("✅ 새로운 창고 시스템 초기화 완료")
-
-def store_card_in_warehouse(card_id, member_name, card_type="real"):
-    """카드를 창고에 저장"""
-    global NEW_WAREHOUSE_SYSTEM, CARD_SYSTEM
-    
-    if member_name not in NEW_WAREHOUSE_SYSTEM:
-        print(f"❌ 창고를 찾을 수 없음: {member_name}")
-        return False
-    
-    if card_id not in CARD_SYSTEM["activeCards"]:
-        print(f"❌ 카드를 찾을 수 없음: {card_id}")
-        return False
-    
-    card = CARD_SYSTEM["activeCards"][card_id]
-    warehouse = NEW_WAREHOUSE_SYSTEM[member_name]
-    
-    # 창고 용량 확인
-    if warehouse["current_cards"] >= warehouse["capacity"]:
-        print(f"❌ 창고 용량 초과: {member_name}")
-        return False
-    
-    # 카드 정보 업데이트
-    card["warehouse_stored"] = True
-    card["warehouse_owner"] = member_name
-    card["card_type"] = card_type  # "real" 또는 "mock"
-    card["stored_at"] = time.time()
-    
-    # 창고에 카드 추가
-    warehouse["cards"].append(card)
-    warehouse["current_cards"] += 1
-    warehouse["last_updated"] = time.time()
-    
-    # 성과 통계 업데이트
-    if card.get("performance"):
-        warehouse["total_profit"] += card["performance"].get("profit", 0)
-        warehouse["total_volume"] += card["performance"].get("volume", 0)
-        
-        # 성공률 계산
-        total_cards = len(warehouse["cards"])
-        successful_cards = len([c for c in warehouse["cards"] if c.get("performance", {}).get("profit", 0) > 0])
-        warehouse["success_rate"] = (successful_cards / total_cards * 100) if total_cards > 0 else 0
-    
-    print(f"✅ 카드 저장 완료: {member_name} 창고에 카드 {card_id} 저장")
-    return True
-
-def get_warehouse_status(member_name):
-    """창고 상태 조회"""
-    global NEW_WAREHOUSE_SYSTEM
-    
-    if member_name not in NEW_WAREHOUSE_SYSTEM:
-        return {"error": "창고를 찾을 수 없습니다."}
-    
-    warehouse = NEW_WAREHOUSE_SYSTEM[member_name]
-    return {
-        "name": warehouse["name"],
-        "owner": warehouse["owner"],
-        "capacity": warehouse["capacity"],
-        "current_cards": warehouse["current_cards"],
-        "total_profit": warehouse["total_profit"],
-        "total_volume": warehouse["total_volume"],
-        "success_rate": warehouse["success_rate"],
-        "last_updated": warehouse["last_updated"]
-    }
-
-def get_warehouse_cards(member_name, card_type=None):
-    """창고의 카드 목록 조회"""
-    global NEW_WAREHOUSE_SYSTEM
-    
-    if member_name not in NEW_WAREHOUSE_SYSTEM:
-        return {"error": "창고를 찾을 수 없습니다."}
-    
-    warehouse = NEW_WAREHOUSE_SYSTEM[member_name]
-    cards = warehouse["cards"]
-    
-    if card_type:
-        cards = [card for card in cards if card.get("card_type") == card_type]
-    
-    return {
-        "warehouse_name": warehouse["name"],
-        "card_count": len(cards),
-        "cards": cards
-    }
-
-# 🏗️ 기존 트레이너 창고 시스템 제거됨
-# TRAINER_WAREHOUSES = {}  # 기존 트레이너 창고 시스템 완전 제거
+# 트레이너 창고 시스템 (카드 기반으로 개선)
+TRAINER_WAREHOUSES = {}
 
 def initialize_trainer_warehouses():
-    """기존 트레이너 창고 시스템 제거됨"""
-    print("🏗️ 기존 트레이너 창고 시스템 제거됨")
-    pass
+    """트레이너 창고 초기화"""
+    for trainer_name, trainer_data in VILLAGE_RESIDENTS.items():
+        TRAINER_WAREHOUSES[trainer_name] = {
+            "location": f"{trainer_data['location']} Warehouse",
+            "capacity": "무제한",
+            "real_time_storage": True,
+            "trade_records": {
+                "real_trades": [],
+                "mock_trades": [],
+                "current_position": None
+            },
+            "profit_loss_history": {
+                "total_profit": 0,
+                "win_rate": 0,
+                "total_trades": 0,
+                "profitable_trades": 0,
+                "losing_trades": 0
+            },
+            "learning_data": {
+                "successful_patterns": [],
+                "failed_patterns": [],
+                "market_conditions": [],
+                "strategy_effectiveness": {}
+            },
+            # 거래 일지 시스템 추가
+            "trade_journal": {
+                "recent_entries": [],  # 최근 10개 거래 일지
+                "zone_entries": {      # 구역별 거래 일지
+                    "ORANGE": [],
+                    "BLUE": []
+                },
+                "mayor_guidance_log": [],  # 촌장 지침 기록
+                "ml_model_decisions": []   # ML 모델 판단 기록
+            }
+        }
 
 # 비트카 에너지 시스템
 BITCAR_ENERGY_SYSTEM = {
@@ -682,6 +545,9 @@ BITCAR_ENERGY_SYSTEM = {
     "analyst": {"energy": 90, "bitcar_model": "Strategic Analyzer"},
     "elder": {"energy": 85, "bitcar_model": "Wisdom Keeper"}
 }
+
+# 마을 시스템 초기화
+initialize_trainer_warehouses()
 
 # ===== 8BIT 마을 시스템 함수들 =====
 
@@ -1018,30 +884,202 @@ def inject_village_energy_to_bitcar(trainer_name, energy_amount):
         return "마을 에너지 부족"
 
 def get_trainer_warehouse_status(trainer_name):
-    """기존 트레이너 창고 시스템 제거됨"""
-    return {"error": "기존 트레이너 창고 시스템이 제거되었습니다."}
+    """트레이너 창고 상태 조회"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    
+    return {
+        "trainer": trainer_name,
+        "warehouse_location": warehouse["location"],
+        "storage_usage": f"{len(warehouse['trade_records']['real_trades']) + len(warehouse['trade_records']['mock_trades'])} 거래 기록",
+        "data_integrity": "100%",
+        "last_backup": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "real_time_sync": "활성화",
+        "profit_loss_summary": warehouse['profit_loss_history']
+    }
 
 def analyze_warehouse_data(trainer_name):
-    """기존 트레이너 창고 시스템 제거됨"""
-    return {"error": "기존 트레이너 창고 시스템이 제거되었습니다."}
+    """창고 데이터 기반 전략 분석"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    
+    analysis = {
+        "trainer": trainer_name,
+        "profitability_analysis": {
+            "total_profit": warehouse['profit_loss_history']['total_profit'],
+            "win_rate": warehouse['profit_loss_history']['win_rate'],
+            "total_trades": warehouse['profit_loss_history']['total_trades']
+        },
+        "strategy_effectiveness": {
+            "successful_patterns_count": len(warehouse['learning_data']['successful_patterns']),
+            "failed_patterns_count": len(warehouse['learning_data']['failed_patterns'])
+        },
+        "recommendations": generate_strategy_recommendations(warehouse)
+    }
+    
+    return analysis
 
 def generate_strategy_recommendations(warehouse):
-    """기존 트레이너 창고 시스템 제거됨"""
-    return "기존 트레이너 창고 시스템이 제거되었습니다."
+    """전략 개선 권장사항 생성"""
+    successful_count = len(warehouse['learning_data']['successful_patterns'])
+    failed_count = len(warehouse['learning_data']['failed_patterns'])
+    
+    if successful_count > failed_count:
+        return "현재 전략이 효과적입니다. 계속 유지하세요."
+    elif failed_count > successful_count:
+        return "전략 개선이 필요합니다. 실패 패턴을 분석해보세요."
+    else:
+        return "전략이 균형을 이루고 있습니다. 더 많은 데이터를 수집해보세요."
 
 # ===== 거래 일지 시스템 =====
 
 def add_trade_journal_entry(trainer_name, entry_data):
-    """기존 트레이너 창고 시스템 제거됨"""
-    return {"error": "기존 트레이너 창고 시스템이 제거되었습니다."}
+    """거래 일지 항목 추가"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    journal = warehouse['trade_journal']
+    
+    # 기본 일지 항목 생성
+    journal_entry = {
+        'timestamp': entry_data.get('timestamp', datetime.now().isoformat()),
+        'trainer': trainer_name,
+        'action': entry_data.get('action', 'UNKNOWN'),
+        'zone': entry_data.get('zone', 'UNKNOWN'),
+        'price': entry_data.get('price', 0),
+        'pnl': entry_data.get('pnl', 0),
+        'strategy': entry_data.get('strategy', 'unknown'),
+        'confidence': entry_data.get('confidence', 0),
+        'mayor_guidance': entry_data.get('mayor_guidance', ''),
+        'ml_decision': entry_data.get('ml_decision', ''),
+        'reasoning': entry_data.get('reasoning', ''),
+        'lesson_learned': entry_data.get('lesson_learned', ''),
+        'trade_type': entry_data.get('trade_type', 'mock')  # 'real' or 'mock'
+    }
+    
+    # 최근 일지에 추가 (최대 10개 유지)
+    journal['recent_entries'].append(journal_entry)
+    if len(journal['recent_entries']) > 10:
+        journal['recent_entries'] = journal['recent_entries'][-10:]
+    
+    # 구역별 일지에 추가
+    zone = entry_data.get('zone', 'UNKNOWN')
+    if zone in journal['zone_entries']:
+        journal['zone_entries'][zone].append(journal_entry)
+        if len(journal['zone_entries'][zone]) > 10:
+            journal['zone_entries'][zone] = journal['zone_entries'][zone][-10:]
+    
+    # 촌장 지침 기록
+    if entry_data.get('mayor_guidance'):
+        mayor_entry = {
+            'timestamp': journal_entry['timestamp'],
+            'trainer': trainer_name,
+            'guidance': entry_data['mayor_guidance'],
+            'zone': zone,
+            'action': entry_data.get('action', 'UNKNOWN')
+        }
+        journal['mayor_guidance_log'].append(mayor_entry)
+        if len(journal['mayor_guidance_log']) > 10:
+            journal['mayor_guidance_log'] = journal['mayor_guidance_log'][-10:]
+    
+    # ML 모델 판단 기록
+    if entry_data.get('ml_decision'):
+        ml_entry = {
+            'timestamp': journal_entry['timestamp'],
+            'trainer': trainer_name,
+            'decision': entry_data['ml_decision'],
+            'confidence': entry_data.get('confidence', 0),
+            'zone': zone,
+            'action': entry_data.get('action', 'UNKNOWN')
+        }
+        journal['ml_model_decisions'].append(ml_entry)
+        if len(journal['ml_model_decisions']) > 10:
+            journal['ml_model_decisions'] = journal['ml_model_decisions'][-10:]
+    
+    return {"message": f"{trainer_name}의 거래 일지에 항목이 추가되었습니다.", "entry": journal_entry}
 
 def get_trade_journal(trainer_name, journal_type="recent", zone=None):
-    """기존 트레이너 창고 시스템 제거됨"""
-    return {"error": "기존 트레이너 창고 시스템이 제거되었습니다."}
+    """거래 일지 조회"""
+    global TRAINER_WAREHOUSES
+    
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return {"error": "트레이너를 찾을 수 없습니다."}
+    
+    warehouse = TRAINER_WAREHOUSES[trainer_name]
+    journal = warehouse['trade_journal']
+    
+    if journal_type == "recent":
+        return {
+            "trainer": trainer_name,
+            "journal_type": "recent",
+            "entries": journal['recent_entries'],
+            "count": len(journal['recent_entries'])
+        }
+    elif journal_type == "zone" and zone:
+        if zone in journal['zone_entries']:
+            return {
+                "trainer": trainer_name,
+                "journal_type": "zone",
+                "zone": zone,
+                "entries": journal['zone_entries'][zone],
+                "count": len(journal['zone_entries'][zone])
+            }
+        else:
+            return {"error": f"구역 {zone}의 일지를 찾을 수 없습니다."}
+    elif journal_type == "mayor_guidance":
+        return {
+            "trainer": trainer_name,
+            "journal_type": "mayor_guidance",
+            "entries": journal['mayor_guidance_log'],
+            "count": len(journal['mayor_guidance_log'])
+        }
+    elif journal_type == "ml_decisions":
+        return {
+            "trainer": trainer_name,
+            "journal_type": "ml_decisions",
+            "entries": journal['ml_model_decisions'],
+            "count": len(journal['ml_model_decisions'])
+        }
+    else:
+        return {"error": "지원하지 않는 일지 유형입니다."}
 
 def create_mayor_guidance_entry(trainer_name, zone, action, reasoning):
-    """기존 트레이너 창고 시스템 제거됨"""
-    return {"error": "기존 트레이너 창고 시스템이 제거되었습니다."}
+    """촌장 지침 기반 거래 일지 생성"""
+    guidance_messages = {
+        "ORANGE": {
+            "BUY": "ORANGE 구역에서 촌장의 방어적 지침을 무시하고 개인 확신으로 BUY 실행",
+            "SELL": "ORANGE 구역에서 촌장의 지침에 따라 신중한 SELL 실행",
+            "HOLD": "ORANGE 구역에서 촌장의 방어적 지침에 따라 HOLD 결정"
+        },
+        "BLUE": {
+            "BUY": "BLUE 구역에서 촌장의 공격적 지침에 따라 자신감 있는 BUY 실행",
+            "SELL": "BLUE 구역에서 촌장의 지침을 무시하고 개인 판단으로 SELL 실행",
+            "HOLD": "BLUE 구역에서 촌장의 공격적 지침을 고려하되 HOLD 결정"
+        }
+    }
+    
+    guidance = guidance_messages.get(zone, {}).get(action, "촌장의 지침을 고려한 거래 결정")
+    
+    return {
+        'timestamp': datetime.now().isoformat(),
+        'trainer': trainer_name,
+        'action': action,
+        'zone': zone,
+        'mayor_guidance': guidance,
+        'reasoning': reasoning,
+        'trade_type': 'mock'
+    }
 
 def create_ml_decision_entry(trainer_name, zone, action, ml_confidence, personal_confidence):
     """ML 모델 판단 기반 거래 일지 생성"""
@@ -1396,27 +1434,19 @@ def get_resident_info(trainer_name):
 
 @app.route('/api/village/warehouse/<trainer_name>')
 def get_warehouse_info(trainer_name):
-    """새로운 창고 시스템 - 트레이너 창고 정보 조회"""
-    return jsonify(get_warehouse_status(trainer_name))
-
-@app.route('/api/village/warehouse/<trainer_name>/cards')
-def get_warehouse_cards_api(trainer_name):
-    """새로운 창고 시스템 - 창고 카드 목록 조회"""
-    card_type = request.args.get('type')  # "real" 또는 "mock"
-    return jsonify(get_warehouse_cards(trainer_name, card_type))
-
-@app.route('/api/village/warehouse/<trainer_name>/store', methods=['POST'])
-def store_card_api(trainer_name):
-    """새로운 창고 시스템 - 카드 저장"""
-    data = request.get_json()
-    card_id = data.get('card_id')
-    card_type = data.get('card_type', 'real')
+    """트레이너 창고 정보 조회"""
+    if trainer_name not in TRAINER_WAREHOUSES:
+        return jsonify({"error": "창고를 찾을 수 없습니다."}), 404
     
-    if not card_id:
-        return jsonify({"error": "카드 ID가 필요합니다."}), 400
-    
-    success = store_card_in_warehouse(card_id, trainer_name, card_type)
-    return jsonify({"success": success})
+    return jsonify({
+        "warehouse": TRAINER_WAREHOUSES[trainer_name],
+        "status": get_trainer_warehouse_status(trainer_name)
+    })
+
+@app.route('/api/village/warehouse/<trainer_name>/analysis')
+def get_warehouse_analysis(trainer_name):
+    """창고 데이터 분석 조회"""
+    return jsonify(analyze_warehouse_data(trainer_name))
 
 @app.route('/api/village/bitcar/energy', methods=['POST'])
 def inject_bitcar_energy():
@@ -4090,7 +4120,27 @@ def api_ml_metrics():
         cur_interval = str(req_iv or (state.get('candle') or load_config().candle))
         pack = _load_ml(cur_interval)
         if not pack:
-            return jsonify({'ok': False, 'error': 'model_not_trained'}), 400
+            # Return default metrics instead of error for untrained intervals
+            default_metrics = {
+                'in_sample': {
+                    'report': {
+                        'macro avg': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0},
+                        'weighted avg': {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0}
+                    },
+                    'confusion': [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+                },
+                'cv': {'f1_macro': 0.0, 'pnl_sum': 0.0},
+                'params': None
+            }
+            return jsonify({
+                'ok': True, 
+                'interval': cur_interval, 
+                'metrics': default_metrics, 
+                'params': None, 
+                'trained_at': None, 
+                'train_count': 0,
+                'note': 'model_not_trained_using_defaults'
+            })
         metrics = pack.get('metrics', {}) or {}
         # If metrics missing (old model), recompute lightweight metrics on recent data
         if not metrics or not metrics.get('in_sample'):
@@ -5281,234 +5331,6 @@ def api_nb_train():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
-@app.route('/api/nb/wave-zones', methods=['GET'])
-def api_nb_wave_zones():
-    """N/B Wave 구역 정보 API - blue, orange 구역 배열과 색상 정보 제공"""
-    try:
-        # 쿼리 파라미터 가져오기
-        q = request.args
-        interval = q.get('interval') or state.get('candle') or load_config().candle
-        count = int(q.get('count') or 300)
-        window = int(q.get('window') or load_nb_params().get('window', 50))
-        
-        print(f"🔍 N/B Wave API 호출: interval={interval}, count={count}, window={window}")
-        
-        # 캔들 데이터 가져오기
-        cfg = load_config()
-        print(f"📊 마켓: {cfg.market}")
-        
-        try:
-            df = get_candles(cfg.market, interval, count=count)
-            print(f"✅ 캔들 데이터 성공: {len(df)} 개")
-        except Exception as candle_error:
-            print(f"❌ 캔들 데이터 실패: {candle_error}")
-            return jsonify({
-                'ok': False,
-                'error': f'캔들 데이터 가져오기 실패: {str(candle_error)}',
-                'orangeZones': [],
-                'blueZones': [],
-                'nbWaveColorArray': [],
-                'currentZone': 'ORANGE',
-                'currentR': 0.5
-            }), 500
-        
-        if df is None or df.empty:
-            return jsonify({
-                'ok': False,
-                'error': '차트 데이터를 가져올 수 없습니다.',
-                'orangeZones': [],
-                'blueZones': [],
-                'nbWaveColorArray': [],
-                'currentZone': 'ORANGE',
-                'r': 0.5
-            }), 400
-        
-        # N/B 계산을 위한 임포트
-        import numpy as np
-        from collections import deque
-        
-        # N/B 계산 함수들
-        def ema(data, period):
-            """EMA 계산"""
-            alpha = 2.0 / (period + 1.0)
-            ema_values = []
-            ema_val = data[0]
-            for price in data:
-                ema_val = alpha * price + (1 - alpha) * ema_val
-                ema_values.append(ema_val)
-            return ema_values
-        
-        def clamp(v, lo, hi):
-            return max(lo, min(hi, v))
-        
-        def BIT_MAX_NB(changes):
-            """N/B MAX 계산"""
-            if len(changes) < 2:
-                return 50.0
-            pos_changes = [c for c in changes if c > 0]
-            if not pos_changes:
-                return 0.0
-            return np.mean(pos_changes)
-        
-        def BIT_MIN_NB(changes):
-            """N/B MIN 계산"""
-            if len(changes) < 2:
-                return 50.0
-            neg_changes = [c for c in changes if c < 0]
-            if not neg_changes:
-                return 0.0
-            return abs(np.mean(neg_changes))
-        
-        # N/B 계산
-        data = df.to_dict('records')
-        n = window
-        outMax = []
-        outMin = []
-        outWave = []
-        rArr = []
-        
-        for i in range(n-1, len(data)):
-            win = data[i-n+1:i+1]
-            highs = [d['high'] for d in win]
-            lows = [d['low'] for d in win]
-            closes = [d['close'] for d in win]
-            
-            hi = max(highs)
-            lo = min(lows)
-            span = max(hi - lo, 1e-9)
-            
-            # 변화율 계산
-            changes = []
-            for k in range(1, len(closes)):
-                prev = float(closes[k-1])
-                cur = float(closes[k])
-                if prev != 0:
-                    changes.append(((cur - prev) / prev) * 100)
-            
-            if len(changes) < 2:
-                continue
-            
-            scoreMax = clamp(BIT_MAX_NB(changes), 0, 100)
-            scoreMin = clamp(BIT_MIN_NB(changes), 0, 100)
-            priceMax = lo + span * (scoreMax / 100)
-            priceMin = lo + span * (scoreMin / 100)
-            # 시간 정보를 안전하게 가져오기
-            try:
-                if i < len(df.index):
-                    if hasattr(df.index[i], 'timestamp'):
-                        t = int(df.index[i].timestamp() * 1000)
-                    else:
-                        # 인덱스가 숫자인 경우 현재 시간 사용
-                        t = int(time.time() * 1000) + (i * 60000)  # 1분씩 증가
-                else:
-                    t = int(time.time() * 1000)
-            except:
-                t = int(time.time() * 1000) + (i * 60000)  # 기본값
-            
-            ratio = (scoreMax + scoreMin) > 0 and (scoreMax / (scoreMax + scoreMin)) or 0.5
-            waveVal = lo + span * ratio
-            
-            outMax.append({'time': t, 'value': priceMax})
-            outMin.append({'time': t, 'value': priceMin})
-            outWave.append({'time': t, 'value': waveVal})
-        
-        # r값 계산
-        for i, w in enumerate(outWave):
-            mx = outMax[min(i, len(outMax)-1)]['value']
-            mn = outMin[min(i, len(outMin)-1)]['value']
-            hi = max(mx, mn)
-            lo = min(mx, mn)
-            denom = hi - lo
-            rRaw = denom != 0 and (w['value'] - lo) / denom or 0.5
-            rArr.append(clamp(rRaw, 0, 1))
-        
-        # 구역 판단
-        HIGH = 0.55
-        LOW = 0.45
-        orangeZones = []
-        blueZones = []
-        nbWaveColorArray = []
-        
-        for i, wave in enumerate(outWave):
-            r = rArr[i] if i < len(rArr) else 0.5
-            tm = wave['time']
-            
-            # 구역 결정
-            currentZone = 'ORANGE' if r >= 0.5 else 'BLUE'
-            if currentZone == 'BLUE' and r >= HIGH:
-                currentZone = 'ORANGE'
-            elif currentZone == 'ORANGE' and r <= LOW:
-                currentZone = 'BLUE'
-            
-            # 캔들 데이터 찾기 (인덱스 기반)
-            candleData = None
-            if i < len(data):
-                candleData = data[i]
-            
-            if candleData:
-                zoneData = {
-                    'time': tm,
-                    'open': float(candleData['open']),
-                    'high': float(candleData['high']),
-                    'low': float(candleData['low']),
-                    'close': float(candleData['close']),
-                    'zone': currentZone,
-                    'r': float(r)
-                }
-                
-                if currentZone == 'ORANGE':
-                    orangeZones.append(zoneData)
-                else:
-                    blueZones.append(zoneData)
-                
-                # 색상 배열 데이터
-                colorData = {
-                    'time': tm,
-                    'value': float(wave['value']),
-                    'color': 'rgba(255,183,3,0.70)' if currentZone == 'ORANGE' else 'rgba(0,209,255,0.70)',
-                    'zone': currentZone,
-                    'r': float(r)
-                }
-                nbWaveColorArray.append(colorData)
-        
-        # 현재 구역 결정
-        currentZone = 'ORANGE'
-        currentR = 0.5
-        if rArr:
-            currentR = rArr[-1]
-            currentZone = 'ORANGE' if currentR >= 0.5 else 'BLUE'
-            if currentZone == 'BLUE' and currentR >= HIGH:
-                currentZone = 'ORANGE'
-            elif currentZone == 'ORANGE' and currentR <= LOW:
-                currentZone = 'BLUE'
-        
-        return jsonify({
-            'ok': True,
-            'interval': interval,
-            'window': window,
-            'currentZone': currentZone,
-            'currentR': float(currentR),
-            'orangeZones': orangeZones,
-            'blueZones': blueZones,
-            'nbWaveColorArray': nbWaveColorArray,
-            'totalZones': len(orangeZones) + len(blueZones),
-            'orangeCount': len(orangeZones),
-            'blueCount': len(blueZones),
-            'lastUpdate': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'ok': False,
-            'error': str(e),
-            'orangeZones': [],
-            'blueZones': [],
-            'nbWaveColorArray': [],
-            'currentZone': 'ORANGE',
-            'currentR': 0.5
-        }), 500
-
-
 @app.route('/api/nb/params', methods=['GET', 'POST'])
 def api_nb_params():
     try:
@@ -6482,658 +6304,11 @@ def api_npc_generate():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
-# ========================================
-# AI 자동 처리 시스템
-# ========================================
-
-# AI 자동 처리 상태
-AI_AUTO_PROCESSING = {
-    "is_running": False,
-    "started_at": None,
-    "last_update": None,
-    "active_members": [],
-    "processing_stats": {
-        "cards_processed": 0,
-        "successful_trades": 0,
-        "failed_trades": 0,
-        "total_profit": 0.0
-    }
-}
-
-def start_ai_auto_processing():
-    """AI 자동 처리 시스템 시작"""
-    global AI_AUTO_PROCESSING
-    
-    AI_AUTO_PROCESSING["is_running"] = True
-    AI_AUTO_PROCESSING["started_at"] = datetime.now().isoformat()
-    AI_AUTO_PROCESSING["last_update"] = datetime.now().isoformat()
-    
-    # 모든 주민들을 활성화
-    AI_AUTO_PROCESSING["active_members"] = list(VILLAGE_RESIDENTS.keys())
-    
-    print("🤖 AI 자동 처리 시스템 시작됨")
-    
-    # 백그라운드에서 AI 처리 시작
-    threading.Thread(target=ai_processing_loop, daemon=True).start()
-    
-    return True
-
-def stop_ai_auto_processing():
-    """AI 자동 처리 시스템 중지"""
-    global AI_AUTO_PROCESSING
-    
-    AI_AUTO_PROCESSING["is_running"] = False
-    print("🛑 AI 자동 처리 시스템 중지됨")
-    return True
-
-def ai_processing_loop():
-    """AI 처리 루프 (백그라운드에서 실행) - 1초마다 히스토리 조회"""
-    global AI_AUTO_PROCESSING
-    
-    print("🤖 AI 처리 루프 시작됨")
-    
-    while AI_AUTO_PROCESSING["is_running"]:
-        try:
-            print(f"🔄 AI 처리 루프 실행 중... (활성 주민: {len(AI_AUTO_PROCESSING['active_members'])})")
-            
-            # 각 주민별로 AI 처리
-            for member_name in AI_AUTO_PROCESSING["active_members"]:
-                if member_name in VILLAGE_RESIDENTS:
-                    process_member_ai_tasks(member_name)
-            
-            # 1초마다 처리 (히스토리 조회 주기)
-            time.sleep(1)
-            
-        except Exception as e:
-            print(f"❌ AI 처리 루프 오류: {e}")
-            time.sleep(1)
-    
-    print("🤖 AI 처리 루프 종료됨")
-
-def process_member_ai_tasks(member_name):
-    """개별 주민의 AI 작업 처리"""
-    try:
-        member = VILLAGE_RESIDENTS[member_name]
-        card_system = member["cardSystem"]
-        
-        print(f"🔍 {member_name} - 현재 제조 카드 수: {len(card_system.get('manufacturingCards', []))}")
-        
-        # 제조 카드가 없으면 생성
-        if len(card_system.get("manufacturingCards", [])) == 0:
-            print(f"📊 {member_name} - 새 카드 생성 시작")
-            
-            # 간단한 테스트 패턴 데이터 생성
-            test_pattern_data = {
-                "timestamp": datetime.now().isoformat(),
-                "timeframe": member["assignedTimeframes"][0],
-                "open": 160000000,
-                "high": 161000000,
-                "low": 159000000,
-                "close": 160500000,
-                "volume": 1000,
-                "trend": "up"
-            }
-            
-            # 테스트 히스토리 카드 생성
-            history_card_id = create_history_card(member["assignedTimeframes"][0], test_pattern_data)
-            print(f"📚 {member_name} - 히스토리 카드 생성: {history_card_id}")
-            
-            # 테스트 히스토리 카드 가져오기
-            latest_history_card = get_latest_history_card(member["assignedTimeframes"][0])
-            if latest_history_card:
-                # 테스트 제조 카드 생성
-                manufacturing_card_id = create_manufacturing_card(member_name, latest_history_card)
-                print(f"✅ {member_name} - 제조 카드 생성됨: {manufacturing_card_id}")
-                
-                # 주민의 제조 카드 목록에 추가 확인
-                if "manufacturingCards" not in card_system:
-                    card_system["manufacturingCards"] = []
-                card_system["manufacturingCards"].append(manufacturing_card_id)
-                
-                print(f"📋 {member_name} - 제조 카드 목록 업데이트: {card_system['manufacturingCards']}")
-                
-                # 즉시 분석 시작
-                member["cardSystem"]["currentAnalysis"] = manufacturing_card_id
-                print(f"🔍 {member_name} - 분석 시작: {manufacturing_card_id}")
-                
-                # 분석 실행
-                analyze_manufacturing_card_with_ai(manufacturing_card_id, member_name)
-            else:
-                print(f"❌ {member_name} - 히스토리 카드를 찾을 수 없음")
-        else:
-            # 제조 카드가 있으면 상태 확인
-            print(f"📋 {member_name} - 기존 제조 카드 있음: {card_system['manufacturingCards']}")
-            
-            # 분석 중인 카드가 있으면 상태 업데이트
-            if card_system.get("currentAnalysis"):
-                print(f"🔍 {member_name} - 분석 중인 카드: {card_system['currentAnalysis']}")
-            
-    except Exception as e:
-        print(f"❌ {member_name} AI 작업 처리 오류: {e}")
-        import traceback
-        traceback.print_exc()
-
-def create_history_card(timeframe, pattern_data):
-    """히스토리 카드 생성 (25개 히스토리 카드)"""
-    global CARD_SYSTEM
-    
-    CARD_SYSTEM["historyCardCounter"] += 1
-    history_card_id = CARD_SYSTEM["historyCardCounter"]
-    
-    history_card = {
-        "historyCardId": history_card_id,
-        "timeframe": timeframe,
-        "patternData": pattern_data,
-        "createdAt": time.time(),
-        "timestamp": pattern_data.get("timestamp", datetime.now().isoformat()),
-        "status": "history"  # history, selected_for_manufacturing
-    }
-    
-    # 히스토리 카드에 추가 (분봉별로 저장)
-    if timeframe not in CARD_SYSTEM["historyCards"]:
-        CARD_SYSTEM["historyCards"][timeframe] = []
-    
-    CARD_SYSTEM["historyCards"][timeframe].append(history_card)
-    
-    # 25개 제한 유지
-    if len(CARD_SYSTEM["historyCards"][timeframe]) > 25:
-        CARD_SYSTEM["historyCards"][timeframe] = CARD_SYSTEM["historyCards"][timeframe][-25:]
-    
-    print(f"📚 히스토리 카드 생성: {timeframe} (ID: {history_card_id})")
-    return history_card_id
-
-def get_latest_history_card(timeframe):
-    """특정 분봉의 가장 최근 히스토리 카드 가져오기"""
-    if timeframe in CARD_SYSTEM["historyCards"] and CARD_SYSTEM["historyCards"][timeframe]:
-        return CARD_SYSTEM["historyCards"][timeframe][-1]  # 가장 최근 카드
-    return None
-
-def create_manufacturing_card(member_name, history_card):
-    """제조 카드 생성 (Guild Members Card System)"""
-    global CARD_SYSTEM
-    
-    CARD_SYSTEM["manufacturingCounter"] += 1
-    manufacturing_card_id = CARD_SYSTEM["manufacturingCounter"]
-    
-    manufacturing_card = {
-        "manufacturingCardId": manufacturing_card_id,
-        "memberName": member_name,
-        "historyCardId": history_card["historyCardId"],
-        "timeframe": history_card["timeframe"],
-        "patternData": history_card["patternData"],
-        "createdAt": time.time(),
-        "status": "manufacturing",  # manufacturing, completed, failed
-        "buyInfo": None,
-        "sellInfo": None,
-        "performance": None,
-        "strategy": None
-    }
-    
-    # 제조 카드에 추가
-    CARD_SYSTEM["manufacturingCards"][manufacturing_card_id] = manufacturing_card
-    
-    # 주민의 제조 카드 목록에 추가
-    if member_name in VILLAGE_RESIDENTS:
-        if "manufacturingCards" not in VILLAGE_RESIDENTS[member_name]["cardSystem"]:
-            VILLAGE_RESIDENTS[member_name]["cardSystem"]["manufacturingCards"] = []
-        VILLAGE_RESIDENTS[member_name]["cardSystem"]["manufacturingCards"].append(manufacturing_card_id)
-    
-    print(f"🏭 제조 카드 생성: {member_name} - {history_card['timeframe']} (ID: {manufacturing_card_id})")
-    return manufacturing_card_id
-
-def get_ohlcv_data(timeframe, count=50):
-    """OHLCV 데이터 가져오기"""
-    try:
-        cfg = load_config()
-        print(f"📊 OHLCV 데이터 조회 시작: {timeframe}, {count}개")
-        
-        df = get_candles(cfg.market, timeframe, count=count)
-        print(f"📊 OHLCV 데이터 조회 결과: {len(df) if df is not None else 0}개")
-        
-        if df is None or len(df) == 0:
-            print(f"❌ OHLCV 데이터 없음: {timeframe}")
-            return []
-        
-        out = []
-        for idx, row in df.iterrows():
-            out.append({
-                'timestamp': idx.isoformat(),
-                'open': float(row['open']),
-                'high': float(row['high']),
-                'low': float(row['low']),
-                'close': float(row['close']),
-                'volume': float(row['volume']) if 'volume' in row else 0.0,
-            })
-        
-        print(f"✅ OHLCV 데이터 변환 완료: {timeframe}, {len(out)}개")
-        return out
-    except Exception as e:
-        print(f"❌ OHLCV 데이터 조회 실패: {timeframe} - {e}")
-        return []
-
-def fetch_next_card_from_history(member_name):
-    """히스토리에서 담당 분봉의 가장 최근 카드 가져오기"""
-    try:
-        member = VILLAGE_RESIDENTS[member_name]
-        assigned_timeframes = member["assignedTimeframes"]
-        
-        print(f"🔍 {member_name} - 담당 분봉: {assigned_timeframes}")
-        
-        # 담당 분봉별로 히스토리 카드 확인 및 생성
-        for timeframe in assigned_timeframes:
-            try:
-                print(f"📊 {member_name} - {timeframe} 분봉 처리 시작")
-                
-                # 1. 해당 분봉의 최근 OHLCV 데이터 가져오기
-                ohlcv_data = get_ohlcv_data(timeframe, count=50)
-                print(f"📊 {member_name} - {timeframe} OHLCV 데이터: {len(ohlcv_data) if ohlcv_data else 0}개")
-                
-                if ohlcv_data and len(ohlcv_data) > 0:
-                    # 가장 최근 데이터로 패턴 생성
-                    latest_data = ohlcv_data[-1]
-                    pattern_data = {
-                        "timestamp": latest_data.get("timestamp", datetime.now().isoformat()),
-                        "timeframe": timeframe,
-                        "open": latest_data.get("open", 160000000),
-                        "high": latest_data.get("high", 160000000),
-                        "low": latest_data.get("low", 160000000),
-                        "close": latest_data.get("close", 160000000),
-                        "volume": latest_data.get("volume", 1000),
-                        "trend": "up" if latest_data.get("close", 0) > latest_data.get("open", 0) else "down"
-                    }
-                    
-                    print(f"📊 {member_name} - {timeframe} 패턴 데이터 생성 완료")
-                    
-                    # 2. 히스토리 카드 생성 (25개 히스토리 카드에 추가)
-                    history_card_id = create_history_card(timeframe, pattern_data)
-                    print(f"📚 {member_name} - {timeframe} 히스토리 카드 생성: {history_card_id}")
-                    
-                    # 3. 가장 최근 히스토리 카드 가져오기
-                    latest_history_card = get_latest_history_card(timeframe)
-                    if latest_history_card:
-                        print(f"📚 {member_name} - {timeframe} 최근 히스토리 카드 찾음: {latest_history_card['historyCardId']}")
-                        
-                        # 4. 제조 카드 생성 (Guild Members Card System에 추가)
-                        manufacturing_card_id = create_manufacturing_card(member_name, latest_history_card)
-                        
-                        print(f"📊 {member_name} - {timeframe} 분봉 제조 카드 생성: {manufacturing_card_id}")
-                        return {"card_id": manufacturing_card_id, "timeframe": timeframe, "type": "manufacturing"}
-                    else:
-                        print(f"❌ {member_name} - {timeframe} 최근 히스토리 카드를 찾을 수 없음")
-                else:
-                    print(f"❌ {member_name} - {timeframe} OHLCV 데이터 없음")
-                
-            except Exception as e:
-                print(f"⚠️ {timeframe} 분봉 처리 실패: {e}")
-                continue
-        
-        print(f"❌ {member_name} - 모든 분봉 처리 실패")
-        return None
-        
-    except Exception as e:
-        print(f"❌ 히스토리에서 카드 가져오기 오류: {e}")
-        return None
-
-def analyze_manufacturing_card_with_ai(manufacturing_card_id, member_name):
-    """AI로 제조 카드 분석"""
-    try:
-        if manufacturing_card_id not in CARD_SYSTEM["manufacturingCards"]:
-            return False
-        
-        manufacturing_card = CARD_SYSTEM["manufacturingCards"][manufacturing_card_id]
-        member = VILLAGE_RESIDENTS.get(member_name)
-        
-        if not member:
-            return False
-        
-        # 주민의 전문성에 따른 전략 생성
-        strategy = generate_trading_strategy(member, manufacturing_card["timeframe"], manufacturing_card["patternData"])
-        
-        # 제조 카드 업데이트
-        manufacturing_card["status"] = "analyzed"
-        manufacturing_card["strategy"] = strategy
-        manufacturing_card["analyzedAt"] = time.time()
-        
-        # 주민의 현재 분석 상태 초기화 (분석 완료)
-        member["cardSystem"]["currentAnalysis"] = None
-        
-        print(f"🤖 {member_name}이(가) 제조 카드 {manufacturing_card_id} 분석 완료")
-        return True
-        
-    except Exception as e:
-        print(f"❌ AI 제조 카드 분석 오류: {e}")
-        return False
-
-def analyze_card_with_ai(card_id, member_name):
-    """AI로 카드 분석"""
-    try:
-        # 카드 분석 시작
-        result = analyze_card(card_id, member_name)
-        if result:
-            print(f"🤖 {member_name}이(가) 카드 {card_id} 분석 완료")
-            return True
-        return False
-        
-    except Exception as e:
-        print(f"❌ AI 카드 분석 오류: {e}")
-        return False
-
-def decide_and_execute_manufacturing_card(member_name):
-    """AI가 제조 카드 실행/모의전 결정"""
-    try:
-        member = VILLAGE_RESIDENTS[member_name]
-        card_system = member["cardSystem"]
-        
-        # 분석 완료된 제조 카드 중 하나 선택
-        analyzed_manufacturing_cards = []
-        for manufacturing_card_id in card_system.get("manufacturingCards", []):
-            if manufacturing_card_id in CARD_SYSTEM["manufacturingCards"]:
-                manufacturing_card = CARD_SYSTEM["manufacturingCards"][manufacturing_card_id]
-                if manufacturing_card["status"] == "analyzed":
-                    analyzed_manufacturing_cards.append(manufacturing_card_id)
-        
-        if analyzed_manufacturing_cards:
-            manufacturing_card_id = analyzed_manufacturing_cards[0]  # 첫 번째 분석 완료된 제조 카드 선택
-            
-            # AI 신뢰도 기반으로 실행 결정
-            model_confidence = member.get("modelConfidence", 0.5)
-            
-            if model_confidence > 0.7:  # 높은 신뢰도면 실제 거래
-                execute_manufacturing_card_real_trade(manufacturing_card_id, member_name)
-            else:  # 낮은 신뢰도면 모의전
-                execute_manufacturing_card_simulation(manufacturing_card_id, member_name)
-                
-    except Exception as e:
-        print(f"❌ 제조 카드 실행 결정 오류: {e}")
-
-def execute_manufacturing_card_real_trade(manufacturing_card_id, member_name):
-    """실제 거래로 제조 카드 실행"""
-    try:
-        if manufacturing_card_id not in CARD_SYSTEM["manufacturingCards"]:
-            return False
-        
-        manufacturing_card = CARD_SYSTEM["manufacturingCards"][manufacturing_card_id]
-        
-        # 매수 정보 생성
-        buy_info = {
-            "price": 160000000,
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Real_Trade"
-        }
-        
-        # 매수 실행
-        manufacturing_card["buyInfo"] = buy_info
-        manufacturing_card["status"] = "buy_completed"
-        manufacturing_card["buyCompletedAt"] = time.time()
-        
-        print(f"💰 제조 카드 실제 매수 완료: {member_name} - 카드 {manufacturing_card_id}")
-        
-        # 잠시 후 매도 (실제로는 시장 조건에 따라)
-        time.sleep(5)
-        
-        # 매도 정보 생성
-        sell_info = {
-            "price": 161000000,
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Real_Trade"
-        }
-        
-        # 매도 실행 및 창고로 이동
-        manufacturing_card["sellInfo"] = sell_info
-        manufacturing_card["status"] = "completed"
-        manufacturing_card["sellCompletedAt"] = time.time()
-        
-        # 창고로 이동
-        move_manufacturing_card_to_warehouse(manufacturing_card_id, member_name, "real")
-        
-        print(f"💰 제조 카드 실제 거래 완료: {member_name} - 카드 {manufacturing_card_id}")
-        
-    except Exception as e:
-        print(f"❌ 제조 카드 실제 거래 실행 오류: {e}")
-
-def execute_manufacturing_card_simulation(manufacturing_card_id, member_name):
-    """모의전으로 제조 카드 실행"""
-    try:
-        if manufacturing_card_id not in CARD_SYSTEM["manufacturingCards"]:
-            return False
-        
-        manufacturing_card = CARD_SYSTEM["manufacturingCards"][manufacturing_card_id]
-        
-        # 매수 정보 생성
-        buy_info = {
-            "price": 160000000,
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Simulation"
-        }
-        
-        # 매수 실행
-        manufacturing_card["buyInfo"] = buy_info
-        manufacturing_card["status"] = "buy_completed"
-        manufacturing_card["buyCompletedAt"] = time.time()
-        
-        print(f"🎮 제조 카드 모의 매수 완료: {member_name} - 카드 {manufacturing_card_id}")
-        
-        # 잠시 후 매도 (실제로는 시장 조건에 따라)
-        time.sleep(5)
-        
-        # 매도 정보 생성
-        sell_info = {
-            "price": 161000000,
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Simulation"
-        }
-        
-        # 매도 실행 및 창고로 이동
-        manufacturing_card["sellInfo"] = sell_info
-        manufacturing_card["status"] = "completed"
-        manufacturing_card["sellCompletedAt"] = time.time()
-        
-        # 창고로 이동
-        move_manufacturing_card_to_warehouse(manufacturing_card_id, member_name, "simulation")
-        
-        print(f"🎮 제조 카드 모의전 완료: {member_name} - 카드 {manufacturing_card_id}")
-        
-    except Exception as e:
-        print(f"❌ 제조 카드 모의전 실행 오류: {e}")
-
-def move_manufacturing_card_to_warehouse(manufacturing_card_id, member_name, card_type):
-    """제조 완료된 카드를 창고로 이동"""
-    try:
-        if manufacturing_card_id not in CARD_SYSTEM["manufacturingCards"]:
-            return False
-        
-        manufacturing_card = CARD_SYSTEM["manufacturingCards"][manufacturing_card_id]
-        
-        # 창고에 저장
-        store_card_in_warehouse(manufacturing_card_id, member_name, card_type)
-        
-        # 제조 카드에서 제거
-        del CARD_SYSTEM["manufacturingCards"][manufacturing_card_id]
-        
-        # 주민의 제조 카드 목록에서 제거
-        if member_name in VILLAGE_RESIDENTS:
-            member = VILLAGE_RESIDENTS[member_name]
-            if "manufacturingCards" in member["cardSystem"]:
-                if manufacturing_card_id in member["cardSystem"]["manufacturingCards"]:
-                    member["cardSystem"]["manufacturingCards"].remove(manufacturing_card_id)
-        
-        print(f"🏪 제조 카드 창고 이동 완료: {member_name} - 카드 {manufacturing_card_id} ({card_type})")
-        return True
-        
-    except Exception as e:
-        print(f"❌ 제조 카드 창고 이동 오류: {e}")
-        return False
-
-def decide_and_execute_card(member_name):
-    """AI가 카드 실행/모의전 결정"""
-    try:
-        member = VILLAGE_RESIDENTS[member_name]
-        card_system = member["cardSystem"]
-        
-        # 분석 완료된 카드 중 하나 선택
-        analyzed_cards = []
-        for card_id in card_system["activeCards"]:
-            if card_id in CARD_SYSTEM["activeCards"]:
-                card = CARD_SYSTEM["activeCards"][card_id]
-                if card["status"] == "analyzed":
-                    analyzed_cards.append(card_id)
-        
-        if analyzed_cards:
-            card_id = analyzed_cards[0]  # 첫 번째 분석 완료된 카드 선택
-            
-            # AI 신뢰도 기반으로 실행 결정
-            model_confidence = member.get("modelConfidence", 0.5)
-            
-            if model_confidence > 0.7:  # 높은 신뢰도면 실제 거래
-                execute_card_real_trade(card_id, member_name)
-            else:  # 낮은 신뢰도면 모의전
-                execute_card_simulation(card_id, member_name)
-                
-    except Exception as e:
-        print(f"❌ 카드 실행 결정 오류: {e}")
-
-def execute_card_real_trade(card_id, member_name):
-    """실제 거래로 카드 실행"""
-    try:
-        # 매수 정보 생성
-        buy_info = {
-            "price": 160000000,
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Real_Trade"
-        }
-        
-        # 매수 실행
-        execute_card_buy(card_id, buy_info)
-        
-        # 잠시 후 매도 (실제로는 시장 조건에 따라)
-        time.sleep(5)
-        
-        sell_info = {
-            "price": 160500000,  # 예시 매도가
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Real_Trade"
-        }
-        
-        # 매도 실행
-        execute_card_sell(card_id, sell_info)
-        
-        print(f"🚀 {member_name}이(가) 카드 {card_id} 실제 거래 완료")
-        
-    except Exception as e:
-        print(f"❌ 실제 거래 실행 오류: {e}")
-
-def execute_card_simulation(card_id, member_name):
-    """모의전으로 카드 실행"""
-    try:
-        # 시뮬레이션 매수
-        buy_info = {
-            "price": 160000000,
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Simulation",
-            "is_simulation": True
-        }
-        
-        execute_card_buy(card_id, buy_info)
-        
-        # 잠시 후 시뮬레이션 매도
-        time.sleep(3)
-        
-        sell_info = {
-            "price": 160300000,  # 예시 매도가
-            "quantity": 0.001,
-            "timestamp": datetime.now().isoformat(),
-            "strategy": "AI_Simulation",
-            "is_simulation": True
-        }
-        
-        execute_card_sell(card_id, sell_info)
-        
-        print(f"🎮 {member_name}이(가) 카드 {card_id} 모의전 완료")
-        
-    except Exception as e:
-        print(f"❌ 모의전 실행 오류: {e}")
-
-# ========================================
-# 🏗️ 새로운 창고 시스템 API 엔드포인트 (준비 중)
-# ========================================
-
-# 기존 창고 API 엔드포인트 완전 제거됨
-# 새로운 창고 시스템 설계 대기 중...
-
-
-# ========================================
-# AI 자동 처리 API 엔드포인트
-# ========================================
-
-@app.route('/api/village/card-system/ai-auto-process', methods=['POST'])
-def api_village_card_system_ai_auto_process():
-    """AI 자동 처리 시스템 시작/중지"""
-    try:
-        data = request.get_json()
-        action = data.get('action')
-        
-        if action == 'start_auto_processing':
-            success = start_ai_auto_processing()
-            return jsonify({
-                "success": success,
-                "status": "started" if success else "failed",
-                "message": "AI 자동 처리 시스템이 시작되었습니다." if success else "AI 자동 처리 시스템 시작 실패"
-            })
-        elif action == 'stop_auto_processing':
-            success = stop_ai_auto_processing()
-            return jsonify({
-                "success": success,
-                "status": "stopped" if success else "failed",
-                "message": "AI 자동 처리 시스템이 중지되었습니다." if success else "AI 자동 처리 시스템 중지 실패"
-            })
-        else:
-            return jsonify({"error": "Invalid action"}), 400
-            
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/village/card-system/ai-learning-status', methods=['GET'])
-def api_village_card_system_ai_learning_status():
-    """AI 학습 모델 상태 조회"""
-    try:
-        status = {
-            "ai_auto_processing": AI_AUTO_PROCESSING,
-            "members_status": {}
-        }
-        
-        # 각 주민의 AI 상태 조회
-        for member_name, member in VILLAGE_RESIDENTS.items():
-            card_system = member["cardSystem"]
-            status["members_status"][member_name] = {
-                "current_analysis": card_system["currentAnalysis"],
-                "active_cards": len(card_system["activeCards"]),
-                "model_confidence": member.get("modelConfidence", 0.5),
-                "learning_model_version": member.get("learningModelVersion", "v1.0"),
-                "is_trading": False  # 거래 중 여부 (추후 구현)
-            }
-        
-        return jsonify({
-            "success": True,
-            "status": status
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/village/nb-guild-status', methods=['GET'])
 def api_village_nb_guild_status():
     """N/B 길드 상태 정보 반환"""
     try:
-        # 현재 차트 구역 상태 가져오기
-        current_zone = get_current_zone_status()
-        
-        # N/B 길드 상태 정보 구성
+        # N/B 길드 상태 정보 구성 (기본값)
         nb_guild_status = {
             'profit': '0.0%',
             'loss': '100.0%',
@@ -7142,8 +6317,7 @@ def api_village_nb_guild_status():
             'mlTrust': '40%',
             'nbGuildTrust': '82%',
             'trustBalance': 'ML: 40% | N/B: 82%',
-            'zoneStatus': f"{current_zone.get('timeframe', '5m')} {current_zone.get('zone', 'ORANGE')}",
-
+            'zoneStatus': '5m ORANGE',
             'timestamp': datetime.now().isoformat()
         }
         
@@ -7161,92 +6335,7 @@ def api_village_nb_guild_status():
             'nbGuildTrust': '82%',
             'trustBalance': 'ML: 40% | N/B: 82%',
             'zoneStatus': '5m ORANGE',
-
         }), 500
-
-@app.route('/api/village/nb-zone-status', methods=['GET'])
-def api_village_nb_zone_status():
-    """N/B Zone Status API - 차트 데이터의 nbwave를 기반으로 점들을 생성"""
-    try:
-        # 현재 차트 구역 상태 가져오기
-        current_zone = get_current_zone_status()
-        
-        # N/B Wave 데이터 시뮬레이션 (실제로는 차트에서 가져와야 함)
-        nb_wave_data = generate_nb_wave_data()
-        
-        # N/B Zone Status 정보 구성
-        nb_zone_status = {
-            'timeframe': current_zone.get('timeframe', '5m'),
-            'currentZone': current_zone.get('zone', 'ORANGE'),
-            'nbWaveData': nb_wave_data,
-            'totalDots': len(nb_wave_data),
-            'blueDots': len([w for w in nb_wave_data if w > 0.7]),
-            'orangeDots': len([w for w in nb_wave_data if w < 0.3]),
-            'middleDots': len([w for w in nb_wave_data if 0.3 <= w <= 0.7]),
-            'lastUpdate': datetime.now().isoformat(),
-            'status': 'success'
-        }
-        
-        return jsonify(nb_zone_status)
-        
-    except Exception as e:
-        return jsonify({
-            'error': str(e),
-            'timeframe': '5m',
-            'currentZone': 'ORANGE',
-            'nbWaveData': [],
-            'totalDots': 0,
-            'blueDots': 0,
-            'orangeDots': 0,
-            'middleDots': 0,
-            'lastUpdate': datetime.now().isoformat(),
-            'status': 'error'
-        }), 500
-
-def generate_nb_wave_data():
-    """N/B Wave 데이터 생성 (테스트용)"""
-    try:
-        # 50개의 랜덤 wave 값 생성 (0.0 ~ 1.0)
-        import random
-        random.seed(int(time.time()) % 1000)  # 시드 설정
-        
-        wave_data = []
-        for i in range(50):
-            # ORANGE, BLUE, MIDDLE 구역을 적절히 분배
-            if i < 20:
-                # ORANGE 구역 (0.0 ~ 0.3)
-                wave_data.append(random.uniform(0.0, 0.3))
-            elif i < 35:
-                # MIDDLE 구역 (0.3 ~ 0.7)
-                wave_data.append(random.uniform(0.3, 0.7))
-            else:
-                # BLUE 구역 (0.7 ~ 1.0)
-                wave_data.append(random.uniform(0.7, 1.0))
-        
-        # 시간 순서대로 정렬 (최근 데이터가 뒤에)
-        wave_data.sort()
-        
-        return wave_data
-        
-    except Exception as e:
-        return [0.5] * 50  # 기본값
-
-def get_current_zone_status():
-    """현재 차트 구역 상태 가져오기"""
-    try:
-        # 기본값 설정
-        default_zone = {
-            'timeframe': '5m',
-            'zone': 'ORANGE'
-        }
-        
-        # 실제 구현에서는 차트 데이터를 분석하여 구역을 판단
-        # 현재는 기본값 반환
-        return default_zone
-        
-    except Exception as e:
-        print(f"❌ 구역 상태 가져오기 오류: {e}")
-        return {'timeframe': '5m', 'zone': 'ORANGE'}
 
 
 def run():
@@ -7269,14 +6358,6 @@ def run():
             print(f"✅ Trust config loaded: ML={_trust_config['ml_trust']}%, N/B={_trust_config['nb_trust']}%")
     except Exception as e:
         print(f"⚠️ Failed to load trust config: {e}")
-    
-    # 마을 시스템 초기화
-    initialize_trainer_warehouses()
-    initialize_new_warehouse_system()  # 새로운 창고 시스템 초기화
-    # initialize_warehouse_system()  # 기존 창고 시스템 제거됨
-    
-    # AI 자동 처리 시스템 시작
-    start_ai_auto_processing()
     
     threading.Thread(target=updater, daemon=True).start()
     threading.Thread(target=nb_auto_opt_loop, daemon=True).start()

@@ -1,14 +1,66 @@
 // Lightweight Charts UI (pan only) + order markers using bot server APIs
+(function() {
+  'use strict';
+  
+  // Prevent duplicate script loading
+  if (window.uiScriptLoaded) {
+    // console.log('🔄 UI script already loaded, skipping...');
+    return;
+  }
+  window.uiScriptLoaded = true;
 
-(function(){
+  // Global chart variables
+  let chart = null;
+  let candle = null;
+  let emaF = null;
+  let emaS = null;
+  let sma50Series = null;
+  let sma100Series = null;
+  let sma200Series = null;
+  let ema9Series = null;
+  let ema12Series = null;
+  let ema26Series = null;
+  let ichiTenkanSeries = null;
+  let ichiKijunSeries = null;
+  let zoneIndicatorSeries = null;
+  let nbWaveSeries = null;
 
+// Chart initialization function
+function initChart() {
+  // Prevent duplicate chart initialization
+  if (window.chartInitialized) {
+    // console.log('📊 Chart already initialized, skipping...');
+    return;
+  }
+  
+  // Prevent duplicate chart creation
+  if (window.chart) {
+    // console.log('🔄 Chart already exists, skipping chart creation...');
+    window.chartInitialized = true;
+    return;
+  }
+  
   const container = document.getElementById('tvChart');
-
-  if (!container) return;
+  if (!container) {
+    // console.error('❌ Chart container not found');
+    return;
+  }
 
   const tfEl = document.getElementById('timeframe');
 
-  const getInterval = () => (tfEl ? tfEl.value : 'minute10');
+  // Global variable to store current interval across tabs
+  window.currentGlobalInterval = 'minute10';
+  
+  const getInterval = () => {
+    const tfEl = document.getElementById('timeframe');
+    if (tfEl) {
+      // Update global interval when timeframe element is available
+      window.currentGlobalInterval = tfEl.value;
+      return tfEl.value;
+    }
+    // Return stored global interval when timeframe element is not accessible
+    return window.currentGlobalInterval || 'minute10';
+  };
 
 
 
@@ -25,25 +77,25 @@
   // Note: Trainer functions are now in trainer-system.js
 
 
-  // Function to get chart zone data for N/B Zone Status (전역으로 노출)
+  // Function to get chart zone data for N/B Zone Status
 
-  window.getChartZoneData = function() {
+  function getChartZoneData() {
 
     try {
 
-      console.log('=== getChartZoneData: 시작 ===');
+      // console.log('=== getChartZoneData: 시작 ===');
 
       
 
       const data = candle.data();
 
-      console.log('  - candle.data() 길이:', data?.length || 0);
+      // console.log('  - candle.data() 길이:', data?.length || 0);
 
       
 
       if (!data || data.length === 0) {
 
-        console.log('  - candle.data() 없음');
+        // console.log('  - candle.data() 없음');
 
         return { zones: [], baseValue: 0, hasData: false };
 
@@ -60,11 +112,11 @@
 
       
 
-      console.log('  - nbWaveSeries 존재:', !!window.nbWaveSeries);
+      // console.log('  - nbWaveSeries 존재:', !!window.nbWaveSeries);
 
-      console.log('  - nbWaveData 길이:', nbWaveData.length);
+      // console.log('  - nbWaveData 길이:', nbWaveData.length);
 
-      console.log('  - baseValue:', baseValue);
+      // console.log('  - baseValue:', baseValue);
 
 
 
@@ -72,7 +124,7 @@
 
       if (nbWaveData && nbWaveData.length > 0) {
 
-        console.log('  - nbWaveData 사용');
+        // console.log('  - nbWaveData 사용');
 
         const zones = nbWaveData.map((waveData, index) => {
 
@@ -94,7 +146,7 @@
 
 
 
-        console.log('  - nbWave zones 생성됨:', zones.length);
+        // console.log('  - nbWave zones 생성됨:', zones.length);
 
         return {
 
@@ -116,9 +168,9 @@
 
       const lastOutWave = window.lastOutWave || [];
 
-      console.log('  - lastOutWave 존재:', !!window.lastOutWave);
+      // console.log('  - lastOutWave 존재:', !!window.lastOutWave);
 
-      console.log('  - lastOutWave 길이:', lastOutWave.length);
+      // console.log('  - lastOutWave 길이:', lastOutWave.length);
 
       
 
@@ -146,7 +198,7 @@
 
 
 
-        console.log('  - lastOutWave zones 생성됨:', zones.length);
+        // console.log('  - lastOutWave zones 생성됨:', zones.length);
 
         return {
 
@@ -168,9 +220,9 @@
 
       const zoneIndicatorData = window.zoneIndicatorSeries?.data || [];
 
-      console.log('  - zoneIndicatorSeries 존재:', !!window.zoneIndicatorSeries);
+      // console.log('  - zoneIndicatorSeries 존재:', !!window.zoneIndicatorSeries);
 
-      console.log('  - zoneIndicatorData 길이:', zoneIndicatorData.length);
+      // console.log('  - zoneIndicatorData 길이:', zoneIndicatorData.length);
 
       
 
@@ -240,7 +292,7 @@
 
     } catch (e) {
 
-      console.error('Error getting chart zone data:', e);
+      // console.error('Error getting chart zone data:', e);
 
       return { zones: [], baseValue: 0, hasData: false };
 
@@ -505,7 +557,9 @@
 
   const orderExportBtn = document.getElementById('btnOrderExport');
 
-  // Buy/Sell 버튼 제거됨 (새로운 창고 시스템 준비 중)
+  const btnBuy = document.getElementById('btnBuy');
+
+  const btnSell = document.getElementById('btnSell');
 
   const tradeReadyMeta = document.getElementById('tradeReadyMeta');
 
@@ -1330,10 +1384,14 @@
   // Check if LightweightCharts is loaded before creating chart
   if (typeof LightweightCharts === 'undefined') {
     console.error('❌ LightweightCharts library not loaded. Please wait for the page to fully load.');
+    // Retry after 1 second
+    setTimeout(initChart, 1000);
     return;
   }
 
-  const chart = LightweightCharts.createChart(container, {
+
+  
+  chart = LightweightCharts.createChart(container, {
 
     layout: { background: { type: 'solid', color: '#0b1220' }, textColor: '#e6eefc' },
 
@@ -1353,7 +1411,8 @@
 
   });
 
-
+  // Store chart globally for reuse
+  window.chart = chart;
 
   // Check if chart is properly created
   if (!chart) {
@@ -1365,27 +1424,27 @@
 
 
 
-  const candle = chart.addCandlestickSeries({ upColor:'#0ecb81', downColor:'#f6465d', wickUpColor:'#0ecb81', wickDownColor:'#f6465d', borderVisible:false });
+  candle = chart.addCandlestickSeries({ upColor:'#0ecb81', downColor:'#f6465d', wickUpColor:'#0ecb81', wickDownColor:'#f6465d', borderVisible:false });
 
-  const emaF = chart.addLineSeries({ color:'rgba(14,203,129,0.9)', lineWidth:2 });
+  emaF = chart.addLineSeries({ color:'rgba(14,203,129,0.9)', lineWidth:2 });
 
-  const emaS = chart.addLineSeries({ color:'rgba(246,70,93,0.9)', lineWidth:2 });
+  emaS = chart.addLineSeries({ color:'rgba(246,70,93,0.9)', lineWidth:2 });
 
-  const sma50Series = chart.addLineSeries({ color:'#9aa0a6', lineWidth:1, priceLineVisible:false });
+  sma50Series = chart.addLineSeries({ color:'#9aa0a6', lineWidth:1, priceLineVisible:false });
 
-  const sma100Series = chart.addLineSeries({ color:'#c7cbd1', lineWidth:1, priceLineVisible:false });
+  sma100Series = chart.addLineSeries({ color:'#c7cbd1', lineWidth:1, priceLineVisible:false });
 
-  const sma200Series = chart.addLineSeries({ color:'#e0e3e7', lineWidth:1, priceLineVisible:false });
+  sma200Series = chart.addLineSeries({ color:'#e0e3e7', lineWidth:1, priceLineVisible:false });
 
-  const ema9Series = chart.addLineSeries({ color:'#ffd166', lineWidth:1, priceLineVisible:false });
+  ema9Series = chart.addLineSeries({ color:'#ffd166', lineWidth:1, priceLineVisible:false });
 
-  const ema12Series = chart.addLineSeries({ color:'#fca311', lineWidth:1, priceLineVisible:false });
+  ema12Series = chart.addLineSeries({ color:'#fca311', lineWidth:1, priceLineVisible:false });
 
-  const ema26Series = chart.addLineSeries({ color:'#fb8500', lineWidth:1, priceLineVisible:false });
+  ema26Series = chart.addLineSeries({ color:'#fb8500', lineWidth:1, priceLineVisible:false });
 
-  const ichiTenkanSeries = chart.addLineSeries({ color:'#00d1ff', lineWidth:1, priceLineVisible:false });
+  ichiTenkanSeries = chart.addLineSeries({ color:'#00d1ff', lineWidth:1, priceLineVisible:false });
 
-  const ichiKijunSeries = chart.addLineSeries({ color:'#ff006e', lineWidth:1, priceLineVisible:false });
+  ichiKijunSeries = chart.addLineSeries({ color:'#ff006e', lineWidth:1, priceLineVisible:false });
 
   
 
@@ -1395,7 +1454,7 @@
 
   // Zone indicator series for chart display
 
-  const zoneIndicatorSeries = chart.addCandlestickSeries({ 
+  zoneIndicatorSeries = chart.addCandlestickSeries({ 
 
     upColor:'rgba(255,165,0,0.8)', 
 
@@ -1628,7 +1687,7 @@
 
   // Baseline wave series (visual emphasis)
 
-  const nbWaveSeries = chart.addBaselineSeries({
+  nbWaveSeries = chart.addBaselineSeries({
 
     baseValue: { type: 'price', price: 0 },
 
@@ -2103,9 +2162,9 @@
 
           setTimeout(() => {
 
-            console.log('=== updateNB: 웨이브 데이터 강제 업데이트 ===');
+            // console.log('=== updateNB: 웨이브 데이터 강제 업데이트 ===');
 
-            console.log('  - outWave 길이:', outWave.length);
+            // console.log('  - outWave 길이:', outWave.length);
 
             console.log('  - nbWaveColorArray 길이:', nbWaveColorArray.length);
 
@@ -2208,7 +2267,7 @@
               
               nbEnergy.current = Math.min(nbEnergy.max, nbEnergy.current + energyRecovery);
               
-              console.log(`⚡ Chart interval changed: ${oldInterval} → ${currentInterval}, Energy +${energyRecovery} (Total: ${nbEnergy.current})`);
+              // console.log(`⚡ Chart interval changed: ${oldInterval} → ${currentInterval}, Energy +${energyRecovery} (Total: ${nbEnergy.current})`);
               
               // Update treasury access if energy reaches 80+
               if (nbEnergy.current >= 80 && !nbEnergy.treasuryAccess) {
@@ -2228,7 +2287,7 @@
 
         // Log the zone determination for debugging
 
-        console.log(`updateNB: Chart line zone determined as ${zoneFromChartLine}`);
+        // console.log(`updateNB: Chart line zone determined as ${zoneFromChartLine}`);
 
         
 
@@ -3139,7 +3198,7 @@
 
       lastCandleData = rows.length > 0 ? rows[rows.length - 1] : null;
 
-      console.log('Chart data updated:', lastCandleData ? `Open: ${lastCandleData.open}, Close: ${lastCandleData.close}` : 'No data');
+      // console.log('Chart data updated:', lastCandleData ? `Open: ${lastCandleData.open}, Close: ${lastCandleData.close}` : 'No data');
 
       
 
@@ -3405,6 +3464,12 @@
   }, 3000);
 
   if (tfEl) tfEl.addEventListener('change', ()=>{
+
+    // Update global interval when timeframe changes
+    window.currentGlobalInterval = tfEl.value;
+    
+    // Immediately update N/B Zone Status timeframe
+    updateNBZoneTimeframe();
 
     // Clear ML/NB markers and segment state when timeframe changes so signals only show on the selected timeframe
 
@@ -4057,7 +4122,7 @@
 
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 
-            console.log('Screenshot copied to clipboard');
+            // console.log('Screenshot copied to clipboard');
 
             return true;
 
@@ -4465,10 +4530,90 @@
           }
         }catch(_){ }
 
-        tradeReadyBox.innerHTML = '';
+        // Fetch trainer storage information
+        let trainerStorageInfo = '';
+        let trainerStorageData = {};
+        try {
+          const storageRes = await fetchJsonStrict('/api/trainer/storage');
+          if (storageRes && storageRes.ok && storageRes.storage) {
+            trainerStorageData = storageRes.storage;
+            trainerStorageInfo = Object.keys(trainerStorageData).map(trainer => {
+              const data = trainerStorageData[trainer];
+              const currentValue = data.coins * price;
+              const profit = data.entry_price > 0 ? ((price - data.entry_price) / data.entry_price) * 100 : 0;
+              return `${trainer}: ${data.coins.toFixed(8)} BTC (≈ ${Math.round(currentValue).toLocaleString()} KRW) ${profit > 0 ? '+' : ''}${profit.toFixed(2)}%`;
+            }).join('<br>');
+          }
+        } catch(_) { }
+        
+        // Create trainer storage HTML with buttons
+        let trainerStorageHTML = '';
+        if (Object.keys(trainerStorageData).length > 0) {
+          trainerStorageHTML = Object.keys(trainerStorageData).map(trainer => {
+            const data = trainerStorageData[trainer];
+            const currentValue = data.coins * price;
+            const profit = data.entry_price > 0 ? ((price - data.entry_price) / data.entry_price) * 100 : 0;
+            const profitColor = profit >= 0 ? '#4caf50' : '#f44336';
+            const ticks = data.ticks || 0;
+            
+            // Get last REAL trade info (filter out manual modifications)
+            const realTrades = data.trades ? data.trades.filter(trade => trade.action === 'REAL_TRADE') : [];
+            const lastTrade = realTrades.length > 0 ? realTrades[realTrades.length - 1] : null;
+            const lastTradeInfo = lastTrade ? 
+              `<br><span style="font-size: 9px; color: #666;">마지막 실제 거래: ${lastTrade.action || 'UNKNOWN'} ${(lastTrade.size || 0).toFixed(8)} BTC @ ${Math.round(lastTrade.price || 0).toLocaleString()} KRW (${lastTrade.ts ? new Date(lastTrade.ts).toLocaleString() : 'Unknown Date'})${lastTrade.new_balance ? `<br><span style="font-size: 8px; color: #999;">잔액: ${lastTrade.new_balance.toFixed(8)} BTC</span>` : ''}${lastTrade.trade_match ? `<br><span style="font-size: 8px; color: #999;">업비트 매칭: ${lastTrade.trade_match.upbit_trade_id}</span>` : ''}</span>` : 
+              `<br><span style="font-size: 9px; color: #999;">실제 거래 기록 없음</span>`;
+            
+            // 제고가 0이면 평균가 초기화 표시
+            const avgPriceDisplay = data.coins > 0 && data.entry_price > 0 ? 
+              `<br><span style="font-size: 10px; color: #666;">평균가: ${data.entry_price.toLocaleString()} KRW</span>` : 
+              data.coins <= 0 ? `<br><span style="font-size: 10px; color: #999;">평균가: 초기화됨</span>` : '';
+            
+            return `
+              <div style="display: flex; align-items: center; margin-bottom: 4px; font-size: 12px;">
+                <div style="flex: 1; color: #0d47a1;">
+                  <strong>${trainer}:</strong> ${data.coins.toFixed(8)} BTC (≈ ${Math.round(currentValue).toLocaleString()} KRW) ${ticks}틱
+                  ${avgPriceDisplay}
+                  ${lastTradeInfo}
+                  <span style="color: ${profitColor};">${profit > 0 ? '+' : ''}${profit.toFixed(2)}%</span>
+                </div>
+                <div style="display: flex; gap: 2px;">
+                  <button onclick="modifyTrainerStorage('${trainer}', -0.001)" style="background: #d32f2f; color: white; border: none; border-radius: 2px; width: 24px; height: 20px; font-size: 10px; cursor: pointer;" title="Remove 0.001 BTC">--</button>
+                  <button onclick="modifyTrainerStorage('${trainer}', -0.0001)" style="background: #f44336; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="Remove 0.0001 BTC">-</button>
+                  <button onclick="modifyTrainerStorage('${trainer}', 0.0001)" style="background: #4caf50; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="Add 5,000 KRW worth">+</button>
+                  <button onclick="modifyTrainerStorage('${trainer}', 0.001)" style="background: #2e7d32; color: white; border: none; border-radius: 2px; width: 24px; height: 20px; font-size: 10px; cursor: pointer;" title="Add 5,000 KRW worth">++</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: 2px; margin-left: 20px; margin-bottom: 4px;">
+                <button onclick="resetTrainerStoragePrice('${trainer}')" style="background: #ff9800; color: white; border: none; border-radius: 2px; width: 60px; height: 20px; font-size: 9px; cursor: pointer;" title="평균가 초기화">초기화</button>
+                <button onclick="modifyTrainerTicks('${trainer}', -1)" style="background: #9c27b0; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="틱 -1">-1</button>
+                <button onclick="modifyTrainerTicks('${trainer}', 1)" style="background: #673ab7; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="틱 +1">+1</button>
+              </div>
+            `;
+          }).join('');
+        } else {
+          trainerStorageHTML = '<div style="font-size: 12px; color: #0d47a1;">No data</div>';
+        }
+        
+        tradeReadyBox.innerHTML = `
 
-        // 메타 정보도 제거
-        if (tradeReadyMeta) tradeReadyMeta.textContent = '';
+          <div>Price: <b>${price? price.toLocaleString(): '-'}</b></div>
+
+          <div>N/B COIN (this bar): <b id="nbCoinNowInline">${coinTxt}</b></div>
+
+          <div>BTC Balance: <b>${coinBal.toFixed(8)} ${sym} (≈ ${Math.round(coinBal*price).toLocaleString()} KRW)</b></div>
+          <div>N/B Village: <b>${nbCoinSummary || '-'}</b></div>
+          <div style="margin-top: 8px; padding: 8px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px;">
+            <div style="font-weight: bold; margin-bottom: 4px; color: #1976d2;">🏪 Trainer Storage (N/B Guild NPC Control):</div>
+            ${trainerStorageHTML}
+          </div>
+          <div>Buy: <b>${buyLine}</b></div>
+
+          <div>Sell: <b>${sellLine}</b></div>
+
+          <div>Recommended SELL size (~5,000 KRW): <b>${minSellSize>0? minSellSize.toFixed(8): '-'}</b> ${sym}</div>
+          <div>Keys: ${p.has_keys} | Paper: ${p.paper}</div>
+
+        `;
 
         if (tradeReadyMeta){ tradeReadyMeta.textContent = `(${new Date().toLocaleTimeString()})`; }
 
@@ -4484,183 +4629,11 @@
 
   if (assetsRefresh) assetsRefresh.addEventListener('click', ()=>{ refreshTradeReady(); });
 
-  // 새로운 창고 시스템 상태 업데이트
-  async function updateNewWarehouseStatus() {
-    try {
-      const statusElement = document.getElementById('newWarehouseStatus');
-      const metaElement = document.getElementById('warehouseMeta');
-      
-      if (!statusElement) return;
-
-      const warehouses = ['scout', 'guardian', 'analyst', 'elder'];
-      let totalCards = 0;
-      let totalProfit = 0;
-      let totalSuccessRate = 0;
-      let warehouseDetails = [];
-
-      for (const warehouse of warehouses) {
-        try {
-          const response = await fetch(`/api/village/warehouse/${warehouse}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (!data.error) {
-              totalCards += data.current_cards || 0;
-              totalProfit += data.total_profit || 0;
-              totalSuccessRate += data.success_rate || 0;
-              
-              warehouseDetails.push({
-                name: data.name,
-                cards: data.current_cards || 0,
-                profit: data.total_profit || 0,
-                successRate: data.success_rate || 0
-              });
-            }
-          }
-        } catch (e) {
-          console.error(`창고 상태 조회 실패 (${warehouse}):`, e);
-        }
-      }
-
-      const avgSuccessRate = warehouses.length > 0 ? totalSuccessRate / warehouses.length : 0;
-      
-      // 메타 정보 업데이트
-      if (metaElement) {
-        metaElement.textContent = `(${new Date().toLocaleTimeString()})`;
-      }
-      
-      // 상세 정보 생성
-      let detailsHtml = '';
-      warehouseDetails.forEach(warehouse => {
-        const profitColor = warehouse.profit > 0 ? '#0ecb81' : warehouse.profit < 0 ? '#f6465d' : '#ffffff';
-        const successColor = warehouse.successRate > 60 ? '#0ecb81' : warehouse.successRate > 40 ? '#ffb703' : '#f6465d';
-        
-        detailsHtml += `
-          <div style="margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-            <div style="font-weight: 600; color: #ffffff; margin-bottom: 4px;">${warehouse.name}</div>
-            <div style="font-size: 10px; color: #888;">
-              카드: ${warehouse.cards}개 | 
-              수익: <span style="color: ${profitColor};">${warehouse.profit > 0 ? '+' : ''}${warehouse.profit.toFixed(2)}%</span> | 
-              성공률: <span style="color: ${successColor};">${warehouse.successRate.toFixed(1)}%</span>
-                </div>
-                </div>
-        `;
-      });
-      
-      // 전체 요약 정보
-      const totalProfitColor = totalProfit > 0 ? '#0ecb81' : totalProfit < 0 ? '#f6465d' : '#ffffff';
-      const avgSuccessColor = avgSuccessRate > 60 ? '#0ecb81' : avgSuccessRate > 40 ? '#ffb703' : '#f6465d';
-      
-      statusElement.innerHTML = `
-        <div style="margin-bottom: 12px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
-          <div style="font-weight: 600; color: #ffffff; margin-bottom: 4px;">📊 전체 요약</div>
-          <div style="font-size: 11px; color: #888;">
-            총 카드: <span style="color: #ffffff;">${totalCards}개</span> | 
-            총 수익: <span style="color: ${totalProfitColor};">${totalProfit > 0 ? '+' : ''}${totalProfit.toFixed(2)}%</span> | 
-            평균 성공률: <span style="color: ${avgSuccessColor};">${avgSuccessRate.toFixed(1)}%</span>
-              </div>
-              </div>
-        ${detailsHtml}
-      `;
-    } catch (e) {
-      console.error('새로운 창고 시스템 상태 업데이트 실패:', e);
-      const statusElement = document.getElementById('newWarehouseStatus');
-      if (statusElement) {
-        statusElement.innerHTML = '<div style="color: #f6465d; font-size: 11px;">창고 상태 조회 실패</div>';
-      }
-    }
-  }
-
-  // 창고 상태 업데이트 시작
-  updateNewWarehouseStatus();
-  setInterval(updateNewWarehouseStatus, 30000); // 30초마다 업데이트
-
 
 
         // N/B Zone strip renderer - shows only visible chart zones
 
-   // N/B Wave 점 찍기 함수 - API를 사용하여 점을 하나씩 찍어줌
-   window.createNbWaveDots = async function() {
-     try {
-       // API에서 N/B Wave 데이터 가져오기
-       const response = await fetch('/api/village/nb-zone-status');
-       if (!response.ok) {
-         return null;
-       }
-       
-       const apiData = await response.json();
-       
-       const nbWaveData = apiData.nbWaveData || [];
-       
-       if (!nbWaveData || nbWaveData.length === 0) {
-         return null;
-       }
-       
-       // 점들을 생성할 컨테이너
-       const dotsContainer = document.createElement('div');
-       dotsContainer.style.cssText = `
-         display: flex;
-         align-items: center;
-         gap: 2px;
-         padding: 2px 6px;
-         height: 100%;
-         overflow: hidden;
-       `;
-       
-       // 최근 50개 점만 표시 (성능 최적화)
-       const recentDots = nbWaveData.slice(-50);
-       
-       recentDots.forEach((wave, index) => {
-         const dot = document.createElement('div');
-         
-         // wave 값을 안전하게 숫자로 변환
-         let waveValue = 0.5; // 기본값
-         if (typeof wave === 'number') {
-           waveValue = wave;
-         } else if (typeof wave === 'object' && wave.value !== undefined) {
-           waveValue = parseFloat(wave.value) || 0.5;
-         } else if (typeof wave === 'string') {
-           waveValue = parseFloat(wave) || 0.5;
-         }
-         
-         // wave 값에 따른 색상 결정
-         let dotColor = '#888888'; // 기본 회색
-         let dotSize = '4px';
-         
-         if (waveValue > 0.7) {
-           dotColor = '#0ecb81'; // 초록색 (BLUE 구역)
-           dotSize = '6px';
-         } else if (waveValue < 0.3) {
-           dotColor = '#f6465d'; // 빨간색 (ORANGE 구역)
-           dotSize = '6px';
-         } else {
-           dotColor = '#ffb703'; // 노란색 (중간 구역)
-           dotSize = '5px';
-         }
-         
-         dot.style.cssText = `
-           width: ${dotSize};
-           height: ${dotSize};
-           background: ${dotColor};
-           border-radius: 50%;
-           flex-shrink: 0;
-           box-shadow: 0 0 2px ${dotColor}40;
-         `;
-         
-         // 툴팁 추가
-         dot.title = `Wave ${index + 1}: ${waveValue.toFixed(3)} (${waveValue > 0.7 ? 'BLUE' : waveValue < 0.3 ? 'ORANGE' : 'MIDDLE'})`;
-         
-         dotsContainer.appendChild(dot);
-       });
-       
-       return dotsContainer;
-       
-     } catch (error) {
-       return null;
-     }
-   };
-
-   // N/B Zone Status 업데이트 함수를 전역으로 노출
-   window.refreshNbZoneStrip = async function(){
+   async function refreshNbZoneStrip(){
 
      try{
 
@@ -4674,118 +4647,291 @@
 
        
 
-       // API에서 N/B Wave Zone 데이터 가져오기
-       console.log('=== N/B Zone Status: API 데이터 가져오기 ===');
-       
-       try {
-         const response = await fetch('/api/nb/wave-zones?interval=minute5&count=300&window=50');
-         const apiData = await response.json();
-         
-         if (!apiData.ok) {
-           console.log('  - API 오류:', apiData.error);
-           if (nowBadge) nowBadge.textContent = '-';
-           if (strip) strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">API Error</div>';
-           return;
-         }
-         
-         console.log('  - API 데이터 성공:', apiData.currentZone, apiData.orangeCount, apiData.blueCount);
-         
-         // API 데이터를 전역 변수로 저장
-         window.nbZoneApiData = apiData;
-         
-         // 현재 구역 업데이트
-         if (nowBadge) {
-           nowBadge.textContent = apiData.currentZone;
-           nowBadge.className = apiData.currentZone === 'ORANGE' ? 'badge bg-warning' : 'badge bg-primary';
-         }
-         
-         // 타임프레임 업데이트
-         if (timeframeBadge) {
-           timeframeBadge.textContent = apiData.interval === 'minute5' ? '5m' : apiData.interval;
-         }
-         
-         // 구역 스트립 생성
-         if (strip) {
-           console.log('=== 구역 스트립 생성 디버깅 ===');
-           console.log('  - apiData.orangeZones:', apiData.orangeZones?.length || 0);
-           console.log('  - apiData.blueZones:', apiData.blueZones?.length || 0);
-           
-           const orangeZones = apiData.orangeZones || [];
-           const blueZones = apiData.blueZones || [];
-           
-           console.log('  - orangeZones 배열:', orangeZones.length);
-           console.log('  - blueZones 배열:', blueZones.length);
-           
-           // 모든 구역을 시간순으로 정렬
-           const allZones = [...orangeZones, ...blueZones].sort((a, b) => a.time - b.time);
-           
-           console.log('  - allZones 배열:', allZones.length);
-           if (allZones.length > 0) {
-             console.log('  - 첫 번째 구역:', allZones[0]);
-             console.log('  - 마지막 구역:', allZones[allZones.length - 1]);
-           }
-           
-           if (allZones.length === 0) {
-             console.log('  - 구역 데이터가 없음');
-             strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">No zone data</div>';
-             return;
-           }
-           
-           // 구역 스트립 HTML 생성
-           let stripHTML = '';
-           allZones.forEach((zone, index) => {
-             const zoneColor = zone.zone === 'ORANGE' ? '#ffb703' : '#00d1ff';
-             stripHTML += `<div style="width:2px; height:8px; background:${zoneColor}; margin-right:1px; border-radius:1px;"></div>`;
-             
-             // 처음 5개만 로그 출력
-             if (index < 5) {
-               console.log(`  - 구역 ${index}:`, zone.zone, zone.time, zoneColor);
-             }
-           });
-           
-           console.log('  - 생성된 HTML 길이:', stripHTML.length);
-           strip.innerHTML = stripHTML;
-           console.log('  - 구역 스트립 업데이트 완료');
-         }
-         
-       } catch (error) {
-         console.log('  - API 호출 오류:', error);
+       // Use chart's full candle data with zone information
+
+       const data = candle.data();
+
+       if (!data || data.length === 0) {
+
          if (nowBadge) nowBadge.textContent = '-';
-         if (strip) strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">API Error</div>';
+
+         if (strip) strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">No chart data available</div>';
+
+         return;
+
        }
 
        
 
-       // API 기반 N/B Zone Status 완료
+       // Get chart zone data using the new function
+
+       console.log('=== N/B Zone Status: 차트 데이터 가져오기 ===');
+
+       const chartZoneData = getChartZoneData();
 
        
 
-       // API 기반 N/B Zone Status 처리 중
+       console.log('=== N/B Zone Status: 데이터 접근 디버깅 ===');
+
+       console.log('  - 차트 데이터 소스:', chartZoneData.source || 'none');
+
+       console.log('  - 데이터 존재:', chartZoneData.hasData);
+
+       console.log('  - 구역 데이터 길이:', chartZoneData.zones.length);
+
+       console.log('  - 기준값 (baseValue):', chartZoneData.baseValue);
 
        
 
-       // API 기반 N/B Zone Status 처리 중
+       // 데이터가 없으면 없는 상태로 처리
+
+       if (!chartZoneData.hasData || chartZoneData.zones.length === 0) {
+
+         console.log('  - 차트 구역 데이터가 없음, 없는 상태로 표시');
+
+         if (nowBadge) nowBadge.textContent = '-';
+
+         if (strip) strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">No chart zone data available</div>';
+
+         return;
+
+       }
 
        
 
-       // API 기반 N/B Zone Status 처리 중
+       // 차트 구역 데이터에서 구역 변경 지점 계산
+
+       let zoneChangeIndex = -1;
+
+       const zones = chartZoneData.zones;
 
        
 
-       // API 기반 N/B Zone Status 완료
+       if (zones.length > 0) {
+
+         for (let i = 1; i < zones.length; i++) {
+
+           const prevZone = zones[i-1].zone;
+
+           const currZone = zones[i].zone;
+
+           
+
+           if (prevZone !== currZone) {
+
+             zoneChangeIndex = i;
+
+             break;
+
+           }
+
+         }
+
+       }
+
        
-       // API 데이터를 전역 변수로 저장
-       if (window.nbZoneApiData) {
-         console.log('=== N/B Zone Status: API 데이터 처리 완료 ===');
-         console.log(`  - 현재 구역: ${window.nbZoneApiData.currentZone}`);
-         console.log(`  - ORANGE 구역: ${window.nbZoneApiData.orangeCount}개`);
-         console.log(`  - BLUE 구역: ${window.nbZoneApiData.blueCount}개`);
-         console.log(`  - 총 구역: ${window.nbZoneApiData.totalZones}개`);
-         console.log(`  - 타임프레임: ${window.nbZoneApiData.interval}`);
-         console.log(`  - Window: ${window.nbZoneApiData.window}`);
+
+       console.log('=== N/B Zone Status: 차트 구역 변경 지점 동기화 ===');
+
+       console.log('  - 차트 구역 데이터:', zones.length, '개');
+
+       console.log('  - 구역 변경 지점 인덱스:', zoneChangeIndex);
+
+       console.log('  - 데이터 소스:', chartZoneData.source);
+
+       
+
+       console.log('=== N/B Zone Status: 차트 구역 분류 ===');
+
+       console.log('  - 차트 구역 데이터:', zones.length, '개');
+
+       console.log('  - 첫 번째 점:', zones[0]?.zone, '(', new Date(zones[0]?.time * 1000).toLocaleTimeString(), ')');
+
+       console.log('  - 마지막 점:', zones[zones.length-1]?.zone, '(', new Date(zones[zones.length-1]?.time * 1000).toLocaleTimeString(), ')');
+
+       
+
+       // Verify zone distribution
+
+       const totalZones = zones.length;
+
+       const orangeZones = zones.filter(z => z.zone === 'ORANGE').length;
+
+       const blueZones = zones.filter(z => z.zone === 'BLUE').length;
+
+       console.log(`Zone distribution: ${totalZones} total, ${orangeZones} ORANGE, ${blueZones} BLUE`);
+
+       
+
+       // Debug: Check chart data sources
+
+       console.log(`Debug - zoneIndicatorSeries:`, window.zoneIndicatorSeries?.data);
+
+       console.log(`Debug - zoneIndicatorSeries type:`, typeof window.zoneIndicatorSeries?.data);
+
+       console.log(`Debug - zoneIndicatorSeries isArray:`, Array.isArray(window.zoneIndicatorSeries?.data));
+
+       console.log(`Debug - nbWaveSeries:`, window.nbWaveSeries?.data);
+
+       console.log(`Debug - nbWaveSeries type:`, typeof window.nbWaveSeries?.data);
+
+       console.log(`Debug - nbWaveSeries isArray:`, Array.isArray(window.nbWaveSeries?.data));
+
+       console.log(`Debug - orangeZoneArray: ${window.orangeZoneArray?.length || 0} zones`);
+
+       console.log(`Debug - blueZoneArray: ${window.blueZoneArray?.length || 0} zones`);
+
+       
+
+       // Show first few zones for debugging
+
+       if (zones.length > 0) {
+
+         console.log('Debug - First 5 zones:', zones.slice(0, 5));
+
+       }
+
+       
+
+       // 차트 구역 데이터 사용
+
+       const displayZones = zones;
+
+       
+
+       // Store combined zones array globally for other functions to use
+
+       window.combinedZonesArray = displayZones;
+
+       
+
+       const orangeCount = displayZones.filter(z => z.zone === 'ORANGE').length;
+
+       const blueCount = displayZones.filter(z => z.zone === 'BLUE').length;
+
+       
+
+       console.log(`N/B Zone Status updated: ${displayZones.length} 차트 구역 데이터 (ORANGE: ${orangeCount}, BLUE: ${blueCount})`);
+
+       if (displayZones.length > 0) {
+
+         console.log(`차트 구역 데이터: ${displayZones.length}개 (소스: ${chartZoneData.source})`);
+
+       }
+
+       
+
+       // Update current zone badge using rightmost (most recent) point's zone
+
+       let currentZone = 'BLUE'; // default
+
+       
+
+       if (zones.length > 0) {
+
+         // 우측(최신) 점의 구역을 현재 구역으로 사용
+
+         const rightmostZone = zones[zones.length - 1];
+
+         currentZone = rightmostZone.zone;
+
          
-         // API 데이터를 차트의 N/B Wave에 적용
-         updateChartNBWaveFromAPI(window.nbZoneApiData);
+
+         console.log('=== N/B Zone Status: 우측(최신) 점 기준 구역 ===');
+
+         console.log('  - 우측 점 값:', rightmostZone.value.toFixed(0));
+
+         console.log('  - 현재 구역:', currentZone);
+
+         console.log('  - 데이터 소스:', chartZoneData.source);
+
+       }
+
+       
+
+       if (nowBadge) {
+
+         nowBadge.textContent = currentZone;
+
+         nowBadge.className = currentZone === 'ORANGE' ? 'badge bg-warning' : 'badge bg-primary';
+
+       }
+
+       
+
+       // Update timeframe badge
+       updateNBZoneTimeframe();
+
+       
+
+       // Update zone strip - show N/B 라인 전체 데이터 (static display)
+
+       if (strip) {
+         
+             strip.innerHTML = '';
+
+         if (displayZones.length === 0) {
+
+           strip.innerHTML = '<div class="text-muted" style="font-size:11px; padding-left:6px">No N/B data</div>';
+
+           return;
+
+         }
+
+
+
+         // Show N/B 라인 전체 데이터 (static) - 우측부터 검사 순서로 표시
+
+         const nblineZones = [...displayZones]; // 우측부터 시작하도록 순서 뒤집기
+
+         
+
+         nblineZones.forEach((z, index) => {
+
+           const el = document.createElement('div');
+
+           el.style.height = '8px';
+
+           el.style.flex = '1 1 auto';
+
+           el.style.margin = '0 1px';
+
+           el.style.borderRadius = '2px';
+
+           
+
+           const zone = String(z.zone).toUpperCase();
+
+           el.style.background = zone === 'ORANGE' ? '#ff8c00' : '#0066cc';
+
+           
+
+           // 구역 변경 지점 표시 (구역 변경 지점이 있는 경우)
+
+           if (zoneChangeIndex > 0 && z.index === zoneChangeIndex) {
+
+             el.style.background = zone === 'ORANGE' ? '#ff6600' : '#004499';
+
+             el.style.border = '1px solid #ffff00';
+
+             el.title = `ZONE CHANGE: ${z.zone} (${new Date(z.time * 1000).toLocaleTimeString()}) - 검사순서: ${index + 1}`;
+
+           } else {
+
+             el.title = `N/B ${z.index + 1}: ${z.zone} (${new Date(z.time * 1000).toLocaleTimeString()}) - 검사순서: ${index + 1}`;
+
+           }
+
+           
+
+           strip.appendChild(el);
+
+         });
+
+         
+
+         console.log(`N/B Zone Strip updated: ${displayZones.length} N/B 라인 데이터 displayed (static, 우측부터 검사 순서)`);
+
        }
 
      } catch (e) {
@@ -4795,49 +4941,6 @@
      }
 
    }
-   
-   // API 데이터를 차트의 N/B Wave에 적용하는 함수
-   function updateChartNBWaveFromAPI(apiData) {
-     try {
-       console.log('=== 차트 N/B Wave API 데이터 적용 ===');
-       
-       if (!window.nbWaveSeries) {
-         console.log('  - nbWaveSeries가 없음');
-         return;
-       }
-       
-       const nbWaveColorArray = apiData.nbWaveColorArray || [];
-       console.log(`  - nbWaveColorArray 길이: ${nbWaveColorArray.length}`);
-       
-       if (nbWaveColorArray.length === 0) {
-         console.log('  - nbWaveColorArray가 비어있음');
-         return;
-       }
-       
-       // N/B Wave 데이터를 차트 형식으로 변환
-       const chartData = nbWaveColorArray.map(item => ({
-         time: item.time,
-         value: item.value
-       }));
-       
-       console.log(`  - 차트 데이터 길이: ${chartData.length}`);
-       console.log(`  - 첫 번째 데이터:`, chartData[0]);
-       console.log(`  - 마지막 데이터:`, chartData[chartData.length - 1]);
-       
-       // 차트에 데이터 적용
-       window.nbWaveSeries.setData(chartData);
-       
-       // 전역 변수에 저장
-       window.lastOutWave = chartData;
-       window.nbWaveColorArray = nbWaveColorArray;
-       
-       console.log('  - 차트 N/B Wave 업데이트 완료');
-       
-     } catch (error) {
-       console.error('  - 차트 N/B Wave 업데이트 오류:', error);
-     }
-   }
-   
   // N/B COIN strip renderer
 
   async function refreshNbCoinStrip(){
@@ -5006,7 +5109,10 @@
 
             try {
 
-              const metric = await fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+              const metric = await fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch((error) => {
+          // console.log(`⚠️ ML metrics for ${iv} not available:`, error.message);
+          return null;
+        });
 
               metricsArr.push(metric);
 
@@ -5026,7 +5132,10 @@
 
             try {
 
-              const suggest = await fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+              const suggest = await fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch((error) => {
+          // console.log(`⚠️ Trainer suggest for ${iv} not available:`, error.message);
+          return null;
+        });
 
               suggestsArr.push(suggest);
 
@@ -5834,7 +5943,77 @@
 
 
 
-  // Manual trade buttons - 제거됨 (새로운 창고 시스템 준비 중)
+  // Manual trade buttons
+
+  if (btnBuy) btnBuy.addEventListener('click', async ()=>{
+
+    try{
+
+      // Arm auto order with 5-sec cancel window
+
+      armAutoPending(async ()=>{
+
+        const j = await postJson('/api/trade/buy', {});
+
+        if (j && j.ok && j.order){
+
+          pushOrderMarker(j.order);
+
+          uiLog('Manual BUY', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper }));
+
+          pushOrderLogLine(`[${new Date().toLocaleString()}] BUY placed @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+
+        } else {
+
+          const reason = (j && j.error) ? String(j.error) : 'unknown_error';
+
+          uiLog('Manual BUY failed', JSON.stringify(j));
+
+          pushOrderLogLine(`[${new Date().toLocaleString()}] BUY ERROR: ${reason}`);
+
+        }
+
+        try{ refreshTradeReady(); }catch(_){ }
+
+      });
+
+    }catch(e){ uiLog('Manual BUY error', String(e)); }
+
+  });
+
+  if (btnSell) btnSell.addEventListener('click', async ()=>{
+
+    try{
+
+      armAutoPending(async ()=>{
+
+        const j = await postJson('/api/trade/sell', {});
+
+        if (j && j.ok && j.order){
+
+          pushOrderMarker(j.order);
+
+          uiLog('Manual SELL', JSON.stringify({ price:j.order.price, size:j.order.size, paper:j.order.paper }));
+
+          pushOrderLogLine(`[${new Date().toLocaleString()}] SELL placed @${Number(j.order.price||0).toLocaleString()} ${j.order.size? '('+Number(j.order.size).toFixed(6)+')':''} ${j.order.paper?'[PAPER]':''}`);
+
+        } else {
+
+          const reason = (j && j.error) ? String(j.error) : 'unknown_error';
+
+          uiLog('Manual SELL failed', JSON.stringify(j));
+
+          pushOrderLogLine(`[${new Date().toLocaleString()}] SELL ERROR: ${reason}`);
+
+        }
+
+        try{ refreshTradeReady(); }catch(_){ }
+
+      });
+
+    }catch(e){ uiLog('Manual SELL error', String(e)); }
+
+  });
 
 
 
@@ -6681,8 +6860,31 @@
 
       
 
-      // 🏗️ 기존 트레이너 창고 시스템 제거됨
+      // Get trainer storage data
+
       let trainerStorageData = {};
+
+      try {
+
+        const storageRes = await fetch('/api/trainer/storage');
+
+        if (storageRes && storageRes.ok) {
+
+          const result = await storageRes.json();
+
+          if (result && result.storage) {
+
+            trainerStorageData = result.storage;
+
+          }
+
+        }
+
+      } catch (e) {
+
+        console.error('Failed to fetch trainer storage data:', e);
+
+      }
 
       
 
@@ -7071,8 +7273,65 @@
 
          
 
-         // 🏗️ 기존 트레이너 창고 시스템 제거됨
+         // Get position status with real-time P&L using trainer storage data
          let positionStatus = '';
+
+         const trainerData = trainerStorageData[member.name];
+         if (trainerData && trainerData.coins > 0) {
+           const currentPrice = getCurrentPrice();
+
+           const entryPrice = trainerData.entry_price || 0;
+           const coinAmount = trainerData.coins;
+           
+           // Determine position side based on trade history
+           let positionSide = 'BUY'; // default
+           if (trainerData.trades && trainerData.trades.length > 0) {
+             const lastTrade = trainerData.trades[trainerData.trades.length - 1];
+             if (lastTrade.action === 'BUY') {
+               positionSide = 'BUY';
+             } else if (lastTrade.action === 'SELL') {
+               positionSide = 'SELL';
+             } else if (lastTrade.action === 'MANUAL_MODIFY') {
+               positionSide = lastTrade.amount > 0 ? 'BUY' : 'SELL';
+             }
+           }
+           
+           // Calculate real-time P&L with validation
+           let currentPnl = 0;
+
+           let effectiveEntryPrice = entryPrice;
+           
+
+           if (entryPrice <= 0 || entryPrice > currentPrice * 10 || entryPrice < currentPrice * 0.1) {
+             effectiveEntryPrice = currentPrice;
+             currentPnl = 0;
+           } else {
+           if (positionSide === 'BUY') {
+
+               currentPnl = ((currentPrice - effectiveEntryPrice) / effectiveEntryPrice) * 100;
+           } else {
+
+               currentPnl = ((effectiveEntryPrice - currentPrice) / effectiveEntryPrice) * 100;
+             }
+           }
+
+           
+
+           const pnlColor = currentPnl > 0 ? '#0ecb81' : currentPnl < 0 ? '#f6465d' : '#ffffff';
+           
+
+           positionStatus = `<span style="font-size: 10px; color: #00d1ff; font-weight: 600;">
+
+             📊 ${positionSide} ${coinAmount.toFixed(8)} @ ${Number(effectiveEntryPrice).toLocaleString()}
+           </span>
+
+           <span style="font-size: 10px; color: ${pnlColor}; margin-left: 8px;">
+
+             P&L: ${currentPnl > 0 ? '+' : ''}${currentPnl.toFixed(2)}%
+
+           </span>`;
+
+         }
 
          
 
@@ -7897,7 +8156,7 @@
 
       if (data.ok) {
 
-        console.log(`✅ Village energy filled: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
+        // console.log(`✅ Village energy filled: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
 
         pushOrderLogLine(`[${new Date().toLocaleString()}] 마을 에너지 100% 채움: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
 
@@ -9573,7 +9832,7 @@
         });
 
         
-        console.log('🏛️ Village Mayor announcement made:', currentZone, zoneInfo.message);
+        // console.log('🏛️ Village Mayor announcement made:', currentZone, zoneInfo.message);
       }
 
       
@@ -9740,9 +9999,9 @@
 
       // Debug: Log current system status
 
-      console.log('Auto Mock Trading Scheduler running...');
+      // console.log('Auto Mock Trading Scheduler running...');
 
-      console.log('N/B Energy:', typeof nbEnergy !== 'undefined' ? nbEnergy.current : 'undefined');
+      // console.log('N/B Energy:', typeof nbEnergy !== 'undefined' ? nbEnergy.current : 'undefined');
 
       
 
@@ -9762,7 +10021,7 @@
 
         // Debug: Log member status
 
-        console.log(`${member.name}: enabled=${member.autoTradingEnabled}, stamina=${member.stamina}, frequency=${member.tradeFrequency}, canTrade=${canTrade}`);
+        // console.log(`${member.name}: enabled=${member.autoTradingEnabled}, stamina=${member.stamina}, frequency=${member.tradeFrequency}, canTrade=${canTrade}`);
 
         
 
@@ -12880,7 +13139,7 @@
 
       
 
-      console.log('Force starting auto trading...');
+      // console.log('Force starting auto trading...');
 
       
 
@@ -12941,7 +13200,7 @@
 
   // Force start auto trading after initialization
 
-  // setTimeout(forceStartAutoTrading, 3000); // 카드 시스템으로 이동됨
+  // setTimeout(forceStartAutoTrading, 3000); // 함수가 정의되지 않아 주석 처리
 
   
 
@@ -13134,9 +13393,9 @@
   setTimeout(() => {
     if (typeof startVillageTradingProcessMonitoring === 'function') {
       startVillageTradingProcessMonitoring();
-      console.log('🏰 8BIT Village 거래 프로세스 모니터링 시작됨');
+      // console.log('🏰 8BIT Village 거래 프로세스 모니터링 시작됨');
     } else {
-      console.log('⚠️ startVillageTradingProcessMonitoring 함수를 찾을 수 없습니다');
+      // console.log('⚠️ startVillageTradingProcessMonitoring 함수를 찾을 수 없습니다');
     }
   }, 3000); // 3초 후 시작
 
@@ -13409,7 +13668,7 @@
       // localStorage에 저장
       localStorage.setItem('auto_trade_toggle_states', JSON.stringify(toggleStates));
       
-      console.log('🎛️ Auto Trade 토글 상태 저장됨:', toggleStates);
+      // console.log('🎛️ Auto Trade 토글 상태 저장됨:', toggleStates);
       
       // UI 업데이트
       updateAutoTradeToggleDisplay(toggleStates);
@@ -13435,7 +13694,7 @@
         // UI 업데이트
         updateAutoTradeToggleDisplay(toggleStates);
         
-        console.log('🎛️ Auto Trade 토글 상태 복원됨:', toggleStates);
+        // console.log('🎛️ Auto Trade 토글 상태 복원됨:', toggleStates);
         return true;
       }
     } catch (e) {
@@ -13585,7 +13844,7 @@
       saveAutoTradeToggleStates();
     }, 60000); // 60초마다
     
-    console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
+    // console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
   }, 6000); // 6초 후 시작
 
   // 🎯 UI 차트 간격을 서버에 전송하여 동기화
@@ -13672,77 +13931,341 @@
       console.log('⚠️ 길드 멤버 상태 시스템 초기화 함수를 찾을 수 없습니다');
     }
   }, 6000); // 6초 후 길드 멤버 상태 시스템 초기화
+  
+  // Mark chart as initialized to prevent duplicates
+  window.chartInitialized = true;
+      // console.log('✅ Chart initialization completed');
+  
+  // Auto-enable toggles after 3 seconds
+  setTimeout(() => {
+    enableAutoToggles();
+  }, 3000);
+}
 
-  // ===== 백그라운드 모드 전역 함수들 =====
-  
-  // Assets 업데이트 함수를 전역으로 노출
-  window.updateAssets = refreshAssets;
-  
-  // Zone 상태 업데이트 함수를 전역으로 노출
-  window.updateZoneStatus = () => {
-    try {
-      if (window.updateZoneDisplay) window.updateZoneDisplay();
-      if (window.updateZoneStrip) window.updateZoneStrip();
-      if (window.updateZoneNow) window.updateZoneNow();
-    } catch (e) {
-      console.log('백그라운드 Zone 업데이트 오류:', e);
-    }
-  };
-  
-  // 가격 업데이트 함수를 전역으로 노출
-  window.updatePrice = () => {
-    try {
-      if (window.updateCurrentPrice) window.updateCurrentPrice();
-      if (window.updatePriceDisplay) window.updatePriceDisplay();
-    } catch (e) {
-      console.log('백그라운드 Price 업데이트 오류:', e);
-    }
-  };
-  
-  // 차트 업데이트 함수를 전역으로 노출
-  window.updateChart = () => {
-    try {
-      if (window.updateChartData) window.updateChartData();
-      if (window.refreshChart) window.refreshChart();
-    } catch (e) {
-      console.log('백그라운드 Chart 업데이트 오류:', e);
-    }
-  };
-  
-  // 로그 업데이트 함수를 전역으로 노출
-  window.updateLog = () => {
-    try {
-      if (window.updateLogDisplay) window.updateLogDisplay();
-      if (window.refreshLog) window.refreshLog();
-    } catch (e) {
-      console.log('백그라운드 Log 업데이트 오류:', e);
-    }
-  };
-  
-  // 주문 업데이트 함수를 전역으로 노출
-  window.updateOrders = () => {
-    try {
-      if (window.updateOrderLog) window.updateOrderLog();
-      if (window.refreshOrders) window.refreshOrders();
-    } catch (e) {
-      console.log('백그라운드 Orders 업데이트 오류:', e);
-    }
-  };
-  
-  // 백그라운드 모드 상태 확인 함수
-  window.isBackgroundMode = () => {
-    const activeTab = document.querySelector('.tab-content.active');
-    return activeTab && activeTab.id !== 'tab2';
-  };
-  
-  // 백그라운드 모드 강제 시작 함수
-  window.startBackgroundMode = () => {
-    console.log('🔄 백그라운드 모드 강제 시작');
-    if (window.updateAssets) window.updateAssets();
-    if (window.updateZoneStatus) window.updateZoneStatus();
-    if (window.updatePrice) window.updatePrice();
-  };
-  
-  console.log('✅ 백그라운드 모드 전역 함수들 등록 완료');
+// Initialize chart when DOM is ready - but only if not called from dynamic loading
+if (typeof window.tradingDashboardLoaded === 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    // Delay initialization to allow libraries to load
+    setTimeout(initChart, 500);
+  }
+} else {
+  // If trading dashboard is already loaded, don't auto-initialize chart
+      // console.log('📊 Trading Dashboard already loaded, skipping auto chart initialization');
+}
 
-})();
+// Auto-enable toggles function
+function enableAutoToggles() {
+  try {
+    // console.log('🎛️ Auto-enabling toggles...');
+    
+    // Auto Trade 토글 활성화
+    const autoTradeToggle = document.getElementById('autoTradeToggle');
+    if (autoTradeToggle && !autoTradeToggle.checked) {
+      autoTradeToggle.checked = true;
+      autoTradeToggle.dispatchEvent(new Event('change'));
+      // console.log('✅ Auto Trade 토글 활성화됨');
+    }
+    
+    // ML Auto 토글 활성화
+    const mlAutoToggle = document.getElementById('mlAuto');
+    if (mlAutoToggle && !mlAutoToggle.checked) {
+      mlAutoToggle.checked = true;
+      mlAutoToggle.dispatchEvent(new Event('change'));
+      // console.log('✅ ML Auto 토글 활성화됨');
+    }
+    
+    // ML-only Auto Trade 토글 활성화 (있는 경우)
+    const mlOnlyToggle = document.getElementById('mlOnlyToggle');
+    if (mlOnlyToggle && !mlOnlyToggle.checked) {
+      mlOnlyToggle.checked = true;
+      mlOnlyToggle.dispatchEvent(new Event('change'));
+      // console.log('✅ ML-only Auto Trade 토글 활성화됨');
+    }
+    
+    console.log('🎛️ 모든 토글 자동 활성화 완료');
+    
+    // 마을 에너지도 함께 충전
+    chargeVillageEnergy();
+    
+    // 마을 에너지 100% 버튼 클릭
+    clickVillageEnergyButton();
+  } catch (error) {
+    console.error('❌ 토글 자동 활성화 중 오류:', error);
+  }
+}
+
+// Auto-charge village energy function
+function chargeVillageEnergy() {
+  try {
+    // console.log('⚡ Auto-charging village energy...');
+    
+    // 마을 에너지 관련 요소들 찾기
+    const energyElements = [
+      'villageEnergy',
+      'mayorEnergy', 
+      'energyBar',
+      'energyLevel',
+      'villageEnergyBar'
+    ];
+    
+    let energyCharged = false;
+    
+    // 각 에너지 요소에 대해 최대값으로 설정
+    energyElements.forEach(elementId => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        // progress bar인 경우
+        if (element.tagName === 'PROGRESS' || element.classList.contains('progress-bar')) {
+          element.value = 100;
+          element.style.width = '100%';
+          element.textContent = '100%';
+          energyCharged = true;
+          console.log(`✅ ${elementId} 에너지 충전됨 (100%)`);
+        }
+        // 일반 텍스트인 경우
+        else if (element.tagName === 'SPAN' || element.tagName === 'DIV') {
+          element.textContent = '100';
+          element.style.color = '#0ecb81';
+          energyCharged = true;
+          console.log(`✅ ${elementId} 에너지 충전됨 (100)`);
+        }
+      }
+    });
+    
+    // 마을 이동 관련 토글들 활성화
+    const moveToggles = [
+      'villageMoveToggle',
+      'mayorMoveToggle',
+      'autoMoveToggle'
+    ];
+    
+    moveToggles.forEach(toggleId => {
+      const toggle = document.getElementById(toggleId);
+      if (toggle && !toggle.checked) {
+        toggle.checked = true;
+        toggle.dispatchEvent(new Event('change'));
+        console.log(`✅ ${toggleId} 마을 이동 토글 활성화됨`);
+      }
+    });
+    
+    // 마을 이동 버튼들 활성화
+    const moveButtons = document.querySelectorAll('[data-action="move"], [data-action="village-move"], .move-btn, .village-move-btn');
+    moveButtons.forEach(button => {
+      if (button.disabled) {
+        button.disabled = false;
+        button.classList.remove('disabled');
+        console.log('✅ 마을 이동 버튼 활성화됨');
+      }
+    });
+    
+    if (energyCharged) {
+      console.log('⚡ 마을 에너지 자동 충전 완료');
+    } else {
+      console.log('⚠️ 마을 에너지 요소를 찾을 수 없습니다');
+    }
+    
+  } catch (error) {
+    console.error('❌ 마을 에너지 충전 중 오류:', error);
+  }
+}
+
+// Auto-click village energy 100% button function
+function clickVillageEnergyButton() {
+  try {
+    // console.log('🔘 Auto-clicking village energy 100% button...');
+    
+    // 마을 에너지 100% 버튼들 찾기 (다양한 선택자로 검색)
+    const energyButtonSelectors = [
+      'button[data-action="charge-energy"]',
+      'button[data-action="energy-100"]',
+      'button[data-action="village-energy"]',
+      '.energy-100-btn',
+      '.charge-energy-btn',
+      '.village-energy-btn',
+      'button:contains("100%")',
+      'button:contains("에너지")',
+      'button:contains("Energy")',
+      'button:contains("충전")',
+      'button:contains("Charge")',
+      '[onclick*="energy"]',
+      '[onclick*="charge"]',
+      '[onclick*="100"]'
+    ];
+    
+    let buttonClicked = false;
+    
+    // 각 선택자로 버튼 찾기
+    energyButtonSelectors.forEach(selector => {
+      try {
+        const buttons = document.querySelectorAll(selector);
+        buttons.forEach(button => {
+          if (button && !buttonClicked) {
+            // 버튼이 보이고 클릭 가능한 상태인지 확인
+            if (button.offsetParent !== null && !button.disabled) {
+              button.click();
+              console.log(`✅ 마을 에너지 100% 버튼 클릭됨: ${button.textContent || button.className || button.id}`);
+              buttonClicked = true;
+            }
+          }
+        });
+      } catch (e) {
+        // 선택자 오류 무시하고 계속 진행
+      }
+    });
+    
+    // 텍스트 기반으로 버튼 찾기 (jQuery 사용)
+    if (!buttonClicked && typeof $ !== 'undefined') {
+      const textButtons = $('button').filter(function() {
+        const text = $(this).text().toLowerCase();
+        return text.includes('100%') || 
+               text.includes('에너지') || 
+               text.includes('energy') || 
+               text.includes('충전') || 
+               text.includes('charge');
+      });
+      
+      textButtons.each(function() {
+        if (!buttonClicked && $(this).is(':visible') && !$(this).prop('disabled')) {
+          $(this).click();
+          console.log(`✅ 텍스트 기반 마을 에너지 버튼 클릭됨: ${$(this).text()}`);
+          buttonClicked = true;
+          return false; // break loop
+        }
+      });
+    }
+    
+    // ID 기반으로 버튼 찾기
+    const energyButtonIds = [
+      'energy100Btn',
+      'chargeEnergyBtn',
+      'villageEnergyBtn',
+      'energyButton',
+      'chargeButton',
+      'villageButton'
+    ];
+    
+    energyButtonIds.forEach(id => {
+      const button = document.getElementById(id);
+      if (button && !buttonClicked && button.offsetParent !== null && !button.disabled) {
+        button.click();
+        console.log(`✅ ID 기반 마을 에너지 버튼 클릭됨: ${id}`);
+        buttonClicked = true;
+      }
+    });
+    
+    if (buttonClicked) {
+      console.log('🔘 마을 에너지 100% 버튼 자동 클릭 완료');
+    } else {
+      console.log('⚠️ 마을 에너지 100% 버튼을 찾을 수 없습니다');
+    }
+    
+  } catch (error) {
+    console.error('❌ 마을 에너지 버튼 클릭 중 오류:', error);
+  }
+}
+
+// N/B Zone Status timeframe update function
+function updateNBZoneTimeframe() {
+  const timeframeBadge = document.getElementById('nbZoneTimeframe');
+  if (timeframeBadge) {
+    // Get current timeframe from multiple sources
+    let currentInterval = window.currentGlobalInterval;
+    
+    // If global interval is not available, try to get from timeframe element
+    if (!currentInterval) {
+      const tfEl = document.getElementById('timeframe');
+      if (tfEl) {
+        currentInterval = tfEl.value;
+        window.currentGlobalInterval = currentInterval;
+      }
+    }
+    
+    // Fallback to default
+    if (!currentInterval) {
+      currentInterval = 'minute10';
+      window.currentGlobalInterval = currentInterval;
+    }
+    
+    let timeframeDisplay = '';
+    switch(currentInterval) {
+      case 'minute1': timeframeDisplay = '1m'; break;
+      case 'minute3': timeframeDisplay = '3m'; break;
+      case 'minute5': timeframeDisplay = '5m'; break;
+      case 'minute10': timeframeDisplay = '10m'; break;
+      case 'minute15': timeframeDisplay = '15m'; break;
+      case 'minute30': timeframeDisplay = '30m'; break;
+      case 'minute60': timeframeDisplay = '1h'; break;
+      case 'day': timeframeDisplay = '1d'; break;
+      default: timeframeDisplay = currentInterval;
+    }
+    
+    timeframeBadge.textContent = timeframeDisplay;
+    timeframeBadge.className = 'badge bg-info';
+    // console.log('🔄 updateNBZoneTimeframe: timeframe updated to:', timeframeDisplay, 'from interval:', currentInterval);
+  }
+}
+
+// 강제 업데이트 함수 - 모든 가능한 방법으로 시간프레임 동기화
+function forceUpdateNBZoneTimeframe() {
+  console.log('🔧 Force updating N/B Zone Status timeframe...');
+  
+  // 1. 모든 N/B Zone Status 요소 찾기
+  const timeframeBadges = document.querySelectorAll('#nbZoneTimeframe');
+  // console.log('Found timeframe badges:', timeframeBadges.length);
+  
+  // 2. 현재 시간프레임 확인
+  let currentInterval = window.currentGlobalInterval;
+  const tfEl = document.getElementById('timeframe');
+  
+  if (tfEl) {
+    currentInterval = tfEl.value;
+    window.currentGlobalInterval = currentInterval;
+    // console.log('📊 Current timeframe from element:', currentInterval);
+  }
+  
+  if (!currentInterval) {
+    currentInterval = 'minute10';
+    window.currentGlobalInterval = currentInterval;
+    // console.log('📊 Using default timeframe:', currentInterval);
+  }
+  
+  // 3. 시간프레임 표시 형식 변환
+  let timeframeDisplay = '';
+  switch(currentInterval) {
+    case 'minute1': timeframeDisplay = '1m'; break;
+    case 'minute3': timeframeDisplay = '3m'; break;
+    case 'minute5': timeframeDisplay = '5m'; break;
+    case 'minute10': timeframeDisplay = '10m'; break;
+    case 'minute15': timeframeDisplay = '15m'; break;
+    case 'minute30': timeframeDisplay = '30m'; break;
+    case 'minute60': timeframeDisplay = '1h'; break;
+    case 'day': timeframeDisplay = '1d'; break;
+    default: timeframeDisplay = currentInterval;
+  }
+  
+  // 4. 모든 요소 업데이트
+  timeframeBadges.forEach((badge, index) => {
+    badge.textContent = timeframeDisplay;
+    badge.className = 'badge bg-info';
+    // console.log(`✅ Updated badge ${index + 1}:`, timeframeDisplay);
+  });
+  
+  // 5. 전역 변수 설정
+  window.currentGlobalInterval = currentInterval;
+  // console.log('🔧 Force update completed. Global interval set to:', currentInterval);
+}
+
+
+
+// Expose functions globally
+window.initChart = initChart;
+window.enableAutoToggles = enableAutoToggles;
+window.chargeVillageEnergy = chargeVillageEnergy;
+window.clickVillageEnergyButton = clickVillageEnergyButton;
+window.updateNBZoneTimeframe = updateNBZoneTimeframe;
+window.forceUpdateNBZoneTimeframe = forceUpdateNBZoneTimeframe;
+window.refreshNbZoneStrip = refreshNbZoneStrip;
+
+})(); // Close IIFE

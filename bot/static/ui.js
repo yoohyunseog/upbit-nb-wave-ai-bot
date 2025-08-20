@@ -1,38 +1,66 @@
 // Lightweight Charts UI (pan only) + order markers using bot server APIs
+(function() {
+  'use strict';
+  
+  // Prevent duplicate script loading
+  if (window.uiScriptLoaded) {
+    // console.log('🔄 UI script already loaded, skipping...');
+    return;
+  }
+  window.uiScriptLoaded = true;
 
-// Global chart variables
-let chart = null;
-let candle = null;
-let emaF = null;
-let emaS = null;
-let sma50Series = null;
-let sma100Series = null;
-let sma200Series = null;
-let ema9Series = null;
-let ema12Series = null;
-let ema26Series = null;
-let ichiTenkanSeries = null;
-let ichiKijunSeries = null;
-let zoneIndicatorSeries = null;
-let nbWaveSeries = null;
+  // Global chart variables
+  let chart = null;
+  let candle = null;
+  let emaF = null;
+  let emaS = null;
+  let sma50Series = null;
+  let sma100Series = null;
+  let sma200Series = null;
+  let ema9Series = null;
+  let ema12Series = null;
+  let ema26Series = null;
+  let ichiTenkanSeries = null;
+  let ichiKijunSeries = null;
+  let zoneIndicatorSeries = null;
+  let nbWaveSeries = null;
 
 // Chart initialization function
 function initChart() {
   // Prevent duplicate chart initialization
   if (window.chartInitialized) {
-    console.log('📊 Chart already initialized, skipping...');
+    // console.log('📊 Chart already initialized, skipping...');
+    return;
+  }
+  
+  // Prevent duplicate chart creation
+  if (window.chart) {
+    // console.log('🔄 Chart already exists, skipping chart creation...');
+    window.chartInitialized = true;
     return;
   }
   
   const container = document.getElementById('tvChart');
   if (!container) {
-    console.error('❌ Chart container not found');
+    // console.error('❌ Chart container not found');
     return;
   }
 
   const tfEl = document.getElementById('timeframe');
 
-  const getInterval = () => (tfEl ? tfEl.value : 'minute10');
+  // Global variable to store current interval across tabs
+  window.currentGlobalInterval = 'minute10';
+  
+  const getInterval = () => {
+    const tfEl = document.getElementById('timeframe');
+    if (tfEl) {
+      // Update global interval when timeframe element is available
+      window.currentGlobalInterval = tfEl.value;
+      return tfEl.value;
+    }
+    // Return stored global interval when timeframe element is not accessible
+    return window.currentGlobalInterval || 'minute10';
+  };
 
 
 
@@ -55,19 +83,19 @@ function initChart() {
 
     try {
 
-      console.log('=== getChartZoneData: 시작 ===');
+      // console.log('=== getChartZoneData: 시작 ===');
 
       
 
       const data = candle.data();
 
-      console.log('  - candle.data() 길이:', data?.length || 0);
+      // console.log('  - candle.data() 길이:', data?.length || 0);
 
       
 
       if (!data || data.length === 0) {
 
-        console.log('  - candle.data() 없음');
+        // console.log('  - candle.data() 없음');
 
         return { zones: [], baseValue: 0, hasData: false };
 
@@ -84,11 +112,11 @@ function initChart() {
 
       
 
-      console.log('  - nbWaveSeries 존재:', !!window.nbWaveSeries);
+      // console.log('  - nbWaveSeries 존재:', !!window.nbWaveSeries);
 
-      console.log('  - nbWaveData 길이:', nbWaveData.length);
+      // console.log('  - nbWaveData 길이:', nbWaveData.length);
 
-      console.log('  - baseValue:', baseValue);
+      // console.log('  - baseValue:', baseValue);
 
 
 
@@ -96,7 +124,7 @@ function initChart() {
 
       if (nbWaveData && nbWaveData.length > 0) {
 
-        console.log('  - nbWaveData 사용');
+        // console.log('  - nbWaveData 사용');
 
         const zones = nbWaveData.map((waveData, index) => {
 
@@ -118,7 +146,7 @@ function initChart() {
 
 
 
-        console.log('  - nbWave zones 생성됨:', zones.length);
+        // console.log('  - nbWave zones 생성됨:', zones.length);
 
         return {
 
@@ -140,9 +168,9 @@ function initChart() {
 
       const lastOutWave = window.lastOutWave || [];
 
-      console.log('  - lastOutWave 존재:', !!window.lastOutWave);
+      // console.log('  - lastOutWave 존재:', !!window.lastOutWave);
 
-      console.log('  - lastOutWave 길이:', lastOutWave.length);
+      // console.log('  - lastOutWave 길이:', lastOutWave.length);
 
       
 
@@ -170,7 +198,7 @@ function initChart() {
 
 
 
-        console.log('  - lastOutWave zones 생성됨:', zones.length);
+        // console.log('  - lastOutWave zones 생성됨:', zones.length);
 
         return {
 
@@ -192,9 +220,9 @@ function initChart() {
 
       const zoneIndicatorData = window.zoneIndicatorSeries?.data || [];
 
-      console.log('  - zoneIndicatorSeries 존재:', !!window.zoneIndicatorSeries);
+      // console.log('  - zoneIndicatorSeries 존재:', !!window.zoneIndicatorSeries);
 
-      console.log('  - zoneIndicatorData 길이:', zoneIndicatorData.length);
+      // console.log('  - zoneIndicatorData 길이:', zoneIndicatorData.length);
 
       
 
@@ -264,7 +292,7 @@ function initChart() {
 
     } catch (e) {
 
-      console.error('Error getting chart zone data:', e);
+      // console.error('Error getting chart zone data:', e);
 
       return { zones: [], baseValue: 0, hasData: false };
 
@@ -1361,7 +1389,9 @@ function initChart() {
     return;
   }
 
-  const chart = LightweightCharts.createChart(container, {
+
+  
+  chart = LightweightCharts.createChart(container, {
 
     layout: { background: { type: 'solid', color: '#0b1220' }, textColor: '#e6eefc' },
 
@@ -1381,7 +1411,8 @@ function initChart() {
 
   });
 
-
+  // Store chart globally for reuse
+  window.chart = chart;
 
   // Check if chart is properly created
   if (!chart) {
@@ -1393,27 +1424,27 @@ function initChart() {
 
 
 
-  const candle = chart.addCandlestickSeries({ upColor:'#0ecb81', downColor:'#f6465d', wickUpColor:'#0ecb81', wickDownColor:'#f6465d', borderVisible:false });
+  candle = chart.addCandlestickSeries({ upColor:'#0ecb81', downColor:'#f6465d', wickUpColor:'#0ecb81', wickDownColor:'#f6465d', borderVisible:false });
 
-  const emaF = chart.addLineSeries({ color:'rgba(14,203,129,0.9)', lineWidth:2 });
+  emaF = chart.addLineSeries({ color:'rgba(14,203,129,0.9)', lineWidth:2 });
 
-  const emaS = chart.addLineSeries({ color:'rgba(246,70,93,0.9)', lineWidth:2 });
+  emaS = chart.addLineSeries({ color:'rgba(246,70,93,0.9)', lineWidth:2 });
 
-  const sma50Series = chart.addLineSeries({ color:'#9aa0a6', lineWidth:1, priceLineVisible:false });
+  sma50Series = chart.addLineSeries({ color:'#9aa0a6', lineWidth:1, priceLineVisible:false });
 
-  const sma100Series = chart.addLineSeries({ color:'#c7cbd1', lineWidth:1, priceLineVisible:false });
+  sma100Series = chart.addLineSeries({ color:'#c7cbd1', lineWidth:1, priceLineVisible:false });
 
-  const sma200Series = chart.addLineSeries({ color:'#e0e3e7', lineWidth:1, priceLineVisible:false });
+  sma200Series = chart.addLineSeries({ color:'#e0e3e7', lineWidth:1, priceLineVisible:false });
 
-  const ema9Series = chart.addLineSeries({ color:'#ffd166', lineWidth:1, priceLineVisible:false });
+  ema9Series = chart.addLineSeries({ color:'#ffd166', lineWidth:1, priceLineVisible:false });
 
-  const ema12Series = chart.addLineSeries({ color:'#fca311', lineWidth:1, priceLineVisible:false });
+  ema12Series = chart.addLineSeries({ color:'#fca311', lineWidth:1, priceLineVisible:false });
 
-  const ema26Series = chart.addLineSeries({ color:'#fb8500', lineWidth:1, priceLineVisible:false });
+  ema26Series = chart.addLineSeries({ color:'#fb8500', lineWidth:1, priceLineVisible:false });
 
-  const ichiTenkanSeries = chart.addLineSeries({ color:'#00d1ff', lineWidth:1, priceLineVisible:false });
+  ichiTenkanSeries = chart.addLineSeries({ color:'#00d1ff', lineWidth:1, priceLineVisible:false });
 
-  const ichiKijunSeries = chart.addLineSeries({ color:'#ff006e', lineWidth:1, priceLineVisible:false });
+  ichiKijunSeries = chart.addLineSeries({ color:'#ff006e', lineWidth:1, priceLineVisible:false });
 
   
 
@@ -1423,7 +1454,7 @@ function initChart() {
 
   // Zone indicator series for chart display
 
-  const zoneIndicatorSeries = chart.addCandlestickSeries({ 
+  zoneIndicatorSeries = chart.addCandlestickSeries({ 
 
     upColor:'rgba(255,165,0,0.8)', 
 
@@ -1656,7 +1687,7 @@ function initChart() {
 
   // Baseline wave series (visual emphasis)
 
-  const nbWaveSeries = chart.addBaselineSeries({
+  nbWaveSeries = chart.addBaselineSeries({
 
     baseValue: { type: 'price', price: 0 },
 
@@ -2131,9 +2162,9 @@ function initChart() {
 
           setTimeout(() => {
 
-            console.log('=== updateNB: 웨이브 데이터 강제 업데이트 ===');
+            // console.log('=== updateNB: 웨이브 데이터 강제 업데이트 ===');
 
-            console.log('  - outWave 길이:', outWave.length);
+            // console.log('  - outWave 길이:', outWave.length);
 
             console.log('  - nbWaveColorArray 길이:', nbWaveColorArray.length);
 
@@ -2236,7 +2267,7 @@ function initChart() {
               
               nbEnergy.current = Math.min(nbEnergy.max, nbEnergy.current + energyRecovery);
               
-              console.log(`⚡ Chart interval changed: ${oldInterval} → ${currentInterval}, Energy +${energyRecovery} (Total: ${nbEnergy.current})`);
+              // console.log(`⚡ Chart interval changed: ${oldInterval} → ${currentInterval}, Energy +${energyRecovery} (Total: ${nbEnergy.current})`);
               
               // Update treasury access if energy reaches 80+
               if (nbEnergy.current >= 80 && !nbEnergy.treasuryAccess) {
@@ -2256,7 +2287,7 @@ function initChart() {
 
         // Log the zone determination for debugging
 
-        console.log(`updateNB: Chart line zone determined as ${zoneFromChartLine}`);
+        // console.log(`updateNB: Chart line zone determined as ${zoneFromChartLine}`);
 
         
 
@@ -3167,7 +3198,7 @@ function initChart() {
 
       lastCandleData = rows.length > 0 ? rows[rows.length - 1] : null;
 
-      console.log('Chart data updated:', lastCandleData ? `Open: ${lastCandleData.open}, Close: ${lastCandleData.close}` : 'No data');
+      // console.log('Chart data updated:', lastCandleData ? `Open: ${lastCandleData.open}, Close: ${lastCandleData.close}` : 'No data');
 
       
 
@@ -3433,6 +3464,12 @@ function initChart() {
   }, 3000);
 
   if (tfEl) tfEl.addEventListener('change', ()=>{
+
+    // Update global interval when timeframe changes
+    window.currentGlobalInterval = tfEl.value;
+    
+    // Immediately update N/B Zone Status timeframe
+    updateNBZoneTimeframe();
 
     // Clear ML/NB markers and segment state when timeframe changes so signals only show on the selected timeframe
 
@@ -4085,7 +4122,7 @@ function initChart() {
 
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
 
-            console.log('Screenshot copied to clipboard');
+            // console.log('Screenshot copied to clipboard');
 
             return true;
 
@@ -4823,40 +4860,7 @@ function initChart() {
        
 
        // Update timeframe badge
-
-       if (timeframeBadge) {
-
-         const currentInterval = getInterval();
-
-         let timeframeDisplay = '';
-
-         switch(currentInterval) {
-
-           case 'minute1': timeframeDisplay = '1m'; break;
-
-           case 'minute3': timeframeDisplay = '3m'; break;
-
-           case 'minute5': timeframeDisplay = '5m'; break;
-
-           case 'minute10': timeframeDisplay = '10m'; break;
-
-           case 'minute15': timeframeDisplay = '15m'; break;
-
-           case 'minute30': timeframeDisplay = '30m'; break;
-
-           case 'minute60': timeframeDisplay = '1h'; break;
-
-           case 'day': timeframeDisplay = '1d'; break;
-
-           default: timeframeDisplay = currentInterval;
-
-         }
-
-         timeframeBadge.textContent = timeframeDisplay;
-
-         timeframeBadge.className = 'badge bg-info';
-
-       }
+       updateNBZoneTimeframe();
 
        
 
@@ -5105,7 +5109,10 @@ function initChart() {
 
             try {
 
-              const metric = await fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+              const metric = await fetchJsonStrict(`/api/ml/metrics?interval=${encodeURIComponent(iv)}`).catch((error) => {
+          // console.log(`⚠️ ML metrics for ${iv} not available:`, error.message);
+          return null;
+        });
 
               metricsArr.push(metric);
 
@@ -5125,7 +5132,10 @@ function initChart() {
 
             try {
 
-              const suggest = await fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch(()=>null);
+              const suggest = await fetchJsonStrict(`/api/trainer/suggest?interval=${encodeURIComponent(iv)}`).catch((error) => {
+          // console.log(`⚠️ Trainer suggest for ${iv} not available:`, error.message);
+          return null;
+        });
 
               suggestsArr.push(suggest);
 
@@ -8146,7 +8156,7 @@ function initChart() {
 
       if (data.ok) {
 
-        console.log(`✅ Village energy filled: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
+        // console.log(`✅ Village energy filled: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
 
         pushOrderLogLine(`[${new Date().toLocaleString()}] 마을 에너지 100% 채움: ${data.previous_energy?.toFixed(1)}% → ${data.new_energy?.toFixed(1)}%`);
 
@@ -9822,7 +9832,7 @@ function initChart() {
         });
 
         
-        console.log('🏛️ Village Mayor announcement made:', currentZone, zoneInfo.message);
+        // console.log('🏛️ Village Mayor announcement made:', currentZone, zoneInfo.message);
       }
 
       
@@ -9989,9 +9999,9 @@ function initChart() {
 
       // Debug: Log current system status
 
-      console.log('Auto Mock Trading Scheduler running...');
+      // console.log('Auto Mock Trading Scheduler running...');
 
-      console.log('N/B Energy:', typeof nbEnergy !== 'undefined' ? nbEnergy.current : 'undefined');
+      // console.log('N/B Energy:', typeof nbEnergy !== 'undefined' ? nbEnergy.current : 'undefined');
 
       
 
@@ -10011,7 +10021,7 @@ function initChart() {
 
         // Debug: Log member status
 
-        console.log(`${member.name}: enabled=${member.autoTradingEnabled}, stamina=${member.stamina}, frequency=${member.tradeFrequency}, canTrade=${canTrade}`);
+        // console.log(`${member.name}: enabled=${member.autoTradingEnabled}, stamina=${member.stamina}, frequency=${member.tradeFrequency}, canTrade=${canTrade}`);
 
         
 
@@ -13129,7 +13139,7 @@ function initChart() {
 
       
 
-      console.log('Force starting auto trading...');
+      // console.log('Force starting auto trading...');
 
       
 
@@ -13383,9 +13393,9 @@ function initChart() {
   setTimeout(() => {
     if (typeof startVillageTradingProcessMonitoring === 'function') {
       startVillageTradingProcessMonitoring();
-      console.log('🏰 8BIT Village 거래 프로세스 모니터링 시작됨');
+      // console.log('🏰 8BIT Village 거래 프로세스 모니터링 시작됨');
     } else {
-      console.log('⚠️ startVillageTradingProcessMonitoring 함수를 찾을 수 없습니다');
+      // console.log('⚠️ startVillageTradingProcessMonitoring 함수를 찾을 수 없습니다');
     }
   }, 3000); // 3초 후 시작
 
@@ -13658,7 +13668,7 @@ function initChart() {
       // localStorage에 저장
       localStorage.setItem('auto_trade_toggle_states', JSON.stringify(toggleStates));
       
-      console.log('🎛️ Auto Trade 토글 상태 저장됨:', toggleStates);
+      // console.log('🎛️ Auto Trade 토글 상태 저장됨:', toggleStates);
       
       // UI 업데이트
       updateAutoTradeToggleDisplay(toggleStates);
@@ -13684,7 +13694,7 @@ function initChart() {
         // UI 업데이트
         updateAutoTradeToggleDisplay(toggleStates);
         
-        console.log('🎛️ Auto Trade 토글 상태 복원됨:', toggleStates);
+        // console.log('🎛️ Auto Trade 토글 상태 복원됨:', toggleStates);
         return true;
       }
     } catch (e) {
@@ -13834,7 +13844,7 @@ function initChart() {
       saveAutoTradeToggleStates();
     }, 60000); // 60초마다
     
-    console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
+    // console.log('🎛️ Auto Trade 토글 자동 저장 시작됨');
   }, 6000); // 6초 후 시작
 
   // 🎯 UI 차트 간격을 서버에 전송하여 동기화
@@ -13924,7 +13934,7 @@ function initChart() {
   
   // Mark chart as initialized to prevent duplicates
   window.chartInitialized = true;
-  console.log('✅ Chart initialization completed');
+      // console.log('✅ Chart initialization completed');
   
   // Auto-enable toggles after 3 seconds
   setTimeout(() => {
@@ -13942,20 +13952,20 @@ if (typeof window.tradingDashboardLoaded === 'undefined') {
   }
 } else {
   // If trading dashboard is already loaded, don't auto-initialize chart
-  console.log('📊 Trading Dashboard already loaded, skipping auto chart initialization');
+      // console.log('📊 Trading Dashboard already loaded, skipping auto chart initialization');
 }
 
 // Auto-enable toggles function
 function enableAutoToggles() {
   try {
-    console.log('🎛️ Auto-enabling toggles...');
+    // console.log('🎛️ Auto-enabling toggles...');
     
     // Auto Trade 토글 활성화
     const autoTradeToggle = document.getElementById('autoTradeToggle');
     if (autoTradeToggle && !autoTradeToggle.checked) {
       autoTradeToggle.checked = true;
       autoTradeToggle.dispatchEvent(new Event('change'));
-      console.log('✅ Auto Trade 토글 활성화됨');
+      // console.log('✅ Auto Trade 토글 활성화됨');
     }
     
     // ML Auto 토글 활성화
@@ -13963,7 +13973,7 @@ function enableAutoToggles() {
     if (mlAutoToggle && !mlAutoToggle.checked) {
       mlAutoToggle.checked = true;
       mlAutoToggle.dispatchEvent(new Event('change'));
-      console.log('✅ ML Auto 토글 활성화됨');
+      // console.log('✅ ML Auto 토글 활성화됨');
     }
     
     // ML-only Auto Trade 토글 활성화 (있는 경우)
@@ -13971,13 +13981,16 @@ function enableAutoToggles() {
     if (mlOnlyToggle && !mlOnlyToggle.checked) {
       mlOnlyToggle.checked = true;
       mlOnlyToggle.dispatchEvent(new Event('change'));
-      console.log('✅ ML-only Auto Trade 토글 활성화됨');
+      // console.log('✅ ML-only Auto Trade 토글 활성화됨');
     }
     
     console.log('🎛️ 모든 토글 자동 활성화 완료');
     
     // 마을 에너지도 함께 충전
     chargeVillageEnergy();
+    
+    // 마을 에너지 100% 버튼 클릭
+    clickVillageEnergyButton();
   } catch (error) {
     console.error('❌ 토글 자동 활성화 중 오류:', error);
   }
@@ -13986,7 +13999,7 @@ function enableAutoToggles() {
 // Auto-charge village energy function
 function chargeVillageEnergy() {
   try {
-    console.log('⚡ Auto-charging village energy...');
+    // console.log('⚡ Auto-charging village energy...');
     
     // 마을 에너지 관련 요소들 찾기
     const energyElements = [
@@ -14058,7 +14071,201 @@ function chargeVillageEnergy() {
   }
 }
 
+// Auto-click village energy 100% button function
+function clickVillageEnergyButton() {
+  try {
+    // console.log('🔘 Auto-clicking village energy 100% button...');
+    
+    // 마을 에너지 100% 버튼들 찾기 (다양한 선택자로 검색)
+    const energyButtonSelectors = [
+      'button[data-action="charge-energy"]',
+      'button[data-action="energy-100"]',
+      'button[data-action="village-energy"]',
+      '.energy-100-btn',
+      '.charge-energy-btn',
+      '.village-energy-btn',
+      'button:contains("100%")',
+      'button:contains("에너지")',
+      'button:contains("Energy")',
+      'button:contains("충전")',
+      'button:contains("Charge")',
+      '[onclick*="energy"]',
+      '[onclick*="charge"]',
+      '[onclick*="100"]'
+    ];
+    
+    let buttonClicked = false;
+    
+    // 각 선택자로 버튼 찾기
+    energyButtonSelectors.forEach(selector => {
+      try {
+        const buttons = document.querySelectorAll(selector);
+        buttons.forEach(button => {
+          if (button && !buttonClicked) {
+            // 버튼이 보이고 클릭 가능한 상태인지 확인
+            if (button.offsetParent !== null && !button.disabled) {
+              button.click();
+              console.log(`✅ 마을 에너지 100% 버튼 클릭됨: ${button.textContent || button.className || button.id}`);
+              buttonClicked = true;
+            }
+          }
+        });
+      } catch (e) {
+        // 선택자 오류 무시하고 계속 진행
+      }
+    });
+    
+    // 텍스트 기반으로 버튼 찾기 (jQuery 사용)
+    if (!buttonClicked && typeof $ !== 'undefined') {
+      const textButtons = $('button').filter(function() {
+        const text = $(this).text().toLowerCase();
+        return text.includes('100%') || 
+               text.includes('에너지') || 
+               text.includes('energy') || 
+               text.includes('충전') || 
+               text.includes('charge');
+      });
+      
+      textButtons.each(function() {
+        if (!buttonClicked && $(this).is(':visible') && !$(this).prop('disabled')) {
+          $(this).click();
+          console.log(`✅ 텍스트 기반 마을 에너지 버튼 클릭됨: ${$(this).text()}`);
+          buttonClicked = true;
+          return false; // break loop
+        }
+      });
+    }
+    
+    // ID 기반으로 버튼 찾기
+    const energyButtonIds = [
+      'energy100Btn',
+      'chargeEnergyBtn',
+      'villageEnergyBtn',
+      'energyButton',
+      'chargeButton',
+      'villageButton'
+    ];
+    
+    energyButtonIds.forEach(id => {
+      const button = document.getElementById(id);
+      if (button && !buttonClicked && button.offsetParent !== null && !button.disabled) {
+        button.click();
+        console.log(`✅ ID 기반 마을 에너지 버튼 클릭됨: ${id}`);
+        buttonClicked = true;
+      }
+    });
+    
+    if (buttonClicked) {
+      console.log('🔘 마을 에너지 100% 버튼 자동 클릭 완료');
+    } else {
+      console.log('⚠️ 마을 에너지 100% 버튼을 찾을 수 없습니다');
+    }
+    
+  } catch (error) {
+    console.error('❌ 마을 에너지 버튼 클릭 중 오류:', error);
+  }
+}
+
+// N/B Zone Status timeframe update function
+function updateNBZoneTimeframe() {
+  const timeframeBadge = document.getElementById('nbZoneTimeframe');
+  if (timeframeBadge) {
+    // Get current timeframe from multiple sources
+    let currentInterval = window.currentGlobalInterval;
+    
+    // If global interval is not available, try to get from timeframe element
+    if (!currentInterval) {
+      const tfEl = document.getElementById('timeframe');
+      if (tfEl) {
+        currentInterval = tfEl.value;
+        window.currentGlobalInterval = currentInterval;
+      }
+    }
+    
+    // Fallback to default
+    if (!currentInterval) {
+      currentInterval = 'minute10';
+      window.currentGlobalInterval = currentInterval;
+    }
+    
+    let timeframeDisplay = '';
+    switch(currentInterval) {
+      case 'minute1': timeframeDisplay = '1m'; break;
+      case 'minute3': timeframeDisplay = '3m'; break;
+      case 'minute5': timeframeDisplay = '5m'; break;
+      case 'minute10': timeframeDisplay = '10m'; break;
+      case 'minute15': timeframeDisplay = '15m'; break;
+      case 'minute30': timeframeDisplay = '30m'; break;
+      case 'minute60': timeframeDisplay = '1h'; break;
+      case 'day': timeframeDisplay = '1d'; break;
+      default: timeframeDisplay = currentInterval;
+    }
+    
+    timeframeBadge.textContent = timeframeDisplay;
+    timeframeBadge.className = 'badge bg-info';
+    // console.log('🔄 updateNBZoneTimeframe: timeframe updated to:', timeframeDisplay, 'from interval:', currentInterval);
+  }
+}
+
+// 강제 업데이트 함수 - 모든 가능한 방법으로 시간프레임 동기화
+function forceUpdateNBZoneTimeframe() {
+  console.log('🔧 Force updating N/B Zone Status timeframe...');
+  
+  // 1. 모든 N/B Zone Status 요소 찾기
+  const timeframeBadges = document.querySelectorAll('#nbZoneTimeframe');
+  // console.log('Found timeframe badges:', timeframeBadges.length);
+  
+  // 2. 현재 시간프레임 확인
+  let currentInterval = window.currentGlobalInterval;
+  const tfEl = document.getElementById('timeframe');
+  
+  if (tfEl) {
+    currentInterval = tfEl.value;
+    window.currentGlobalInterval = currentInterval;
+    // console.log('📊 Current timeframe from element:', currentInterval);
+  }
+  
+  if (!currentInterval) {
+    currentInterval = 'minute10';
+    window.currentGlobalInterval = currentInterval;
+    // console.log('📊 Using default timeframe:', currentInterval);
+  }
+  
+  // 3. 시간프레임 표시 형식 변환
+  let timeframeDisplay = '';
+  switch(currentInterval) {
+    case 'minute1': timeframeDisplay = '1m'; break;
+    case 'minute3': timeframeDisplay = '3m'; break;
+    case 'minute5': timeframeDisplay = '5m'; break;
+    case 'minute10': timeframeDisplay = '10m'; break;
+    case 'minute15': timeframeDisplay = '15m'; break;
+    case 'minute30': timeframeDisplay = '30m'; break;
+    case 'minute60': timeframeDisplay = '1h'; break;
+    case 'day': timeframeDisplay = '1d'; break;
+    default: timeframeDisplay = currentInterval;
+  }
+  
+  // 4. 모든 요소 업데이트
+  timeframeBadges.forEach((badge, index) => {
+    badge.textContent = timeframeDisplay;
+    badge.className = 'badge bg-info';
+    // console.log(`✅ Updated badge ${index + 1}:`, timeframeDisplay);
+  });
+  
+  // 5. 전역 변수 설정
+  window.currentGlobalInterval = currentInterval;
+  // console.log('🔧 Force update completed. Global interval set to:', currentInterval);
+}
+
+
+
 // Expose functions globally
 window.initChart = initChart;
 window.enableAutoToggles = enableAutoToggles;
 window.chargeVillageEnergy = chargeVillageEnergy;
+window.clickVillageEnergyButton = clickVillageEnergyButton;
+window.updateNBZoneTimeframe = updateNBZoneTimeframe;
+window.forceUpdateNBZoneTimeframe = forceUpdateNBZoneTimeframe;
+window.refreshNbZoneStrip = refreshNbZoneStrip;
+
+})(); // Close IIFE

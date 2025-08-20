@@ -1,8 +1,8 @@
 {
   "Scout": {
-    "coins": 0.002,
-    "entry_price": 161000000.0,
-    "last_update": 1755628024,
+    "coins": 0.02100000000000001,
+    "entry_price": 160999999.99999994,
+    "last_update": 1755677391,
     "total_profit": 0.0,
     "trades": [
       {
@@ -291,14 +291,420 @@
           "system_trainer": "Scout",
           "system_action": "BUY"
         }
+      },
+      {
+        "ts": 1755659699406,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.001,
+        "trade_match": {
+          "upbit_trade_id": "SELL_1755659699358",
+          "upbit_size": 0.001,
+          "upbit_price": 158811000,
+          "upbit_time": "2025-08-20T03:14:59.358Z",
+          "system_trainer": "Scout",
+          "system_action": "SELL",
+          "profit_percent": -0.00251678380197945,
+          "profit_value": -3.9999999999999996
+        }
+      },
+      {
+        "ts": 1755661199517,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "SELL_1755661199167",
+          "upbit_size": 0.001,
+          "upbit_price": 159211000,
+          "upbit_time": "2025-08-20T03:39:59.167Z",
+          "system_trainer": "Scout",
+          "system_action": "SELL",
+          "profit_percent": 0.1339639492320658,
+          "profit_value": 213
+        }
+      },
+      {
+        "ts": 1755661319246,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755661319240",
+          "upbit_size": 0.001,
+          "upbit_price": 159140000,
+          "upbit_time": "2025-08-20T03:41:59.240Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755662219436,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0,
+        "trade_match": {
+          "upbit_trade_id": "SELL_1755662219392",
+          "upbit_size": 0.001,
+          "upbit_price": 159195000,
+          "upbit_time": "2025-08-20T03:56:59.392Z",
+          "system_trainer": "Scout",
+          "system_action": "SELL",
+          "profit_percent": 0.03204644849947218,
+          "profit_value": 51
+        }
+      },
+      {
+        "ts": 1755668560908,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755668560894",
+          "upbit_size": 0.001,
+          "upbit_price": 159267000,
+          "upbit_time": "2025-08-20T05:42:40.894Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755669083159,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.002,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755669083141",
+          "upbit_size": 0.001,
+          "upbit_price": 159313000,
+          "upbit_time": "2025-08-20T05:51:23.141Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755669242929,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.003,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755669242069",
+          "upbit_size": 0.001,
+          "upbit_price": 159358000,
+          "upbit_time": "2025-08-20T05:54:02.069Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755669830311,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.004,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755669830305",
+          "upbit_size": 0.001,
+          "upbit_price": 159410000,
+          "upbit_time": "2025-08-20T06:03:50.305Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755671638534,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.005,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755671638487",
+          "upbit_size": 0.001,
+          "upbit_price": 159308000,
+          "upbit_time": "2025-08-20T06:33:58.487Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755672733208,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.006,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755672733101",
+          "upbit_size": 0.001,
+          "upbit_price": 159335000,
+          "upbit_time": "2025-08-20T06:52:13.101Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673295976,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.007,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673295951",
+          "upbit_size": 0.001,
+          "upbit_price": 159324000,
+          "upbit_time": "2025-08-20T07:01:35.951Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673600109,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.008,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673600057",
+          "upbit_size": 0.001,
+          "upbit_price": 159337000,
+          "upbit_time": "2025-08-20T07:06:40.057Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673660183,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.009000000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673660152",
+          "upbit_size": 0.001,
+          "upbit_price": 159343000,
+          "upbit_time": "2025-08-20T07:07:40.152Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673770143,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.010000000000000002,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673770123",
+          "upbit_size": 0.001,
+          "upbit_price": 159350000,
+          "upbit_time": "2025-08-20T07:09:30.123Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755674146755,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.011000000000000003,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755674146749",
+          "upbit_size": 0.001,
+          "upbit_price": 159365000,
+          "upbit_time": "2025-08-20T07:15:46.749Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755674395677,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.012000000000000004,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755674395668",
+          "upbit_size": 0.001,
+          "upbit_price": 159462000,
+          "upbit_time": "2025-08-20T07:19:55.668Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755674547001,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.013000000000000005,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755674546962",
+          "upbit_size": 0.001,
+          "upbit_price": 159500000,
+          "upbit_time": "2025-08-20T07:22:26.962Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755674766884,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.014000000000000005,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755674766812",
+          "upbit_size": 0.001,
+          "upbit_price": 159430000,
+          "upbit_time": "2025-08-20T07:26:06.812Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675032777,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.015000000000000006,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675032759",
+          "upbit_size": 0.001,
+          "upbit_price": 159371000,
+          "upbit_time": "2025-08-20T07:30:32.759Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675184843,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.016000000000000007,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675184782",
+          "upbit_size": 0.001,
+          "upbit_price": 159304000,
+          "upbit_time": "2025-08-20T07:33:04.782Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675362113,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.017000000000000008,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675361988",
+          "upbit_size": 0.001,
+          "upbit_price": 159230000,
+          "upbit_time": "2025-08-20T07:36:01.988Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675564897,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.01800000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675564809",
+          "upbit_size": 0.001,
+          "upbit_price": 159196000,
+          "upbit_time": "2025-08-20T07:39:24.809Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677205060,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.01900000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677205033",
+          "upbit_size": 0.001,
+          "upbit_price": 158961000,
+          "upbit_time": "2025-08-20T08:06:45.033Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677353236,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.02000000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677353183",
+          "upbit_size": 0.001,
+          "upbit_price": 158836000,
+          "upbit_time": "2025-08-20T08:09:13.183Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677391970,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.02100000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677391881",
+          "upbit_size": 0.001,
+          "upbit_price": 158961000,
+          "upbit_time": "2025-08-20T08:09:51.881Z",
+          "system_trainer": "Scout",
+          "system_action": "BUY"
+        }
       }
     ],
     "ticks": 1
   },
   "Guardian": {
-    "coins": 0.002,
-    "entry_price": 161000000.0,
-    "last_update": 1755612741,
+    "coins": 0.022000000000000013,
+    "entry_price": 160999999.99999994,
+    "last_update": 1755677391,
     "total_profit": 0.0,
     "trades": [
       {
@@ -636,14 +1042,334 @@
           "system_trainer": "Guardian",
           "system_action": "BUY"
         }
+      },
+      {
+        "ts": 1755659699412,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.003,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755659699376",
+          "upbit_size": 0.001,
+          "upbit_price": 158811000,
+          "upbit_time": "2025-08-20T03:14:59.376Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755660899393,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.004,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755660899182",
+          "upbit_size": 0.001,
+          "upbit_price": 159139000,
+          "upbit_time": "2025-08-20T03:34:59.182Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755669083169,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.005,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755669083142",
+          "upbit_size": 0.001,
+          "upbit_price": 159313000,
+          "upbit_time": "2025-08-20T05:51:23.142Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755669242941,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.006,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755669242071",
+          "upbit_size": 0.001,
+          "upbit_price": 159358000,
+          "upbit_time": "2025-08-20T05:54:02.071Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755669830320,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.007,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755669830314",
+          "upbit_size": 0.001,
+          "upbit_price": 159410000,
+          "upbit_time": "2025-08-20T06:03:50.314Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755671453409,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.008,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755671453392",
+          "upbit_size": 0.001,
+          "upbit_price": 159307000,
+          "upbit_time": "2025-08-20T06:30:53.392Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755671668677,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.009000000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755671668484",
+          "upbit_size": 0.001,
+          "upbit_price": 159309000,
+          "upbit_time": "2025-08-20T06:34:28.484Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755672160754,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.010000000000000002,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755672160722",
+          "upbit_size": 0.001,
+          "upbit_price": 159352000,
+          "upbit_time": "2025-08-20T06:42:40.722Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755672733225,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.011000000000000003,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755672733126",
+          "upbit_size": 0.001,
+          "upbit_price": 159335000,
+          "upbit_time": "2025-08-20T06:52:13.126Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673554093,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.012000000000000004,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673554081",
+          "upbit_size": 0.001,
+          "upbit_price": 159326000,
+          "upbit_time": "2025-08-20T07:05:54.081Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673600112,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.013000000000000005,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673600066",
+          "upbit_size": 0.001,
+          "upbit_price": 159337000,
+          "upbit_time": "2025-08-20T07:06:40.066Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673660195,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.014000000000000005,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673660154",
+          "upbit_size": 0.001,
+          "upbit_price": 159343000,
+          "upbit_time": "2025-08-20T07:07:40.154Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673770153,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.015000000000000006,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673770132",
+          "upbit_size": 0.001,
+          "upbit_price": 159350000,
+          "upbit_time": "2025-08-20T07:09:30.132Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755674395686,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.016000000000000007,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755674395678",
+          "upbit_size": 0.001,
+          "upbit_price": 159462000,
+          "upbit_time": "2025-08-20T07:19:55.678Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755674547013,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.017000000000000008,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755674546963",
+          "upbit_size": 0.001,
+          "upbit_price": 159500000,
+          "upbit_time": "2025-08-20T07:22:26.963Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675032789,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.01800000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675032766",
+          "upbit_size": 0.001,
+          "upbit_price": 159371000,
+          "upbit_time": "2025-08-20T07:30:32.766Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675594836,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.01900000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675594799",
+          "upbit_size": 0.001,
+          "upbit_price": 159190000,
+          "upbit_time": "2025-08-20T07:39:54.799Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677140238,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.02000000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677140212",
+          "upbit_size": 0.001,
+          "upbit_price": 158977000,
+          "upbit_time": "2025-08-20T08:05:40.212Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677205074,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.02100000000000001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677205043",
+          "upbit_size": 0.001,
+          "upbit_price": 158961000,
+          "upbit_time": "2025-08-20T08:06:45.043Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677391984,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.022000000000000013,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677391894",
+          "upbit_size": 0.001,
+          "upbit_price": 158961000,
+          "upbit_time": "2025-08-20T08:09:51.894Z",
+          "system_trainer": "Guardian",
+          "system_action": "BUY"
+        }
       }
     ],
     "ticks": 0
   },
   "Analyst": {
-    "coins": 0.0029,
-    "entry_price": 161000000.0,
-    "last_update": 1755612115,
+    "coins": 0.015900000000000008,
+    "entry_price": 160999999.9999999,
+    "last_update": 1755677391,
     "total_profit": 0.0,
     "trades": [
       {
@@ -713,14 +1439,222 @@
           "system_trainer": "Analyst",
           "system_action": "BUY"
         }
+      },
+      {
+        "ts": 1755658868858,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0039,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755658868852",
+          "upbit_size": 0.001,
+          "upbit_price": 158933000,
+          "upbit_time": "2025-08-20T03:01:08.852Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755669083178,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0049,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755669083144",
+          "upbit_size": 0.001,
+          "upbit_price": 159313000,
+          "upbit_time": "2025-08-20T05:51:23.144Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755671453423,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0059,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755671453400",
+          "upbit_size": 0.001,
+          "upbit_price": 159307000,
+          "upbit_time": "2025-08-20T06:30:53.400Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755673295987,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0069,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755673295959",
+          "upbit_size": 0.001,
+          "upbit_price": 159324000,
+          "upbit_time": "2025-08-20T07:01:35.959Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755674146768,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.0079,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755674146762",
+          "upbit_size": 0.001,
+          "upbit_price": 159365000,
+          "upbit_time": "2025-08-20T07:15:46.762Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675032803,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.008900000000000002,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675032777",
+          "upbit_size": 0.001,
+          "upbit_price": 159371000,
+          "upbit_time": "2025-08-20T07:30:32.777Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675184862,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.009900000000000003,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675184788",
+          "upbit_size": 0.001,
+          "upbit_price": 159304000,
+          "upbit_time": "2025-08-20T07:33:04.788Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755675564916,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.010900000000000003,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755675564819",
+          "upbit_size": 0.001,
+          "upbit_price": 159196000,
+          "upbit_time": "2025-08-20T07:39:24.819Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755676477708,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.011900000000000004,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755676477683",
+          "upbit_size": 0.001,
+          "upbit_price": 159190000,
+          "upbit_time": "2025-08-20T07:54:37.683Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755676925429,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.012900000000000005,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755676925369",
+          "upbit_size": 0.001,
+          "upbit_price": 158788000,
+          "upbit_time": "2025-08-20T08:02:05.369Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677140257,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.013900000000000006,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677140223",
+          "upbit_size": 0.001,
+          "upbit_price": 158977000,
+          "upbit_time": "2025-08-20T08:05:40.223Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677353247,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.014900000000000007,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677353203",
+          "upbit_size": 0.001,
+          "upbit_price": 158836000,
+          "upbit_time": "2025-08-20T08:09:13.203Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
+      },
+      {
+        "ts": 1755677391997,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.015900000000000008,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755677391909",
+          "upbit_size": 0.001,
+          "upbit_price": 158961000,
+          "upbit_time": "2025-08-20T08:09:51.909Z",
+          "system_trainer": "Analyst",
+          "system_action": "BUY"
+        }
       }
     ],
     "ticks": 0
   },
   "Elder": {
-    "coins": 0.0,
-    "entry_price": 0.0,
-    "last_update": 1755607422,
+    "coins": 0.001,
+    "entry_price": 161000000,
+    "last_update": 1755662159,
     "total_profit": 0.0,
     "trades": [
       {
@@ -729,6 +1663,22 @@
         "price": 161000000,
         "size": 0.0001,
         "profit": 0.0
+      },
+      {
+        "ts": 1755662159252,
+        "action": "REAL_TRADE",
+        "price": 161000000,
+        "size": 0.001,
+        "profit": 0.0,
+        "new_balance": 0.001,
+        "trade_match": {
+          "upbit_trade_id": "BUY_1755662159245",
+          "upbit_size": 0.001,
+          "upbit_price": 159149000,
+          "upbit_time": "2025-08-20T03:55:59.245Z",
+          "system_trainer": "Elder",
+          "system_action": "BUY"
+        }
       }
     ],
     "ticks": 0

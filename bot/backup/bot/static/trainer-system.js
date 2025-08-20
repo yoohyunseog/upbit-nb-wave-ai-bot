@@ -2,10 +2,36 @@
 // 트레이너 시스템 (N/B Guild NPC Control)
 // ========================================
 
-// 🏗️ 기존 트레이너 창고 시스템 제거됨
+// Function to modify trainer storage (N/B Guild NPC control)
 async function modifyTrainerStorage(trainer, amount) {
-  console.log(`🏗️ 기존 창고 시스템 제거됨: ${trainer} ${amount > 0 ? '+' : ''}${amount.toFixed(8)} BTC`);
-  return null;
+  try {
+    console.log(`Modifying trainer storage: ${trainer} ${amount > 0 ? '+' : ''}${amount.toFixed(8)} BTC`);
+    
+    const response = await fetch('/api/trainer/storage/modify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        trainer: trainer,
+        amount: amount
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      const actualAmount = result.actual_amount || amount;
+      console.log(`Trainer storage modified: ${trainer} ${actualAmount > 0 ? '+' : ''}${actualAmount.toFixed(8)} BTC`);
+      return result;
+    } else {
+      const result = await response.json();
+      console.error('Failed to modify trainer storage:', result.error);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error modifying trainer storage:', error);
+    return null;
+  }
 }
 
 // Function to reset trainer storage average price
@@ -38,10 +64,35 @@ async function resetTrainerStoragePrice(trainer) {
   }
 }
 
-// 🏗️ 기존 트레이너 창고 시스템 제거됨
+// Function to modify trainer storage ticks
 async function modifyTrainerTicks(trainer, delta) {
-  console.log(`🏗️ 기존 창고 시스템 제거됨: ${trainer} 틱 ${delta > 0 ? '+' : ''}${delta}`);
-  return null;
+  try {
+    console.log(`Modifying ticks for: ${trainer} ${delta > 0 ? '+' : ''}${delta}`);
+    
+    const response = await fetch('/api/trainer/storage/tick', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        trainer: trainer,
+        delta: delta
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`Ticks modified for: ${trainer} ${delta > 0 ? '+' : ''}${delta} (new total: ${result.new_ticks})`);
+      return result;
+    } else {
+      const result = await response.json();
+      console.error('Failed to modify ticks:', result.error);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error modifying ticks:', error);
+    return null;
+  }
 }
 
 // Trainer message (EN) builder
@@ -87,8 +138,19 @@ async function runTrainerDiagnostics() {
   try {
     appendTrainerDiagnosticsLine('Trainer System Diagnostics 시작...');
     
-    // 🏗️ 기존 트레이너 창고 시스템 제거됨
-    appendTrainerDiagnosticsLine('🏗️ 기존 창고 시스템 제거됨');
+    // Get trainer storage data
+    const storageRes = await fetch('/api/trainer/storage');
+    if (storageRes.ok) {
+      const result = await storageRes.json();
+      appendTrainerDiagnosticsLine(`Trainer Storage 데이터 로드 완료: ${Object.keys(result.storage || {}).length}개 트레이너`);
+      
+      // Check each trainer's data
+      Object.entries(result.storage || {}).forEach(([trainer, data]) => {
+        appendTrainerDiagnosticsLine(`${trainer}: ${data.coins.toFixed(8)} BTC, ${data.ticks}틱, 평균가: ${data.avg_price?.toLocaleString() || 'N/A'} KRW`);
+      });
+    } else {
+      appendTrainerDiagnosticsLine('Trainer Storage 데이터 로드 실패');
+    }
     
     // Test trainer suggestions
     const intervals = ['minute1', 'minute3', 'minute5', 'minute10', 'minute15', 'minute30', 'minute60', 'day'];
@@ -179,11 +241,47 @@ function checkTrainerPosition(member, trainerStorageData) {
   return { hasPosition: false };
 }
 
-// 🏗️ 기존 트레이너 창고 시스템 제거됨
+// Create trainer storage HTML with buttons
 function createTrainerStorageHTML(trainerStorageData, currentPrice) {
+  let trainerStorageHTML = '';
+  
+  if (Object.keys(trainerStorageData).length > 0) {
+    trainerStorageHTML = Object.keys(trainerStorageData).map(trainer => {
+      const data = trainerStorageData[trainer];
+      const currentValue = data.coins * currentPrice;
+      const profit = data.avg_price ? ((currentPrice - data.avg_price) / data.avg_price) * 100 : 0;
+      const ticks = data.ticks || 0;
+      
+             // Get last REAL trade info (filter out manual modifications)
+       const realTrades = data.trades ? data.trades.filter(trade => trade.action === 'REAL_TRADE') : [];
+       const lastTrade = realTrades.length > 0 ? realTrades[realTrades.length - 1] : null;
+       const lastTradeInfo = lastTrade ? 
+         `<br><span style="font-size: 9px; color: #666;">마지막 실제 거래: ${lastTrade.action || 'UNKNOWN'} ${(lastTrade.size || 0).toFixed(8)} BTC @ ${Math.round(lastTrade.price || 0).toLocaleString()} KRW (${lastTrade.ts ? new Date(lastTrade.ts).toLocaleString() : 'Unknown Date'})${lastTrade.new_balance ? `<br><span style="font-size: 8px; color: #999;">잔액: ${lastTrade.new_balance.toFixed(8)} BTC</span>` : ''}${lastTrade.trade_match ? `<br><span style="font-size: 8px; color: #999;">업비트 매칭: ${lastTrade.trade_match.upbit_trade_id}</span>` : ''}</span>` : 
+         `<br><span style="font-size: 9px; color: #999;">실제 거래 기록 없음</span>`;
+      
+      return `
+        <div style="margin-bottom: 8px; padding: 4px; background: rgba(25,118,210,0.05); border-radius: 3px;">
+          <strong>${trainer}:</strong> ${data.coins.toFixed(8)} BTC (≈ ${Math.round(currentValue).toLocaleString()} KRW) ${ticks}틱
+          ${lastTradeInfo}
+          <div style="margin-top: 2px; font-size: 10px;">
+            <button onclick="modifyTrainerStorage('${trainer}', -0.001)" style="background: #d32f2f; color: white; border: none; border-radius: 2px; width: 24px; height: 20px; font-size: 10px; cursor: pointer;" title="Remove 0.001 BTC">--</button>
+            <button onclick="modifyTrainerStorage('${trainer}', -0.0001)" style="background: #f44336; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="Remove 0.0001 BTC">-</button>
+            <button onclick="modifyTrainerStorage('${trainer}', 0.0001)" style="background: #4caf50; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="Add 5,000 KRW worth">+</button>
+            <button onclick="modifyTrainerStorage('${trainer}', 0.001)" style="background: #2e7d32; color: white; border: none; border-radius: 2px; width: 24px; height: 20px; font-size: 10px; cursor: pointer;" title="Add 5,000 KRW worth">++</button>
+            <button onclick="resetTrainerStoragePrice('${trainer}')" style="background: #ff9800; color: white; border: none; border-radius: 2px; width: 60px; height: 20px; font-size: 9px; cursor: pointer;" title="평균가 초기화">초기화</button>
+            <button onclick="modifyTrainerTicks('${trainer}', -1)" style="background: #9c27b0; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="틱 -1">-1</button>
+            <button onclick="modifyTrainerTicks('${trainer}', 1)" style="background: #673ab7; color: white; border: none; border-radius: 2px; width: 20px; height: 20px; font-size: 10px; cursor: pointer;" title="틱 +1">+1</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    trainerStorageHTML = '<div style="font-size: 12px; color: #0d47a1;">No data</div>';
+  }
+  
   return `
-    <div style="font-weight: bold; margin-bottom: 4px; color: #ff9800;">🏗️ 기존 창고 시스템 제거됨</div>
-    <div style="font-size: 12px; color: #ff9800;">기존 창고 시스템이 완전히 제거되었습니다.</div>
+    <div style="font-weight: bold; margin-bottom: 4px; color: #1976d2;">Trainer Storage (N/B Guild NPC Control):</div>
+    ${trainerStorageHTML}
   `;
 }
 

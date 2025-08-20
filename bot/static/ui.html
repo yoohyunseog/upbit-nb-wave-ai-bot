@@ -77,23 +77,12 @@
         
         <!-- 탭 1: Guild Members Card System -->
         <div id="tab1" class="tab-content">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card border-secondary rounded-3 p-3">
-                        <h4 class="text-white mb-0">🃏 Guild Members Card System</h4>
-                        <p class="text-muted">AI 길드원들의 카드 기반 자동 거래 시스템 - N/B 길드 엔진</p>
-                        <div class="text-center">
-                            <canvas id="gameCanvas" width="800" height="600" style="border: 1px solid #333; background: #0a0a0a; border-radius: 8px; margin: 10px auto; display: block;"></canvas>
-                            <div id="gameControls" style="margin-top: 10px;">
-                                <button id="toggleNBGuild" class="btn btn-sm btn-outline-primary">N/B 길드 토글</button>
-                                <button id="toggleBitcoin" class="btn btn-sm btn-outline-warning">비트코인 토글</button>
-                                <button id="toggleMovingVillage" class="btn btn-sm btn-outline-success">이동 마을 토글</button>
-              </div>
+            <div id="guild-members-system-content">
+                <div class="text-center">
+                    <p>Loading Guild Members Card System...</p>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
-    </div>
 
         <!-- 탭 2: Trading Dashboard -->
         <div id="tab2" class="tab-content active">
@@ -136,6 +125,74 @@
                 if (targetId === 'tab1') {
                     loadGameSystem();
                 }
+                
+                // 탭 전환 시 N/B Zone Status 시간프레임 동기화
+                // console.log('🔄 Tab switched to:', targetId);
+                
+                // 즉시 동기화 시도
+                if (typeof updateNBZoneTimeframe === 'function') {
+                    updateNBZoneTimeframe();
+                }
+                
+                // N/B Zone Status 데이터 갱신
+                if (typeof window.refreshNbZoneStrip === 'function') {
+                    window.refreshNbZoneStrip();
+                } else if (typeof refreshNbZoneStrip === 'function') {
+                    refreshNbZoneStrip();
+                } else {
+                    // 함수가 아직 로드되지 않은 경우, 잠시 후 다시 시도
+                    setTimeout(function() {
+                        if (typeof window.refreshNbZoneStrip === 'function') {
+                            window.refreshNbZoneStrip();
+                        }
+                    }, 1000);
+                }
+                
+                // 지연 동기화 시도들
+                setTimeout(function() {
+                    if (typeof updateNBZoneTimeframe === 'function') {
+                        updateNBZoneTimeframe();
+                    }
+                    if (typeof window.refreshNbZoneStrip === 'function') {
+                        window.refreshNbZoneStrip();
+                    } else if (typeof refreshNbZoneStrip === 'function') {
+                        refreshNbZoneStrip();
+                    }
+                }, 100);
+                
+                setTimeout(function() {
+                    if (typeof updateNBZoneTimeframe === 'function') {
+                        updateNBZoneTimeframe();
+                    }
+                    if (typeof window.refreshNbZoneStrip === 'function') {
+                        window.refreshNbZoneStrip();
+                    } else if (typeof refreshNbZoneStrip === 'function') {
+                        refreshNbZoneStrip();
+                    }
+                }, 500);
+                
+                setTimeout(function() {
+                    if (typeof updateNBZoneTimeframe === 'function') {
+                        updateNBZoneTimeframe();
+                    }
+                    if (typeof window.refreshNbZoneStrip === 'function') {
+                        window.refreshNbZoneStrip();
+                    } else if (typeof refreshNbZoneStrip === 'function') {
+                        refreshNbZoneStrip();
+                    }
+                }, 1000);
+                
+                // 강제 동기화 - 2초 후 최종 시도
+                setTimeout(function() {
+                    if (typeof forceUpdateNBZoneTimeframe === 'function') {
+                        forceUpdateNBZoneTimeframe();
+                    }
+                    if (typeof window.refreshNbZoneStrip === 'function') {
+                        window.refreshNbZoneStrip();
+                    } else if (typeof refreshNbZoneStrip === 'function') {
+                        refreshNbZoneStrip();
+                    }
+                }, 2000);
             });
             
             // Trading Dashboard 파일 로드 함수
@@ -176,12 +233,41 @@
                                         }
                                         console.log('📊 Trading Dashboard initialized successfully');
                                         
+                                        // Set initial timeframe in global variable
+                                        setTimeout(function() {
+                                            const tfEl = document.getElementById('timeframe');
+                                            if (tfEl && window.currentGlobalInterval) {
+                                                window.currentGlobalInterval = tfEl.value;
+                                                console.log('🕐 Initial timeframe set to:', window.currentGlobalInterval);
+                                            }
+                                                                                    // Update N/B Zone Status timeframe
+                                        if (typeof updateNBZoneTimeframe === 'function') {
+                                            updateNBZoneTimeframe();
+                                        }
+                                        
+                                        // Update N/B Zone Status data
+                                        if (typeof window.refreshNbZoneStrip === 'function') {
+                                            window.refreshNbZoneStrip();
+                                        } else if (typeof refreshNbZoneStrip === 'function') {
+                                            refreshNbZoneStrip();
+                                        }
+                                        }, 500);
+                                        
                                         // Auto-enable toggles after chart initialization
                                         setTimeout(function() {
                                             if (typeof window.enableAutoToggles === 'function') {
                                                 window.enableAutoToggles();
                                             }
                                         }, 3000);
+                                        
+                                        // Final N/B Zone Status refresh after everything is loaded
+                                        setTimeout(function() {
+                                            if (typeof window.refreshNbZoneStrip === 'function') {
+                                                window.refreshNbZoneStrip();
+                                            } else if (typeof refreshNbZoneStrip === 'function') {
+                                                refreshNbZoneStrip();
+                                            }
+                                        }, 4000);
                                     }, 1000); // 더 긴 대기 시간
                             return;
                         }
@@ -219,19 +305,66 @@
             
             // Guild Members Card System 로드 함수
             function loadGameSystem() {
-                if (!window.gameSystemLoaded) {
-                    $.getScript('/static/guild-members-card-system.js', function() {
-                        window.gameSystemLoaded = true;
-                        console.log('🃏 Guild Members Card System loaded successfully');
-                        
-                        // 게임 시스템 초기화
-                        if (window.initGameSystem) {
-                            window.initGameSystem();
+                // 이미 로드되었는지 확인
+                if (window.guildMembersSystemLoaded) return;
+                
+                $('#guild-members-system-content').html('<div class="text-center"><p>Loading Guild Members Card System...</p></div>');
+                
+                // guild-members-system.html 파일 로드
+                $.get('/static/guild-members-system.html', function(data) {
+                    $('#guild-members-system-content').html(data);
+                    
+                    // 필요한 스크립트들 로드 (API 연결을 위해 ui.js 포함)
+                    const gameScripts = [
+                        '/static/ui.js?v=dev',
+                        '/static/guild-members-card-system.js'
+                    ];
+                    
+                    let loadedScripts = 0;
+                    const totalScripts = gameScripts.length;
+                    
+                    function loadGameScriptsSequentially(scriptList, index = 0) {
+                        if (index >= scriptList.length) {
+                            // 모든 스크립트 로드 완료
+                            window.gameSystemLoaded = true;
+                            window.guildMembersSystemLoaded = true;
+                            console.log('🃏 Guild Members Card System loaded successfully');
+                            
+                            // 게임 시스템 초기화
+                            if (window.initGameSystem) {
+                                window.initGameSystem();
+                            }
+                            return;
                         }
-                    }).fail(function() {
-                        console.error('Failed to load Guild Members Card System');
-                    });
-                }
+                        
+                        const src = scriptList[index];
+                        if (!document.querySelector(`script[src="${src}"]`)) {
+                            const script = document.createElement('script');
+                            script.src = src;
+                            script.onload = function() {
+                                console.log(`✅ Loaded: ${src}`);
+                                // 다음 스크립트 로드
+                                setTimeout(() => loadGameScriptsSequentially(scriptList, index + 1), 100);
+                            };
+                            script.onerror = function() {
+                                console.error(`❌ Failed to load: ${src}`);
+                                // 에러가 있어도 다음 스크립트 로드
+                                setTimeout(() => loadGameScriptsSequentially(scriptList, index + 1), 100);
+                            };
+                            document.head.appendChild(script);
+                        } else {
+                            console.log(`✅ Already loaded: ${src}`);
+                            // 이미 로드된 경우 다음 스크립트로
+                            setTimeout(() => loadGameScriptsSequentially(scriptList, index + 1), 100);
+                        }
+                    }
+                    
+                    // 순차적으로 스크립트 로드
+                    loadGameScriptsSequentially(gameScripts);
+                    
+                }).fail(function() {
+                    $('#guild-members-system-content').html('<div class="text-center text-danger"><p>Failed to load Guild Members Card System</p></div>');
+                });
             }
             
             // 초기 로드 시 활성화된 탭에 따라 시스템 로드

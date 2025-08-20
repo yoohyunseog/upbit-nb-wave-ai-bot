@@ -140,6 +140,17 @@ body {
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
 }
 
+.wallet-btn {
+    border-color: #f39c12;
+    color: #f39c12;
+}
+
+.wallet-btn:hover {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: #000;
+    box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+}
+
 /* 중앙 패널 - 콘텐츠 */
 .center-panel {
     flex: 1;
@@ -698,6 +709,60 @@ body {
     color: #000;
 }
 
+/* 옵션 메뉴 */
+.options-menu {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.options-menu h3 {
+    color: #00ff00;
+    font-size: 16px;
+    margin-bottom: 15px;
+    text-align: center;
+    text-shadow: 0 0 10px #00ff00;
+}
+
+.options-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.option-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    border: 1px solid #00ff00;
+    background: rgba(0, 255, 0, 0.1);
+    color: #00ff00;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.option-btn:hover {
+    background: rgba(0, 255, 0, 0.2);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+    transform: translateY(-1px);
+}
+
+.option-btn:active {
+    transform: translateY(0);
+}
+
+.option-btn i {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
 /* 사운드 설정 버튼 */
 .sound-settings-btn {
     background: none;
@@ -728,4 +793,197 @@ body {
 
 .settings-overlay.show {
     display: block;
+}
+
+/* 시스템 설정 패널 */
+.settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #00ff00;
+    border-radius: 10px;
+    padding: 20px;
+    width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 1001;
+    display: none;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.settings-panel.show {
+    display: block;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #00ff00;
+}
+
+.settings-header h3 {
+    color: #00ff00;
+    margin: 0;
+    font-size: 18px;
+}
+
+.close-btn {
+    background: none;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+    background: #00ff00;
+    color: #000;
+}
+
+.settings-content {
+    color: #fff;
+}
+
+.setting-section {
+    margin-bottom: 25px;
+    padding: 15px;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    border-radius: 8px;
+    background: rgba(0, 255, 0, 0.05);
+}
+
+.setting-section h4 {
+    color: #00ff00;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+}
+
+.setting-group {
+    margin-bottom: 15px;
+}
+
+.setting-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.setting-group input[type="text"],
+.setting-group input[type="password"],
+.setting-group input[type="number"],
+.setting-group select {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid #00ff00;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.setting-group input[type="text"]:focus,
+.setting-group input[type="password"]:focus,
+.setting-group input[type="number"]:focus,
+.setting-group select:focus {
+    outline: none;
+    border-color: #00ff88;
+    box-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+}
+
+.setting-group input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #00ff00;
+}
+
+.setting-group input[type="checkbox"] + label {
+    display: inline;
+    margin-bottom: 0;
+}
+
+.test-api-btn {
+    background: linear-gradient(45deg, #00ff00, #00ff88);
+    border: none;
+    color: #000;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.test-api-btn:hover {
+    background: linear-gradient(45deg, #00ff88, #00ff00);
+    transform: translateY(-2px);
+}
+
+.setting-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.save-btn, .reset-btn, .export-btn, .import-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 15px;
+    border: 1px solid #00ff00;
+    background: rgba(0, 255, 0, 0.1);
+    color: #00ff00;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.save-btn:hover {
+    background: #00ff00;
+    color: #000;
+}
+
+.reset-btn:hover {
+    background: #ff6600;
+    border-color: #ff6600;
+    color: #000;
+}
+
+.export-btn:hover {
+    background: #0066ff;
+    border-color: #0066ff;
+    color: #fff;
+}
+
+.import-btn:hover {
+    background: #6600ff;
+    border-color: #6600ff;
+    color: #fff;
+}
+
+/* 설정 버튼 */
+.settings-btn {
+    background: none;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.settings-btn:hover {
+    background: #00ff00;
+    color: #000;
 }
