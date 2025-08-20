@@ -1,0 +1,48 @@
+Windows Registry Editor Version 5.00
+
+; ===== 8BIT Trading System - Audio Autoplay Policy Fix =====
+; 이 레지스트리 파일은 브라우저의 자동재생 정책을 완화합니다.
+; 실행 전에 반드시 백업을 만드세요!
+
+; Edge 브라우저 자동재생 정책 완화
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge]
+"AutoplayAllowed"=dword:00000001
+"AutoplayAllow"=dword:00000001
+
+; Chrome 브라우저 자동재생 정책 완화
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome]
+"AutoplayAllowed"=dword:00000001
+"AutoplayAllow"=dword:00000001
+
+; Firefox 브라우저 자동재생 정책 완화
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Mozilla\Firefox]
+"AutoplayAllowed"=dword:00000001
+"AutoplayAllow"=dword:00000001
+
+; Windows 미디어 자동재생 정책 완화
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]
+"NoAutoplayfornonVolume"=dword:00000000
+
+; 웹 브라우저 자동재생 정책 완화
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer]
+"NoAutoplayfornonVolume"=dword:00000000
+
+; 사용자 레벨에서도 설정 (더 안전한 방법)
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Edge]
+"AutoplayAllowed"=dword:00000001
+"AutoplayAllow"=dword:00000001
+
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Google\Chrome]
+"AutoplayAllowed"=dword:00000001
+"AutoplayAllow"=dword:00000001
+
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Mozilla\Firefox]
+"AutoplayAllowed"=dword:00000001
+"AutoplayAllow"=dword:00000001
+
+; 추가: 웹 오디오 API 정책 완화
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\WebAudio]
+"AutoplayAllowed"=dword:00000001
+
+[HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Edge\WebAudio]
+"AutoplayAllowed"=dword:00000001

@@ -1,0 +1,731 @@
+/* ===== 8BIT Trading System - Starcraft Style CSS ===== */
+
+/* 기본 리셋 및 폰트 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', monospace;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+    color: #00ff00;
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* 게임 컨테이너 */
+.game-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%2300ff00" stroke-width="0.5" opacity="0.3"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+}
+
+/* 게임 헤더 */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-bottom: 2px solid #00ff00;
+    box-shadow: 0 2px 10px rgba(0, 255, 0, 0.3);
+    height: 60px;
+}
+
+.mineral-counter, .gas-counter, .supply-counter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 0 0 10px #00ff00;
+}
+
+.mineral-counter i {
+    color: #ffd700;
+}
+
+.gas-counter i {
+    color: #00ffff;
+}
+
+.supply-counter i {
+    color: #ff6b6b;
+}
+
+/* 메인 게임 영역 */
+.game-main {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 120px);
+}
+
+/* 왼쪽 패널 - 메뉴 */
+.left-panel {
+    width: 250px;
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    border-right: 2px solid #00ff00;
+    padding: 20px;
+}
+
+.menu-container {
+    height: 100%;
+}
+
+.menu-title {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    color: #00ff00;
+    text-shadow: 0 0 15px #00ff00;
+    border-bottom: 1px solid #00ff00;
+    padding-bottom: 10px;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 20px;
+    border: 2px solid #00ff00;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #00ff00;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.menu-btn:hover {
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    transform: translateY(-2px);
+}
+
+.menu-btn:active {
+    transform: translateY(0);
+}
+
+.primary-btn {
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+.primary-btn:hover {
+    background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
+    color: #000;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.secondary-btn {
+    border-color: #00ffff;
+    color: #00ffff;
+}
+
+.secondary-btn:hover {
+    background: linear-gradient(135deg, #00ffff 0%, #00cccc 100%);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+/* 중앙 패널 - 콘텐츠 */
+.center-panel {
+    flex: 1;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.content-area {
+    height: 100%;
+    border: 1px solid #00ff00;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+    padding: 20px;
+}
+
+.welcome-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+}
+
+.welcome-logo {
+    font-size: 80px;
+    color: #00ff00;
+    margin-bottom: 30px;
+    text-shadow: 0 0 30px #00ff00;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.welcome-screen h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+    color: #00ff00;
+    text-shadow: 0 0 20px #00ff00;
+}
+
+.welcome-screen p {
+    font-size: 18px;
+    margin-bottom: 40px;
+    color: #cccccc;
+}
+
+.status-indicators {
+    display: flex;
+    gap: 30px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid #00ff00;
+    border-radius: 5px;
+}
+
+.status-item i {
+    color: #00ff00;
+}
+
+/* 오른쪽 패널 - 정보 */
+.right-panel {
+    width: 200px;
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    border-left: 2px solid #00ff00;
+    padding: 20px;
+}
+
+.info-panel h3 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #00ff00;
+    text-align: center;
+    border-bottom: 1px solid #00ff00;
+    padding-bottom: 10px;
+}
+
+.status-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.status-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid #00ff00;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.status-card i {
+    color: #00ff00;
+    font-size: 16px;
+}
+
+/* 게임 푸터 */
+.game-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-top: 2px solid #00ff00;
+    box-shadow: 0 -2px 10px rgba(0, 255, 0, 0.3);
+    height: 60px;
+}
+
+.footer-left, .footer-center, .footer-right {
+    flex: 1;
+}
+
+.footer-center {
+    text-align: center;
+    font-weight: bold;
+}
+
+.footer-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+}
+
+.log-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-family: 'Courier New', monospace;
+}
+
+.cursor {
+    color: #00ff00;
+    animation: blink 1s infinite;
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+.sound-toggle, .sound-test-btn {
+    background: none;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.sound-toggle:hover, .sound-test-btn:hover {
+    background: #00ff00;
+    color: #000;
+}
+
+.sound-test-btn {
+    border-color: #ffaa00;
+    color: #ffaa00;
+}
+
+.sound-test-btn:hover {
+    background: #ffaa00;
+    color: #000;
+}
+
+/* 소리 상태 표시 */
+.sound-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 255, 0, 0.1);
+    border: 1px solid #00ff00;
+    transition: all 0.3s ease;
+}
+
+.sound-status.playing {
+    background: rgba(0, 255, 0, 0.3);
+    border-color: #00ff00;
+    animation: pulse 1s infinite;
+}
+
+.sound-status.stopped {
+    background: rgba(255, 0, 0, 0.1);
+    border-color: #ff0000;
+}
+
+.sound-status i {
+    font-size: 14px;
+    color: #00ff00;
+}
+
+.sound-status.playing i {
+    color: #00ff00;
+}
+
+.sound-status.stopped i {
+    color: #ff0000;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* 모듈 콘텐츠 스타일 */
+.module-content {
+    display: none;
+    height: 100%;
+}
+
+.module-content.active {
+    display: block;
+}
+
+/* Screenshot Controls */
+.screenshot-controls {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #00ff00;
+}
+
+.screenshot-controls h3 {
+    color: #00ff00;
+    font-size: 14px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.screenshot-btn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border: 1px solid #ff6b35;
+    color: #ff6b35;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.screenshot-btn:hover {
+    background: linear-gradient(135deg, #ff6b35, #ff4500);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(255, 107, 53, 0.3);
+}
+
+/* Screenshot Info Popup */
+.screenshot-info {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.screenshot-popup {
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border: 2px solid #00ff00;
+    border-radius: 10px;
+    padding: 20px;
+    color: #00ff00;
+    text-align: center;
+    min-width: 300px;
+    animation: slideIn 0.3s ease;
+}
+
+.screenshot-popup h3 {
+    margin-bottom: 15px;
+    color: #00ff00;
+}
+
+.screenshot-popup p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.screenshot-popup button {
+    margin-top: 15px;
+    padding: 8px 20px;
+    background: #00ff00;
+    color: #000;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.screenshot-popup button:hover {
+    background: #00cc00;
+    transform: translateY(-1px);
+}
+
+.trading-dashboard {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #00ff00;
+    border-radius: 5px;
+    padding: 20px;
+}
+
+.guild-system {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #00ff00;
+    border-radius: 5px;
+    padding: 20px;
+}
+
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a2e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #00ff00;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #00cc00;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px #00ff00; }
+    50% { box-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00; }
+}
+
+.glow {
+    animation: glow 2s infinite;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1200px) {
+    .left-panel {
+        width: 200px;
+    }
+    
+    .right-panel {
+        width: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .game-main {
+        flex-direction: column;
+    }
+    
+    .left-panel, .right-panel {
+        width: 100%;
+        height: auto;
+    }
+    
+    .left-panel {
+        border-right: none;
+        border-bottom: 2px solid #00ff00;
+    }
+    
+    .right-panel {
+        border-left: none;
+        border-top: 2px solid #00ff00;
+    }
+}
+
+/* 사운드 설정 패널 */
+.sound-settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #00ff00;
+    border-radius: 10px;
+    padding: 20px;
+    width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.sound-settings-panel.show {
+    display: block;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #00ff00;
+    padding-bottom: 10px;
+}
+
+.settings-header h3 {
+    color: #00ff00;
+    margin: 0;
+    font-size: 18px;
+}
+
+.close-btn {
+    background: none;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+    background: #00ff00;
+    color: #000;
+}
+
+.settings-content {
+    color: #00ff00;
+}
+
+.setting-group {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    border-radius: 5px;
+}
+
+.setting-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #00ff00;
+}
+
+.setting-group input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 255, 0, 0.2);
+    border-radius: 3px;
+    outline: none;
+    margin-bottom: 5px;
+}
+
+.setting-group input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #00ff00;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.setting-group input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #00ff00;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.setting-group span {
+    color: #00ff00;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #00ff00;
+}
+
+.checkbox-group label {
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.setting-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.test-btn, .reset-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background: none;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.test-btn:hover, .reset-btn:hover {
+    background: #00ff00;
+    color: #000;
+}
+
+/* 사운드 설정 버튼 */
+.sound-settings-btn {
+    background: none;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.sound-settings-btn:hover {
+    background: #00ff00;
+    color: #000;
+}
+
+/* 오버레이 */
+.settings-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none;
+}
+
+.settings-overlay.show {
+    display: block;
+}
