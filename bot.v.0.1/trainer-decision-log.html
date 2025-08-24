@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trainer Decision Log Viewer</title>
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; background:#0e1621; color:#e6efff; }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        .header { display:flex; align-items:center; justify-content: space-between; margin-bottom: 16px; }
+        .title { font-size: 20px; font-weight: 700; }
+        .controls { display:flex; gap: 8px; align-items:center; flex-wrap: wrap; }
+        .card { background: #17212b; border: 1px solid #223042; border-radius: 8px; padding: 12px; }
+        .logs { margin-top: 12px; max-height: 70vh; overflow: auto; }
+        .log-item { display:grid; grid-template-columns: 120px 120px 1fr; gap: 8px; padding: 10px 8px; border-bottom: 1px dashed #223042; align-items:flex-start; }
+        .log-item:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .badge { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border:1px solid #2b3b50; background:#0e1621; }
+        .badge.info { color:#8ab4ff; border-color:#315a9b; background:#0e2035; }
+        .badge.buy { color:#4dd0e1; border-color:#2a6b72; background:#0b1f22; }
+        .badge.sell { color:#ffab91; border-color:#7a4b39; background:#281712; }
+        .badge.state { color:#b39ddb; border-color:#52446b; background:#1a1324; }
+        .badge.signal { color:#a5d6a7; border-color:#335a37; background:#0f1f12; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size:12px; color:#b8c7e0; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+        .ts { color:#8fa6c0; font-size:12px; }
+        .muted { opacity: 0.8; }
+        input, select, button { background:#0e1621; color:#e6efff; border:1px solid #223042; border-radius:6px; padding:6px 8px; }
+        button { cursor:pointer; }
+        .pill { padding:6px 10px; border-radius:999px; }
+        .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .kv { display:flex; flex-wrap:wrap; gap:8px; }
+        .kv .kv-item { background:#0e1621; border:1px solid #223042; padding:4px 8px; border-radius:6px; }
+        .kvtbl { width:100%; border-collapse: collapse; margin-top:6px; display:block; overflow-x:auto; }
+        .kvtbl th, .kvtbl td { border:1px solid #223042; padding:4px 6px; text-align:left; font-size:12px; }
+        .kvtbl th { background:#122033; color:#9ec3ff; }
+        .kvtbl td { background:#0f1925; color:#cfe0ff; }
+        /* content column scroll if needed */
+        .log-item > div:nth-child(3) { overflow:auto; }
+    </style>
+    <script>
+        async function fetchLogs() {
+            const res = await fetch('/api/trainer/decision-log');
+            const data = await res.json();
+            if (!data.ok) return [];
+            return data.items || [];
+        }
+        function fmtTs(v){
+            try{
+                const d = new Date(Number(v));
+                return isNaN(d.getTime()) ? '' : d.toLocaleString();
+            }catch(_){ return ''; }
+        }
+        function badge(action){
+            const a = (action||'').toUpperCase();
+            if (a.includes('BUY')) return 'badge buy';
+            if (a.includes('SELL')) return 'badge sell';
+            if (a.includes('STATE')) return 'badge state';
+            if (a.includes('SIGNAL_CENTER')) return 'badge signal';
+            return 'badge info';
+        }
+        function buildActionOptions(items){
+            const sel = document.getElementById('filter-action');
+            const previous = sel.value;
+            const actions = Array.from(new Set(items.map(it => (it.action||'INFO').toUpperCase()))).sort();
+            sel.innerHTML = '';
+            const optAll = document.createElement('option'); optAll.value = ''; optAll.textContent = '전체'; sel.appendChild(optAll);
+            actions.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; sel.appendChild(o); });
+            if ([...sel.options].some(o => o.value === previous)) sel.value = previous;
+        }
+        function renderItems(items){
+            const list = document.getElementById('log-list');
+            list.innerHTML = '';
+            const actionFilter = (document.getElementById('filter-action').value||'').trim();
+            const q = (document.getElementById('filter-q').value||'').trim().toLowerCase();
+            const filtered = items.filter(it => {
+                const act = (it.action||'').toUpperCase();
+                if (actionFilter && act !== actionFilter) return false;
+                if (!q) return true;
+                return JSON.stringify(it).toLowerCase().includes(q);
+            });
+            // 최신값이 위로 오도록 내림차순 정렬
+            filtered.sort((a,b) => Number(b.ts||b.timestamp||0) - Number(a.ts||a.timestamp||0));
+            filtered.forEach(it => {
+                const row = document.createElement('div');
+                row.className = 'log-item';
+                const ts = document.createElement('div');
+                ts.className = 'ts';
+                ts.textContent = fmtTs(it.ts || it.timestamp || Date.now());
+                const act = document.createElement('div');
+                act.innerHTML = `<span class="${badge(it.action)}">${it.action||'INFO'}</span>`;
+                const content = document.createElement('div');
+                const kvs = Object.entries(it).filter(([k]) => k !== 'ts' && k !== 'timestamp' && k !== 'action');
+                const frag = document.createElement('div');
+                frag.className = 'kv';
+                // 우선 5W1H를 우선 표시 + 핵심 카운트들
+                        ['who','what','when','where','why','how','mode','progress','majority','nbCoins','trainerNbCoins','leftPanelHeldCount','leftPanelTimeframesCount','leftPanelHasBuyable'].forEach(key => {
+                            if (key in it) {
+                                const item = document.createElement('div');
+                                item.className = 'kv-item mono';
+                                const v = it[key];
+                                let val = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+                                item.textContent = `${key}: ${val}`;
+                                frag.appendChild(item);
+                            }
+                        });
+                // 나머지 필드들 렌더링 (특수 처리 포함)
+                kvs.forEach(([k,v]) => {
+                    if (['who','what','when','where','why','how','mode','progress','majority','nbCoins','trainerNbCoins','leftPanelHeldCount','leftPanelTimeframesCount','leftPanelHasBuyable'].includes(k)) return;
+                    if (k === 'leftPanelTimeframes' && Array.isArray(v)){
+                        const table = document.createElement('table');
+                        table.className = 'kvtbl mono';
+                        table.innerHTML = '<thead><tr><th>timeframe</th><th>held</th><th>buyable</th></tr></thead>';
+                        const tb = document.createElement('tbody');
+                        if (v.length === 0) {
+                            const tr = document.createElement('tr');
+                            const td = document.createElement('td');
+                            td.colSpan = 3; td.textContent = 'No timeframes';
+                            tr.appendChild(td); tb.appendChild(tr);
+                        } else {
+                            v.forEach(row => {
+                            const tr = document.createElement('tr');
+                            const tf = document.createElement('td'); tf.textContent = String(row.timeframe);
+                            const held = document.createElement('td'); held.textContent = String(row.held);
+                            const buy = document.createElement('td'); buy.textContent = String(row.buyable);
+                            tr.appendChild(tf); tr.appendChild(held); tr.appendChild(buy); tb.appendChild(tr);
+                            });
+                        }
+                        table.appendChild(tb);
+                        const wrap = document.createElement('div');
+                        wrap.className = 'kv-item';
+                        wrap.appendChild(table);
+                        frag.appendChild(wrap);
+                        return;
+                    }
+                    const item = document.createElement('div');
+                    item.className = 'kv-item mono';
+                    let val = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                    item.textContent = `${k}: ${val}`;
+                    frag.appendChild(item);
+                });
+                content.appendChild(frag);
+                row.appendChild(ts);
+                row.appendChild(act);
+                row.appendChild(content);
+                list.appendChild(row);
+            });
+            document.getElementById('count').textContent = filtered.length;
+        }
+        let timer = null;
+        async function refresh(){
+            const items = await fetchLogs();
+            buildActionOptions(items);
+            renderItems(items);
+        }
+        function toggleAuto(){
+            const on = document.getElementById('auto').checked;
+            const ms = parseInt(document.getElementById('interval').value, 10) || 3000;
+            if (timer) { clearInterval(timer); timer = null; }
+            if (on) { timer = setInterval(refresh, ms); }
+        }
+        function applyFilters(){ refresh(); }
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh').addEventListener('click', refresh);
+            document.getElementById('auto').addEventListener('change', toggleAuto);
+            document.getElementById('interval').addEventListener('change', toggleAuto);
+            document.getElementById('filter-action').addEventListener('change', applyFilters);
+            document.getElementById('filter-q').addEventListener('input', () => { if(!document.getElementById('auto').checked) applyFilters(); });
+            refresh();
+            document.getElementById('auto').checked = true;
+            toggleAuto();
+        });
+    </script>
+    </head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">AI Trainer Decision Log <span class="muted">(마지막 100개)</span></div>
+            <div class="controls">
+                <label><input type="checkbox" id="auto" /> 자동 새로고침</label>
+                <select id="interval">
+                    <option value="2000">2초</option>
+                    <option value="3000" selected>3초</option>
+                    <option value="5000">5초</option>
+                    <option value="10000">10초</option>
+                </select>
+                <select id="filter-action">
+                    <option value="">전체</option>
+                    <option value="INIT">INIT</option>
+                    <option value="DECISION">DECISION</option>
+                    <option value="STATE_CHANGE">STATE_CHANGE</option>
+                    <option value="BUY_EXECUTE">BUY_EXECUTE</option>
+                    <option value="BUY_DONE">BUY_DONE</option>
+                    <option value="SELL_EXECUTE">SELL_EXECUTE</option>
+                    <option value="SELL_DONE">SELL_DONE</option>
+                </select>
+                <input id="filter-q" placeholder="검색 (키워드)" />
+                <button id="refresh" class="pill">새로고침</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="muted">표시 수: <span id="count">0</span></div>
+            <div id="log-list" class="logs"></div>
+        </div>
+    </div>
+</body>
+</html>
+
+

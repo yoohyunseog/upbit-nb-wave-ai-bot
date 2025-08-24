@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8BIT 마을 - Central Hub Game Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 2px solid #4CAF50;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #2196F3;
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel h2 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+
+        .residents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .resident-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #4CAF50;
+            border-radius: 8px;
+            padding: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .resident-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .resident-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+
+        .resident-role {
+            color: #FFC107;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .resident-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .stat {
+            font-size: 0.8em;
+            color: #BDBDBD;
+        }
+
+        .stat-value {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .resident-actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: background 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #1976D2;
+        }
+
+        .btn-success {
+            background: #4CAF50;
+        }
+
+        .btn-success:hover {
+            background: #388E3C;
+        }
+
+        .btn-warning {
+            background: #FF9800;
+        }
+
+        .btn-warning:hover {
+            background: #F57C00;
+        }
+
+        .mayor-section {
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .mayor-title {
+            color: #FFD700;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .market-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .market-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #FF9800;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .market-title {
+            color: #FF9800;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .price {
+            font-size: 1.5em;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .price-change {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .price-up {
+            color: #4CAF50;
+        }
+
+        .price-down {
+            color: #F44336;
+        }
+
+        .system-log {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #666;
+            border-radius: 5px;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .log-timestamp {
+            color: #888;
+        }
+
+        .log-message {
+            color: #BDBDBD;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-online {
+            background: #4CAF50;
+        }
+
+        .status-offline {
+            background: #F44336;
+        }
+
+        .refresh-btn {
+            background: #9C27B0;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn:hover {
+            background: #7B1FA2;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .residents-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .market-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏘️ 8BIT 마을</h1>
+            <p>Central Hub - Game Engine</p>
+            <div id="system-status">
+                <span class="status-indicator status-online"></span>
+                시스템 상태: <span id="status-text">연결 중...</span>
+            </div>
+        </div>
+
+        <button class="refresh-btn" onclick="refreshAllData()">🔄 데이터 새로고침</button>
+
+        <div class="dashboard">
+            <div class="panel">
+                <h2>👥 주민 관리</h2>
+                <div id="residents-container" class="residents-grid">
+                    <!-- 주민 카드들이 여기에 동적으로 생성됩니다 -->
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>🏛️ 촌장 관리</h2>
+                <div class="mayor-section">
+                    <div class="mayor-title">정촌장 - 마을 관리자</div>
+                    <div id="mayor-info">
+                        <!-- 촌장 정보가 여기에 표시됩니다 -->
+                    </div>
+                    <div id="mayor-actions" style="margin-top: 15px;">
+                        <!-- 촌장 행동 버튼들이 여기에 생성됩니다 -->
+                    </div>
+                </div>
+
+                <h2>📊 시장 정보</h2>
+                <div id="market-container" class="market-info">
+                    <!-- 시장 정보가 여기에 표시됩니다 -->
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>📝 시스템 로그</h2>
+            <div id="system-log" class="system-log">
+                <!-- 시스템 로그가 여기에 표시됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let residentsData = {};
+        let mayorData = {};
+        let marketData = {};
+        let villageData = {};
+
+        // API 호출 함수들
+        async function fetchResidents() {
+            try {
+                const response = await fetch('/api/residents');
+                const data = await response.json();
+                residentsData = data.residents;
+                mayorData = data.mayor;
+                updateResidentsDisplay();
+                updateMayorDisplay();
+            } catch (error) {
+                console.error('주민 데이터 로드 실패:', error);
+            }
+        }
+
+        async function fetchMarketInfo() {
+            try {
+                const response = await fetch('/api/market-info');
+                const data = await response.json();
+                marketData = data;
+                updateMarketDisplay();
+            } catch (error) {
+                console.error('시장 데이터 로드 실패:', error);
+            }
+        }
+
+        async function fetchVillageStatus() {
+            try {
+                const response = await fetch('/api/village-status');
+                const data = await response.json();
+                villageData = data;
+                updateSystemLog();
+            } catch (error) {
+                console.error('마을 상태 로드 실패:', error);
+            }
+        }
+
+        async function fetchSystemStatus() {
+            try {
+                const response = await fetch('/api/system-status');
+                const data = await response.json();
+                updateSystemStatus(data);
+            } catch (error) {
+                console.error('시스템 상태 로드 실패:', error);
+            }
+        }
+
+        // 주민 행동 실행
+        async function executeResidentAction(residentId, action, target = null) {
+            try {
+                const response = await fetch('/api/update-resident', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: residentId,
+                        action: action,
+                        target: target
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 성공 시 데이터 새로고침
+                    await fetchResidents();
+                    showNotification(result.message, 'success');
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('주민 행동 실행 실패:', error);
+                showNotification('행동 실행 중 오류가 발생했습니다', 'error');
+            }
+        }
+
+        // 촌장 행동 실행
+        async function executeMayorAction(action) {
+            try {
+                const response = await fetch('/api/execute-mayor-action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ action: action })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    await fetchResidents();
+                    await fetchVillageStatus();
+                    showNotification(result.message, 'success');
+                } else {
+                    showNotification(result.error, 'error');
+                }
+            } catch (error) {
+                console.error('촌장 행동 실행 실패:', error);
+                showNotification('행동 실행 중 오류가 발생했습니다', 'error');
+            }
+        }
+
+        // UI 업데이트 함수들
+        function updateResidentsDisplay() {
+            const container = document.getElementById('residents-container');
+            container.innerHTML = '';
+
+            Object.values(residentsData).forEach(resident => {
+                const card = document.createElement('div');
+                card.className = 'resident-card';
+                
+                const hpPercent = (resident.hp / resident.max_hp) * 100;
+                const staminaPercent = (resident.stamina / resident.max_stamina) * 100;
+                
+                card.innerHTML = `
+                    <div class="resident-name">${resident.name}</div>
+                    <div class="resident-role">${resident.role} (${resident.specialty})</div>
+                    <div class="resident-stats">
+                        <div class="stat">HP: <span class="stat-value">${resident.hp}/${resident.max_hp}</span></div>
+                        <div class="stat">스태미나: <span class="stat-value">${resident.stamina}/${resident.max_stamina}</span></div>
+                        <div class="stat">위치: <span class="stat-value">${resident.location}</span></div>
+                        <div class="stat">상태: <span class="stat-value">${resident.status}</span></div>
+                    </div>
+                    <div class="resident-actions">
+                        <button class="btn btn-success" onclick="executeResidentAction('${resident.id}', 'work')">일하기</button>
+                        <button class="btn btn-warning" onclick="executeResidentAction('${resident.id}', 'rest')">휴식</button>
+                        <button class="btn" onclick="executeResidentAction('${resident.id}', 'trade')">거래</button>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function updateMayorDisplay() {
+            const container = document.getElementById('mayor-info');
+            container.innerHTML = `
+                <div class="resident-stats">
+                    <div class="stat">HP: <span class="stat-value">${mayorData.hp}/${mayorData.max_hp}</span></div>
+                    <div class="stat">스태미나: <span class="stat-value">${mayorData.stamina}/${mayorData.max_stamina}</span></div>
+                    <div class="stat">권한 레벨: <span class="stat-value">${mayorData.authority_level}</span></div>
+                    <div class="stat">신뢰도: <span class="stat-value">${mayorData.trust_level}</span></div>
+                    <div class="stat">마을 자금: <span class="stat-value">${mayorData.inventory.village_funds.toLocaleString()}원</span></div>
+                    <div class="stat">위치: <span class="stat-value">${mayorData.location}</span></div>
+                </div>
+            `;
+
+            // 촌장 행동 버튼들 생성
+            const actionsContainer = document.getElementById('mayor-actions');
+            actionsContainer.innerHTML = `
+                <button class="btn btn-success" onclick="executeMayorAction('collect_tax')">세금 징수</button>
+                <button class="btn btn-warning" onclick="executeMayorAction('improve_infrastructure')">인프라 개선</button>
+                <button class="btn" onclick="executeMayorAction('hold_meeting')">주민 회의</button>
+                <button class="btn" onclick="executeMayorAction('trade_negotiation')">거래 협상</button>
+            `;
+        }
+
+        function updateMarketDisplay() {
+            const container = document.getElementById('market-container');
+            
+            if (marketData.bitcoin_market) {
+                const btcMarket = marketData.bitcoin_market;
+                const priceChange = btcMarket.market_data.price_change_24h;
+                const priceClass = priceChange >= 0 ? 'price-up' : 'price-down';
+                const priceSymbol = priceChange >= 0 ? '+' : '';
+                
+                container.innerHTML = `
+                    <div class="market-card">
+                        <div class="market-title">${btcMarket.name}</div>
+                        <div class="price">${btcMarket.current_price.toLocaleString()}원</div>
+                        <div class="price-change ${priceClass}">
+                            ${priceSymbol}${priceChange.toFixed(2)}% (24h)
+                        </div>
+                        <div class="stat">거래량: ${btcMarket.volume_24h.toLocaleString()}</div>
+                        <div class="stat">상태: ${btcMarket.status}</div>
+                    </div>
+                `;
+            }
+            
+            if (marketData.nb_guild) {
+                const guild = marketData.nb_guild;
+                container.innerHTML += `
+                    <div class="market-card">
+                        <div class="market-title">${guild.name}</div>
+                        <div class="stat">길드 자금: ${guild.resources.guild_funds.toLocaleString()}원</div>
+                        <div class="stat">거래량: ${guild.resources.trading_volume.toLocaleString()}</div>
+                        <div class="stat">평판: ${guild.resources.reputation}</div>
+                        <div class="stat">전략: ${guild.strategies.current_strategy}</div>
+                        <div class="stat">상태: ${guild.status}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function updateSystemLog() {
+            const container = document.getElementById('system-log');
+            if (villageData.system_log) {
+                container.innerHTML = villageData.system_log.map(log => `
+                    <div class="log-entry">
+                        <span class="log-timestamp">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
+                        <span class="log-message">${log.message}</span>
+                    </div>
+                `).join('');
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function updateSystemStatus(data) {
+            const statusText = document.getElementById('status-text');
+            const statusIndicator = document.querySelector('.status-indicator');
+            
+            if (data.server === 'Online') {
+                statusText.textContent = '온라인';
+                statusIndicator.className = 'status-indicator status-online';
+            } else {
+                statusText.textContent = '오프라인';
+                statusIndicator.className = 'status-indicator status-offline';
+            }
+        }
+
+        // 알림 표시 함수
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 5px;
+                color: white;
+                font-weight: bold;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            if (type === 'success') {
+                notification.style.background = '#4CAF50';
+            } else if (type === 'error') {
+                notification.style.background = '#F44336';
+            } else {
+                notification.style.background = '#2196F3';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // 모든 데이터 새로고침
+        async function refreshAllData() {
+            await Promise.all([
+                fetchResidents(),
+                fetchMarketInfo(),
+                fetchVillageStatus(),
+                fetchSystemStatus()
+            ]);
+            showNotification('데이터가 새로고침되었습니다', 'success');
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAllData();
+            
+            // 10초마다 자동 새로고침
+            setInterval(refreshAllData, 10000);
+        });
+
+        // CSS 애니메이션
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카드 저장소 시스템 통합 테스트</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000011;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #001122;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: linear-gradient(45deg, #00ff00, #44ff44);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .result {
+            background: #001a33;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 3px solid #00ff00;
+        }
+        .success { border-left-color: #00ff88; }
+        .error { border-left-color: #ff0088; }
+        .warning { border-left-color: #ffaa00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 카드 저장소 시스템 통합 테스트</h1>
+        
+        <div class="test-section">
+            <h3>📋 테스트 결과</h3>
+            <div id="test-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🎮 테스트 컨트롤</h3>
+            <button onclick="runAllTests()">🧪 전체 테스트 실행</button>
+            <button onclick="clearResults()">🗑️ 결과 지우기</button>
+            <button onclick="openMainApp()">🏠 메인 앱 열기</button>
+            <button onclick="openViewer()">📊 뷰어 열기</button>
+        </div>
+    </div>
+
+    <!-- 필요한 스크립트들 -->
+    <script src="card-storage-system.js"></script>
+    <script src="game-initializer.js"></script>
+    <script src="left-panel-populator.js"></script>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(resultDiv);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+        }
+
+        function openMainApp() {
+            window.open('index.html', '_blank');
+        }
+
+        function openViewer() {
+            window.open('card-storage-viewer.html', '_blank');
+        }
+
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 카드 저장소 시스템 통합 테스트 시작', 'success');
+            
+            // 테스트 1: 카드 저장소 시스템 로드 확인
+            addResult('📋 테스트 1: 카드 저장소 시스템 로드 확인...');
+            if (typeof window.cardStorageSystem !== 'undefined') {
+                addResult('✅ 카드 저장소 시스템이 로드되었습니다.', 'success');
+            } else {
+                addResult('❌ 카드 저장소 시스템이 로드되지 않았습니다.', 'error');
+                return;
+            }
+
+            // 테스트 2: 초기화 확인
+            addResult('📋 테스트 2: 카드 저장소 시스템 초기화 확인...');
+            try {
+                window.cardStorageSystem.initialize();
+                addResult('✅ 카드 저장소 시스템 초기화 완료', 'success');
+            } catch (error) {
+                addResult(`❌ 초기화 오류: ${error.message}`, 'error');
+            }
+
+            // 테스트 3: N/B 코인 추가 테스트
+            addResult('📋 테스트 3: N/B 코인 추가 테스트...');
+            try {
+                const beforeCount = window.cardStorageSystem.getCardStorage('1m').nbCoins;
+                window.cardStorageSystem.addNBCoin('1m', 1);
+                const afterCount = window.cardStorageSystem.getCardStorage('1m').nbCoins;
+                
+                if (afterCount === beforeCount + 1) {
+                    addResult(`✅ N/B 코인 추가 성공: ${beforeCount} → ${afterCount}`, 'success');
+                } else {
+                    addResult(`⚠️ N/B 코인 추가 결과 예상과 다름: ${beforeCount} → ${afterCount}`, 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ N/B 코인 추가 오류: ${error.message}`, 'error');
+            }
+
+            // 테스트 4: N/B 미네랄 추가 테스트
+            addResult('📋 테스트 4: N/B 미네랄 추가 테스트...');
+            try {
+                const beforeAmount = window.cardStorageSystem.getCardStorage('1m').nbMinerals;
+                window.cardStorageSystem.addNBMineral('1m', 1.0);
+                const afterAmount = window.cardStorageSystem.getCardStorage('1m').nbMinerals;
+                
+                if (afterAmount === beforeAmount + 1.0) {
+                    addResult(`✅ N/B 미네랄 추가 성공: ${beforeAmount.toFixed(2)}% → ${afterAmount.toFixed(2)}%`, 'success');
+                } else {
+                    addResult(`⚠️ N/B 미네랄 추가 결과 예상과 다름: ${beforeAmount.toFixed(2)}% → ${afterAmount.toFixed(2)}%`, 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ N/B 미네랄 추가 오류: ${error.message}`, 'error');
+            }
+
+            // 테스트 5: 매수 기록 추가 테스트
+            addResult('📋 테스트 5: 매수 기록 추가 테스트...');
+            try {
+                const beforeCount = window.cardStorageSystem.getCardStorage('1m').buyCount;
+                window.cardStorageSystem.addBuyRecord('1m', 50000000, 2.5);
+                const afterCount = window.cardStorageSystem.getCardStorage('1m').buyCount;
+                
+                if (afterCount === beforeCount + 1) {
+                    addResult(`✅ 매수 기록 추가 성공: ${beforeCount} → ${afterCount}`, 'success');
+                } else {
+                    addResult(`⚠️ 매수 기록 추가 결과 예상과 다름: ${beforeCount} → ${afterCount}`, 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ 매수 기록 추가 오류: ${error.message}`, 'error');
+            }
+
+            // 테스트 6: 매도 기록 추가 테스트
+            addResult('📋 테스트 6: 매도 기록 추가 테스트...');
+            try {
+                const beforeCount = window.cardStorageSystem.getCardStorage('1m').sellCount;
+                window.cardStorageSystem.addSellRecord('1m', 52000000, 4.0);
+                const afterCount = window.cardStorageSystem.getCardStorage('1m').sellCount;
+                
+                if (afterCount === beforeCount + 1) {
+                    addResult(`✅ 매도 기록 추가 성공: ${beforeCount} → ${afterCount}`, 'success');
+                } else {
+                    addResult(`⚠️ 매도 기록 추가 결과 예상과 다름: ${beforeCount} → ${afterCount}`, 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ 매도 기록 추가 오류: ${error.message}`, 'error');
+            }
+
+            // 테스트 7: 통계 조회 테스트
+            addResult('📋 테스트 7: 통계 조회 테스트...');
+            try {
+                const stats = window.cardStorageSystem.getCardStatistics('1m');
+                if (stats && typeof stats.nbCoins === 'number' && typeof stats.nbMinerals === 'number') {
+                    addResult(`✅ 통계 조회 성공: N/B 코인 ${stats.nbCoins}개, N/B 미네랄 ${stats.nbMinerals.toFixed(2)}%`, 'success');
+                } else {
+                    addResult('⚠️ 통계 조회 결과 형식이 예상과 다름', 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ 통계 조회 오류: ${error.message}`, 'error');
+            }
+
+            // 테스트 8: 데이터 내보내기 테스트
+            addResult('📋 테스트 8: 데이터 내보내기 테스트...');
+            try {
+                const exportData = window.cardStorageSystem.exportData();
+                if (exportData && typeof exportData === 'object') {
+                    addResult(`✅ 데이터 내보내기 성공: ${Object.keys(exportData).length}개 카드 데이터`, 'success');
+                } else {
+                    addResult('⚠️ 데이터 내보내기 결과가 예상과 다름', 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ 데이터 내보내기 오류: ${error.message}`, 'error');
+            }
+
+            // 테스트 9: localStorage 저장 확인
+            addResult('📋 테스트 9: localStorage 저장 확인...');
+            try {
+                const savedData = localStorage.getItem('cardStorageData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    addResult(`✅ localStorage 저장 확인: ${Object.keys(parsedData).length}개 카드 데이터 저장됨`, 'success');
+                } else {
+                    addResult('⚠️ localStorage에 저장된 데이터가 없음', 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ localStorage 확인 오류: ${error.message}`, 'error');
+            }
+
+            addResult('🎉 모든 테스트 완료!', 'success');
+        }
+
+        // 페이지 로드 시 자동으로 테스트 실행
+        window.addEventListener('load', () => {
+            addResult('📄 페이지 로드 완료 - 테스트 준비됨', 'success');
+        });
+    </script>
+</body>
+</html>

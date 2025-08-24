@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>새로고침 문제 해결 테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-panel {
+            background: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #4CAF50; }
+        .error { background: #f44336; }
+        .info { background: #2196F3; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        #game-container {
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 새로고침 문제 해결 테스트</h1>
+    
+    <div class="test-panel">
+        <h2>테스트 컨트롤</h2>
+        <button onclick="testRefresh()">🔄 새로고침 테스트</button>
+        <button onclick="checkSystemStatus()">📊 시스템 상태 확인</button>
+        <button onclick="restartAllSystems()">🔄 모든 시스템 재시작</button>
+        <button onclick="clearGameState()">🗑️ 게임 상태 초기화</button>
+        <button onclick="createNewExplorers()">🤖 AI 모델 수동 생성</button>
+    </div>
+    
+    <div class="test-panel">
+        <h2>시스템 상태</h2>
+        <div id="system-status" class="status info">시스템 상태 확인 중...</div>
+        <div id="ai-models-status" class="status info">AI 모델 상태 확인 중...</div>
+        <div id="trainer-status" class="status info">트레이너 상태 확인 중...</div>
+        <div id="residents-status" class="status info">주민 상태 확인 중...</div>
+    </div>
+    
+    <div id="game-container">
+        <div id="game"></div>
+    </div>
+    
+    <div class="test-panel">
+        <h2>로그</h2>
+        <div id="log-container" style="height: 200px; overflow-y: auto; background: #000; padding: 10px; border-radius: 5px;"></div>
+    </div>
+
+    <!-- 모듈 로드 -->
+    <script src="modules/templates/log-manager.js"></script>
+    <script src="modules/templates/game-state-manager.js"></script>
+    <script src="modules/templates/game-initializer.js"></script>
+    <script src="modules/templates/explorer-movement-system.js"></script>
+    <script src="modules/templates/trainer-movement-controller.js"></script>
+    <script src="modules/templates/trainer-decision-handler.js"></script>
+    <script src="modules/templates/resident-persistence-manager.js"></script>
+    <script src="modules/templates/resident-collection-system.js"></script>
+
+    <script>
+        // 로그 함수
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#4ecdc4' : '#fff';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+
+        // 시스템 상태 확인
+        function checkSystemStatus() {
+            log('📊 시스템 상태 확인 시작...');
+            
+            // 게임 상태 관리자 확인
+            const gameStateManager = document.getElementById('system-status');
+            if (window.gameStateManager) {
+                gameStateManager.innerHTML = '✅ 게임 상태 관리자: 정상 작동';
+                gameStateManager.className = 'status success';
+            } else {
+                gameStateManager.innerHTML = '❌ 게임 상태 관리자: 로드되지 않음';
+                gameStateManager.className = 'status error';
+            }
+            
+            // AI 모델 상태 확인
+            const aiModelsStatus = document.getElementById('ai-models-status');
+            if (window.aiModels && Array.isArray(window.aiModels)) {
+                const activeModels = window.aiModels.filter(model => model.circle);
+                const explorers = activeModels.filter(model => model.isExplorer);
+                const trainers = activeModels.filter(model => model.isTrainer);
+                aiModelsStatus.innerHTML = `✅ AI 모델: ${activeModels.length}개 활성화 (탐색원: ${explorers.length}개, 트레이너: ${trainers.length}개)`;
+                aiModelsStatus.className = 'status success';
+            } else {
+                aiModelsStatus.innerHTML = '❌ AI 모델: 로드되지 않음';
+                aiModelsStatus.className = 'status error';
+            }
+            
+            // 트레이너 상태 확인
+            const trainerStatus = document.getElementById('trainer-status');
+            if (window.trainerMovementController && window.trainerDecisionHandler) {
+                trainerStatus.innerHTML = '✅ 트레이너 시스템: 정상 작동';
+                trainerStatus.className = 'status success';
+            } else {
+                trainerStatus.innerHTML = '❌ 트레이너 시스템: 로드되지 않음';
+                trainerStatus.className = 'status error';
+            }
+            
+            // 주민 상태 확인
+            const residentsStatus = document.getElementById('residents-status');
+            if (window.residentCollectionSystem) {
+                residentsStatus.innerHTML = '✅ 주민 수집 시스템: 정상 작동';
+                residentsStatus.className = 'status success';
+            } else {
+                residentsStatus.innerHTML = '❌ 주민 수집 시스템: 로드되지 않음';
+                residentsStatus.className = 'status error';
+            }
+            
+            log('📊 시스템 상태 확인 완료');
+        }
+
+        // 모든 시스템 재시작
+        function restartAllSystems() {
+            log('🔄 모든 시스템 재시작 시작...');
+            
+            try {
+                // 게임 상태 관리자 재시작
+                if (window.gameStateManager) {
+                    window.gameStateManager.restartAllSystems();
+                }
+                
+                // 탐색 시스템 재시작
+                if (window.explorerMovementSystem) {
+                    window.explorerMovementSystem.restart();
+                }
+                
+                // 트레이너 시스템 재시작
+                if (window.trainerMovementController) {
+                    window.trainerMovementController.restart();
+                }
+                
+                if (window.trainerDecisionHandler) {
+                    window.trainerDecisionHandler.restart();
+                }
+                
+                // 주민 수집 시스템 재시작
+                if (window.residentCollectionSystem) {
+                    window.residentCollectionSystem.restart();
+                }
+                
+                log('✅ 모든 시스템 재시작 완료');
+                setTimeout(checkSystemStatus, 1000);
+            } catch (error) {
+                log(`❌ 시스템 재시작 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 게임 상태 초기화
+        function clearGameState() {
+            log('🗑️ 게임 상태 초기화 시작...');
+            
+            try {
+                if (window.gameStateManager) {
+                    window.gameStateManager.clearGameState();
+                }
+                
+                localStorage.removeItem('hankookin_game_state');
+                log('✅ 게임 상태 초기화 완료');
+            } catch (error) {
+                log(`❌ 게임 상태 초기화 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // AI 모델 수동 생성
+        function createNewExplorers() {
+            log('🤖 AI 모델 수동 생성 시작...');
+            
+            try {
+                if (window.gameStateManager) {
+                    // 기존 AI 모델들 제거
+                    window.gameStateManager.clearAllAiModels();
+                    
+                    // AI 모델들 수동 생성
+                    window.gameStateManager.createAiModelsManually();
+                    
+                    // 시스템 재시작
+                    window.gameStateManager.restartAllSystems();
+                    
+                    log('✅ AI 모델 수동 생성 완료 - 4개 탐색원, 1개 트레이너');
+                } else {
+                    log('❌ 게임 상태 관리자가 로드되지 않음', 'error');
+                }
+            } catch (error) {
+                log(`❌ AI 모델 수동 생성 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 새로고침 테스트
+        function testRefresh() {
+            log('🔄 새로고침 테스트 시작...');
+            log('3초 후 페이지가 새로고침됩니다...');
+            
+            let countdown = 3;
+            const interval = setInterval(() => {
+                log(`새로고침까지 ${countdown}초 남았습니다...`);
+                countdown--;
+                
+                if (countdown <= 0) {
+                    clearInterval(interval);
+                    log('🔄 페이지 새로고침 중...');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        // 게임 초기화
+        function initializeGame() {
+            log('🎮 게임 초기화 시작...');
+            
+            try {
+                // 로그 매니저 초기화
+                if (window.LogManager) {
+                    window.logManager = new window.LogManager();
+                    log('✅ 로그 매니저 초기화 완료');
+                }
+                
+                // 게임 상태 관리자 초기화
+                if (window.GameStateManager) {
+                    window.gameStateManager = new window.GameStateManager();
+                    log('✅ 게임 상태 관리자 초기화 완료');
+                }
+                
+                // 게임 초기화
+                if (window.GameInitializer) {
+                    window.gameInitializer = new window.GameInitializer();
+                    
+                    // 게임 컨테이너 찾기
+                    const gameContainer = document.getElementById('game');
+                    if (gameContainer) {
+                        window.gameInitializer.initializeGame(gameContainer);
+                        log('✅ 게임 초기화 완료');
+                        
+                        // AI 모델 자동 생성 비활성화됨
+                        setTimeout(() => {
+                            if (window.gameStateManager) {
+                                log('🤖 AI 모델 자동 생성이 비활성화되었습니다.');
+                                log('📝 수동으로 AI 모델을 생성하려면 "N/B 길드에서 새로운 탐색원 생성" 버튼을 사용하세요.');
+                            }
+                        }, 1000);
+                    } else {
+                        log('❌ 게임 컨테이너를 찾을 수 없음', 'error');
+                    }
+                }
+                
+                // 시스템 상태 확인
+                setTimeout(checkSystemStatus, 3000);
+                
+            } catch (error) {
+                log(`❌ 게임 초기화 실패: ${error.message}`, 'error');
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 페이지 로드 완료 - 초기화 시작...');
+            
+            // 모듈 로드 대기 후 초기화
+            setTimeout(() => {
+                initializeGame();
+            }, 1000);
+        });
+
+        // 페이지 언로드 시 상태 저장
+        window.addEventListener('beforeunload', function() {
+            log('💾 페이지 언로드 - 상태 저장 중...');
+            if (window.gameStateManager) {
+                window.gameStateManager.saveGameStateOnUnload();
+            }
+        });
+    </script>
+</body>
+</html>

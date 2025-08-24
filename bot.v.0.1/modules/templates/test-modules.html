@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #0f0;
+            padding: 20px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+        }
+        .success { border-color: #0f0; color: #0f0; }
+        .error { border-color: #f00; color: #f00; }
+        .warning { border-color: #ff0; color: #ff0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Module Load Test</h1>
+    
+    <div id="test-results">
+        <div class="test-result">테스트 시작...</div>
+    </div>
+
+    <!-- 모듈 로드 -->
+    <script src="trainer-movement-controller.js"></script>
+    <script src="trainer-visual-effects.js"></script>
+    <script src="trainer-decision-handler.js"></script>
+
+    <script>
+        function addTestResult(message, type = 'success') {
+            const container = document.getElementById('test-results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            container.appendChild(div);
+        }
+
+        // 모듈 로드 테스트
+        function testModules() {
+            addTestResult('=== 모듈 로드 테스트 시작 ===', 'warning');
+            
+            // 1. TrainerMovementController 테스트
+            if (window.trainerMovementController) {
+                addTestResult('✅ TrainerMovementController 로드됨');
+                
+                // 인스턴스 테스트
+                const controller = window.trainerMovementController;
+                addTestResult(`   - movementSpeed: ${controller.movementSpeed}`);
+                addTestResult(`   - arrivalThreshold: ${controller.arrivalThreshold}`);
+                addTestResult(`   - minMovementDistance: ${controller.minMovementDistance}`);
+                
+                // 메서드 테스트
+                if (typeof controller.updateTrainerMovement === 'function') {
+                    addTestResult('   - updateTrainerMovement 메서드 존재');
+                } else {
+                    addTestResult('   - updateTrainerMovement 메서드 없음', 'error');
+                }
+                
+                if (typeof controller.calculateDistanceToTarget === 'function') {
+                    addTestResult('   - calculateDistanceToTarget 메서드 존재');
+                } else {
+                    addTestResult('   - calculateDistanceToTarget 메서드 없음', 'error');
+                }
+            } else {
+                addTestResult('❌ TrainerMovementController 로드 실패', 'error');
+            }
+            
+            // 2. TrainerVisualEffects 테스트
+            if (window.trainerVisualEffects) {
+                addTestResult('✅ TrainerVisualEffects 로드됨');
+                
+                const effects = window.trainerVisualEffects;
+                addTestResult(`   - colorMap 키 개수: ${Object.keys(effects.colorMap).length}`);
+                
+                if (typeof effects.changeTrainerColor === 'function') {
+                    addTestResult('   - changeTrainerColor 메서드 존재');
+                } else {
+                    addTestResult('   - changeTrainerColor 메서드 없음', 'error');
+                }
+            } else {
+                addTestResult('❌ TrainerVisualEffects 로드 실패', 'error');
+            }
+            
+            // 3. TrainerDecisionHandler 테스트
+            if (window.trainerDecisionHandler) {
+                addTestResult('✅ TrainerDecisionHandler 로드됨');
+                
+                const handler = window.trainerDecisionHandler;
+                addTestResult(`   - waitCheckTimer: ${handler.waitCheckTimer}`);
+                addTestResult(`   - countdownStarted: ${handler.countdownStarted}`);
+                
+                if (typeof handler.handleTrainerDecision === 'function') {
+                    addTestResult('   - handleTrainerDecision 메서드 존재');
+                } else {
+                    addTestResult('   - handleTrainerDecision 메서드 없음', 'error');
+                }
+            } else {
+                addTestResult('❌ TrainerDecisionHandler 로드 실패', 'error');
+            }
+            
+            // 4. 간단한 이동 테스트
+            addTestResult('=== 이동 테스트 ===', 'warning');
+            
+            if (window.trainerMovementController) {
+                // 가짜 모델 객체 생성
+                const testModel = {
+                    circle: { x: 100, y: 100 },
+                    targetX: 200,
+                    targetY: 200,
+                    name: { x: 100, y: 94 },
+                    role: { x: 100, y: 106 }
+                };
+                
+                const controller = window.trainerMovementController;
+                const distance = controller.calculateDistanceToTarget(testModel);
+                addTestResult(`   - 거리 계산 테스트: ${distance.toFixed(2)}`);
+                
+                // 이동 테스트 (실제 이동은 하지 않고 로직만 확인)
+                const dx = testModel.targetX - testModel.circle.x;
+                const dy = testModel.targetY - testModel.circle.y;
+                addTestResult(`   - 이동 벡터: dx=${dx}, dy=${dy}`);
+                
+                if (Math.abs(dx) > controller.minMovementDistance) {
+                    addTestResult('   - X축 이동 조건 만족');
+                } else {
+                    addTestResult('   - X축 이동 조건 불만족', 'warning');
+                }
+                
+                if (Math.abs(dy) > controller.minMovementDistance) {
+                    addTestResult('   - Y축 이동 조건 만족');
+                } else {
+                    addTestResult('   - Y축 이동 조건 불만족', 'warning');
+                }
+            }
+            
+            addTestResult('=== 테스트 완료 ===', 'warning');
+        }
+
+        // 페이지 로드 후 테스트 실행
+        window.addEventListener('load', () => {
+            setTimeout(testModules, 1000);
+        });
+    </script>
+</body>
+</html>

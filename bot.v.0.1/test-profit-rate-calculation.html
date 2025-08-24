@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수익률 계산 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        .result {
+            background-color: #444;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success { color: #00ff88; }
+        .error { color: #ff0088; }
+        .info { color: #00ffff; }
+        button {
+            background-color: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #005a9e;
+        }
+        input, select {
+            background-color: #444;
+            color: white;
+            border: 1px solid #666;
+            padding: 5px;
+            border-radius: 3px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎯 수익률 계산 테스트</h1>
+        
+        <div class="test-section">
+            <h3>1. 기본 수익률 계산 테스트</h3>
+            <div>
+                <label>구역:</label>
+                <select id="zoneSelect">
+                    <option value="BLUE">BLUE</option>
+                    <option value="ORANGE">ORANGE</option>
+                </select>
+                <label>구역 강도:</label>
+                <input type="number" id="zoneStrength" value="20" min="-200" max="200">
+                <button onclick="testBasicCalculation()">기본 계산 테스트</button>
+            </div>
+            <div id="basicResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 게임 모듈 연결 테스트</h3>
+            <button onclick="testGameModules()">게임 모듈 테스트</button>
+            <div id="moduleResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 스냅샷 데이터 테스트</h3>
+            <button onclick="testSnapshotData()">스냅샷 데이터 테스트</button>
+            <div id="snapshotResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 실시간 수익률 업데이트</h3>
+            <button onclick="startRealTimeTest()">실시간 테스트 시작</button>
+            <button onclick="stopRealTimeTest()">실시간 테스트 중지</button>
+            <div id="realtimeResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let realtimeInterval = null;
+
+        // 기본 수익률 계산 테스트
+        function testBasicCalculation() {
+            const zone = document.getElementById('zoneSelect').value;
+            const strength = parseInt(document.getElementById('zoneStrength').value);
+            
+            let buyProfitRate = 0;
+            
+            if (zone === 'ORANGE') {
+                buyProfitRate = Math.max(0.5, Math.min(3.0, strength * 0.1));
+            } else if (zone === 'BLUE') {
+                buyProfitRate = Math.max(-2.0, Math.min(1.5, -strength * 0.05));
+            }
+            
+            const result = `
+                <div class="success">✅ 기본 수익률 계산 완료</div>
+                <div>구역: ${zone}</div>
+                <div>구역 강도: ${strength}</div>
+                <div>매수 예상 수익률: ${buyProfitRate.toFixed(2)}%</div>
+                <div>매도 예상 수익률: ${(-buyProfitRate * 0.5).toFixed(2)}%</div>
+            `;
+            
+            document.getElementById('basicResult').innerHTML = result;
+        }
+
+        // 게임 모듈 연결 테스트
+        function testGameModules() {
+            let result = '<div class="info">🔍 게임 모듈 상태 확인 중...</div>';
+            
+            const modules = [
+                'currentPriceManager',
+                'profitRateCalculator',
+                'trainerDecisionHandler',
+                'buyProfitRateDisplay',
+                'sellProfitRateDisplay'
+            ];
+            
+            modules.forEach(module => {
+                if (window[module]) {
+                    result += `<div class="success">✅ ${module}: 사용 가능</div>`;
+                } else {
+                    result += `<div class="error">❌ ${module}: 사용 불가</div>`;
+                }
+            });
+            
+            // 수익률 계산 테스트
+            if (window.currentPriceManager && typeof window.currentPriceManager.calculateBuyProfitRate === 'function') {
+                try {
+                    const rate = window.currentPriceManager.calculateBuyProfitRate();
+                    result += `<div class="success">✅ 매수 수익률 계산: ${rate.toFixed(2)}%</div>`;
+                } catch (error) {
+                    result += `<div class="error">❌ 매수 수익률 계산 오류: ${error.message}</div>`;
+                }
+            }
+            
+            document.getElementById('moduleResult').innerHTML = result;
+        }
+
+        // 스냅샷 데이터 테스트
+        function testSnapshotData() {
+            let result = '<div class="info">📊 스냅샷 데이터 생성 테스트...</div>';
+            
+            try {
+                // 가상의 시장 데이터 생성
+                const mockMarketData = {
+                    symbol: "BTC/KRW",
+                    currentPrice: 159224000,
+                    priceChangePct: -0.02,
+                    zone: "BLUE",
+                    zoneStrength: -64
+                };
+                
+                // 가상의 자산 데이터 생성
+                const mockAssetsData = {
+                    krwBalance: 300.762,
+                    btcBalance: 0.00021472,
+                    portfolioRatio: 99.13
+                };
+                
+                // 예상 수익률 계산
+                let buyProfitRate = 0;
+                if (mockMarketData.zone === 'ORANGE') {
+                    buyProfitRate = Math.max(0.5, Math.min(3.0, mockMarketData.zoneStrength * 0.1));
+                } else if (mockMarketData.zone === 'BLUE') {
+                    buyProfitRate = Math.max(-2.0, Math.min(1.5, -mockMarketData.zoneStrength * 0.05));
+                }
+                
+                const sellProfitRate = -buyProfitRate * 0.5;
+                
+                result += `
+                    <div class="success">✅ 가상 스냅샷 데이터 생성 완료</div>
+                    <div>현재가: ₩${mockMarketData.currentPrice.toLocaleString()}</div>
+                    <div>구역: ${mockMarketData.zone} (강도: ${mockMarketData.zoneStrength})</div>
+                    <div>매수 예상 수익률: ${buyProfitRate.toFixed(2)}%</div>
+                    <div>매도 예상 수익률: ${sellProfitRate.toFixed(2)}%</div>
+                    <div>KRW 잔고: ₩${mockAssetsData.krwBalance.toLocaleString()}</div>
+                    <div>BTC 잔고: ${mockAssetsData.btcBalance}</div>
+                `;
+                
+            } catch (error) {
+                result += `<div class="error">❌ 스냅샷 데이터 생성 오류: ${error.message}</div>`;
+            }
+            
+            document.getElementById('snapshotResult').innerHTML = result;
+        }
+
+        // 실시간 수익률 업데이트 테스트
+        function startRealTimeTest() {
+            if (realtimeInterval) {
+                clearInterval(realtimeInterval);
+            }
+            
+            realtimeInterval = setInterval(() => {
+                const now = new Date();
+                const timestamp = now.getTime();
+                
+                // 가상의 실시간 데이터 생성
+                const mockData = {
+                    ts: timestamp,
+                    currentTimeframe: "1m",
+                    market: {
+                        symbol: "BTC/KRW",
+                        currentPrice: 159224000 + Math.floor(Math.random() * 10000 - 5000),
+                        priceChangePct: (Math.random() * 2 - 1).toFixed(2),
+                        zone: Math.random() > 0.5 ? "BLUE" : "ORANGE",
+                        zoneStrength: Math.floor(Math.random() * 200 - 100)
+                    },
+                    expected: {
+                        expectedReturnPct: 0,
+                        expectedBuyPct: 0,
+                        expectedSellPct: 0,
+                        basis: "test"
+                    },
+                    trade: {
+                        timeframe: "1m",
+                        mode: "paper",
+                        hasActiveTrade: false,
+                        nextAction: "BUY"
+                    },
+                    assets: {
+                        krwBalance: 300.762,
+                        btcBalance: 0.00021472,
+                        portfolioRatio: 99.13
+                    }
+                };
+                
+                // 수익률 계산
+                let buyProfitRate = 0;
+                if (mockData.market.zone === 'ORANGE') {
+                    buyProfitRate = Math.max(0.5, Math.min(3.0, mockData.market.zoneStrength * 0.1));
+                } else if (mockData.market.zone === 'BLUE') {
+                    buyProfitRate = Math.max(-2.0, Math.min(1.5, -mockData.market.zoneStrength * 0.05));
+                }
+                
+                mockData.expected.expectedReturnPct = buyProfitRate;
+                mockData.expected.expectedBuyPct = Math.max(0, buyProfitRate);
+                mockData.expected.expectedSellPct = Math.max(0, -buyProfitRate * 0.5);
+                mockData.expected.basis = "realtimeTest";
+                
+                const result = `
+                    <div class="info">🔄 실시간 업데이트 중... (${now.toLocaleTimeString()})</div>
+                    <div>현재가: ₩${mockData.market.currentPrice.toLocaleString()}</div>
+                    <div>구역: ${mockData.market.zone} (강도: ${mockData.market.zoneStrength})</div>
+                    <div class="success">매수 예상 수익률: ${mockData.expected.expectedReturnPct.toFixed(2)}%</div>
+                    <div>매도 예상 수익률: ${mockData.expected.expectedSellPct.toFixed(2)}%</div>
+                    <div>계산 기준: ${mockData.expected.basis}</div>
+                `;
+                
+                document.getElementById('realtimeResult').innerHTML = result;
+            }, 2000); // 2초마다 업데이트
+        }
+
+        function stopRealTimeTest() {
+            if (realtimeInterval) {
+                clearInterval(realtimeInterval);
+                realtimeInterval = null;
+                document.getElementById('realtimeResult').innerHTML = '<div class="info">⏹️ 실시간 테스트 중지됨</div>';
+            }
+        }
+
+        // 페이지 로드 시 기본 테스트 실행
+        window.addEventListener('load', () => {
+            testBasicCalculation();
+            testGameModules();
+        });
+    </script>
+</body>
+</html>

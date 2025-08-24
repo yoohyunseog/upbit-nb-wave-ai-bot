@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trainer Activity Log Viewer</title>
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; background:#0e1621; color:#e6efff; }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        .header { display:flex; align-items:center; justify-content: space-between; margin-bottom: 16px; gap: 8px; flex-wrap: wrap; }
+        .title { font-size: 20px; font-weight: 700; }
+        .controls { display:flex; gap: 8px; align-items:center; flex-wrap: wrap; }
+        .card { background: #17212b; border: 1px solid #223042; border-radius: 8px; padding: 12px; }
+        .logs { margin-top: 12px; }
+        .log-item { display:grid; grid-template-columns: 120px 100px 1fr; gap: 8px; padding: 10px 8px; border-bottom: 1px dashed #223042; align-items:center; }
+        .log-item:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .badge { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border:1px solid #2b3b50; background:#0e1621; }
+        .badge.move { color:#8ab4ff; border-color:#315a9b; background:#0e2035; }
+        .badge.state { color:#b39ddb; border-color:#52446b; background:#1a1324; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size:12px; color:#b8c7e0; }
+        .ts { color:#8fa6c0; font-size:12px; }
+        input, select, button { background:#0e1621; color:#e6efff; border:1px solid #223042; border-radius:6px; padding:6px 8px; }
+        button { cursor:pointer; }
+        .pill { padding:6px 10px; border-radius:999px; }
+        .kv { display:flex; flex-wrap:wrap; gap:8px; }
+        .kv .kv-item { background:#0e1621; border:1px solid #223042; padding:4px 8px; border-radius:6px; }
+    </style>
+    <script>
+        async function fetchLogs() {
+            const res = await fetch('/api/trainer/activity-log');
+            const data = await res.json();
+            if (!data.ok) return [];
+            return data.items || [];
+        }
+        function fmtTs(v){
+            try{ const d = new Date(Number(v)); return isNaN(d.getTime()) ? '' : d.toLocaleString(); }catch(_){ return ''; }
+        }
+        function badge(it){ return (it.type||'').toUpperCase()==='MOVE' ? 'badge move' : 'badge state'; }
+        function renderItems(items){
+            const list = document.getElementById('log-list');
+            list.innerHTML = '';
+            const q = (document.getElementById('filter-q').value||'').trim().toLowerCase();
+            const filtered = items.filter(it => !q || JSON.stringify(it).toLowerCase().includes(q));
+            filtered.forEach(it => {
+                const row = document.createElement('div');
+                row.className = 'log-item';
+                const ts = document.createElement('div'); ts.className = 'ts'; ts.textContent = fmtTs(it.ts || it.timestamp || Date.now());
+                const typ = document.createElement('div'); typ.innerHTML = `<span class="${badge(it)}">${it.type||'STATE'}</span>`;
+                const content = document.createElement('div');
+                const kv = document.createElement('div'); kv.className='kv';
+                const entries = Object.entries(it).filter(([k]) => !['ts','timestamp','type'].includes(k));
+                entries.forEach(([k,v]) => { const d = document.createElement('div'); d.className='kv-item mono'; d.textContent = `${k}: ${typeof v==='object'?JSON.stringify(v):v}`; kv.appendChild(d); });
+                content.appendChild(kv);
+                row.appendChild(ts); row.appendChild(typ); row.appendChild(content);
+                list.appendChild(row);
+            });
+            document.getElementById('count').textContent = filtered.length;
+        }
+        async function refresh(){ const items = await fetchLogs(); renderItems(items); }
+        let timer = null;
+        function toggleAuto(){
+            const on = document.getElementById('auto').checked;
+            const ms = parseInt(document.getElementById('interval').value, 10) || 2000;
+            if (timer) { clearInterval(timer); timer = null; }
+            if (on) { timer = setInterval(refresh, ms); }
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh').addEventListener('click', refresh);
+            document.getElementById('auto').addEventListener('change', toggleAuto);
+            document.getElementById('interval').addEventListener('change', toggleAuto);
+            document.getElementById('filter-q').addEventListener('input', () => { if(!document.getElementById('auto').checked) refresh(); });
+            refresh(); document.getElementById('auto').checked = true; toggleAuto();
+        });
+    </script>
+    </head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">Trainer Activity Log <span class="muted">(최대 200개)</span></div>
+            <div class="controls">
+                <label><input type="checkbox" id="auto" /> 자동 새로고침</label>
+                <select id="interval">
+                    <option value="1000">1초</option>
+                    <option value="2000" selected>2초</option>
+                    <option value="3000">3초</option>
+                    <option value="5000">5초</option>
+                </select>
+                <input id="filter-q" placeholder="검색 (키워드)" />
+                <button id="refresh" class="pill">새로고침</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="muted">표시 수: <span id="count">0</span></div>
+            <div id="log-list" class="logs"></div>
+        </div>
+    </div>
+</body>
+</html>
+
+

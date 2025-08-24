@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N/B 코인 디버깅</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: #fff; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #333; border-radius: 5px; }
+        .timeframe { margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 3px; }
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; }
+        .warning { color: #ffd43b; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #2a2a2a; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 N/B 코인 디버깅 도구</h1>
+    
+    <div class="debug-section">
+        <h2>📊 카드 스토리지 시스템 상태</h2>
+        <button onclick="checkCardStorage()">카드 스토리지 확인</button>
+        <button onclick="resetAllNBCoins()">모든 N/B 코인 초기화</button>
+        <div id="cardStorageStatus"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>🎮 게임 데이터 상태</h2>
+        <button onclick="checkGameData()">게임 데이터 확인</button>
+        <div id="gameDataStatus"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>🌐 전역 상태 확인</h2>
+        <button onclick="checkGlobalStatus()">전역 상태 확인</button>
+        <div id="globalStatus"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>🔧 수동 N/B 코인 추가</h2>
+        <select id="timeframeSelect">
+            <option value="1m">1m</option>
+            <option value="3m">3m</option>
+            <option value="5m">5m</option>
+            <option value="10m">10m</option>
+            <option value="15m">15m</option>
+            <option value="30m">30m</option>
+            <option value="1h">1h</option>
+            <option value="1D">1D</option>
+        </select>
+        <input type="number" id="coinAmount" value="1" min="0" max="10" style="width: 60px; padding: 5px;">
+        <button onclick="addNBCoin()">N/B 코인 추가</button>
+        <button onclick="removeNBCoin()">N/B 코인 제거</button>
+        <div id="manualResult"></div>
+    </div>
+
+    <script>
+        function checkCardStorage() {
+            const statusDiv = document.getElementById('cardStorageStatus');
+            statusDiv.innerHTML = '<p>확인 중...</p>';
+            
+            try {
+                if (!window.cardStorageSystem) {
+                    statusDiv.innerHTML = '<p class="error">❌ 카드 스토리지 시스템이 없습니다.</p>';
+                    return;
+                }
+                
+                const timeframes = ['1m', '3m', '5m', '10m', '15m', '30m', '1h', '1D'];
+                let html = '<h3>카드 스토리지 데이터:</h3>';
+                
+                timeframes.forEach(tf => {
+                    const storage = window.cardStorageSystem.getCardStorage(tf);
+                    const nbCoins = storage.nbCoins || 0;
+                    const nbMinerals = storage.nbMinerals || 0;
+                    
+                    html += `
+                        <div class="timeframe">
+                            <strong>${tf}:</strong> N/B 코인: ${nbCoins}개, N/B 미네랄: ${nbMinerals.toFixed(2)}%
+                        </div>
+                    `;
+                });
+                
+                statusDiv.innerHTML = html;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<p class="error">❌ 오류: ${error.message}</p>`;
+            }
+        }
+        
+        function checkGameData() {
+            const statusDiv = document.getElementById('gameDataStatus');
+            statusDiv.innerHTML = '<p>확인 중...</p>';
+            
+            try {
+                if (!window.gameInitializer || !window.gameInitializer.gameData) {
+                    statusDiv.innerHTML = '<p class="error">❌ 게임 데이터가 없습니다.</p>';
+                    return;
+                }
+                
+                const gameData = window.gameInitializer.gameData;
+                const html = `
+                    <h3>게임 데이터:</h3>
+                    <pre>${JSON.stringify(gameData, null, 2)}</pre>
+                `;
+                
+                statusDiv.innerHTML = html;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<p class="error">❌ 오류: ${error.message}</p>`;
+            }
+        }
+        
+        function checkGlobalStatus() {
+            const statusDiv = document.getElementById('globalStatus');
+            statusDiv.innerHTML = '<p>확인 중...</p>';
+            
+            try {
+                let html = '<h3>전역 상태:</h3>';
+                
+                // nbCoinStatus 확인
+                if (window.nbCoinStatus) {
+                    html += '<h4>N/B 코인 상태:</h4>';
+                    html += `<pre>${JSON.stringify(window.nbCoinStatus, null, 2)}</pre>`;
+                } else {
+                    html += '<p class="warning">⚠️ window.nbCoinStatus가 없습니다.</p>';
+                }
+                
+                // cardStorageSystem 확인
+                if (window.cardStorageSystem) {
+                    html += '<p class="success">✅ 카드 스토리지 시스템 존재</p>';
+                } else {
+                    html += '<p class="error">❌ 카드 스토리지 시스템 없음</p>';
+                }
+                
+                // nbCoinDropSystem 확인
+                if (window.nbCoinDropSystem) {
+                    html += '<p class="success">✅ N/B 코인 드랍 시스템 존재</p>';
+                } else {
+                    html += '<p class="error">❌ N/B 코인 드랍 시스템 없음</p>';
+                }
+                
+                statusDiv.innerHTML = html;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<p class="error">❌ 오류: ${error.message}</p>`;
+            }
+        }
+        
+        function addNBCoin() {
+            const timeframe = document.getElementById('timeframeSelect').value;
+            const amount = parseInt(document.getElementById('coinAmount').value);
+            const resultDiv = document.getElementById('manualResult');
+            
+            try {
+                if (!window.cardStorageSystem) {
+                    resultDiv.innerHTML = '<p class="error">❌ 카드 스토리지 시스템이 없습니다.</p>';
+                    return;
+                }
+                
+                const newCount = window.cardStorageSystem.addNBCoin(timeframe, amount);
+                resultDiv.innerHTML = `<p class="success">✅ ${timeframe}에 N/B 코인 ${amount}개 추가 완료. 총 ${newCount}개</p>`;
+                
+                // 1초 후 상태 다시 확인
+                setTimeout(checkCardStorage, 1000);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ 오류: ${error.message}</p>`;
+            }
+        }
+        
+        function removeNBCoin() {
+            const timeframe = document.getElementById('timeframeSelect').value;
+            const amount = parseInt(document.getElementById('coinAmount').value);
+            const resultDiv = document.getElementById('manualResult');
+            
+            try {
+                if (!window.cardStorageSystem) {
+                    resultDiv.innerHTML = '<p class="error">❌ 카드 스토리지 시스템이 없습니다.</p>';
+                    return;
+                }
+                
+                const newCount = window.cardStorageSystem.removeNBCoin(timeframe, amount);
+                resultDiv.innerHTML = `<p class="success">✅ ${timeframe}에서 N/B 코인 ${amount}개 제거 완료. 총 ${newCount}개</p>`;
+                
+                // 1초 후 상태 다시 확인
+                setTimeout(checkCardStorage, 1000);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ 오류: ${error.message}</p>`;
+            }
+        }
+        
+        function resetAllNBCoins() {
+            if (!confirm('모든 타임프레임의 N/B 코인을 0으로 초기화하시겠습니까?')) {
+                return;
+            }
+            
+            try {
+                if (!window.cardStorageSystem) {
+                    alert('카드 스토리지 시스템이 없습니다.');
+                    return;
+                }
+                
+                const timeframes = ['1m', '3m', '5m', '10m', '15m', '30m', '1h', '1D'];
+                timeframes.forEach(tf => {
+                    const storage = window.cardStorageSystem.getCardStorage(tf);
+                    storage.nbCoins = 0;
+                    storage.nbMinerals = 0;
+                });
+                
+                window.cardStorageSystem.saveCardStorages();
+                alert('모든 N/B 코인이 초기화되었습니다!');
+                
+                // 상태 다시 확인
+                setTimeout(checkCardStorage, 1000);
+                
+            } catch (error) {
+                alert(`초기화 중 오류: ${error.message}`);
+            }
+        }
+        
+        // 페이지 로드 시 자동으로 상태 확인
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkCardStorage();
+                checkGlobalStatus();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

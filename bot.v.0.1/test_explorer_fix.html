@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>탐색원 시스템 수정 테스트</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            margin: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-area {
+            border: 2px solid #00ff00;
+            padding: 20px;
+            margin: 20px 0;
+            background: #000;
+        }
+        .log-area {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            padding: 10px;
+            background: #000;
+            font-size: 12px;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .status {
+            color: #ffff00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 탐색원 시스템 수정 테스트</h1>
+        
+        <div class="test-area">
+            <h2>시스템 상태</h2>
+            <div id="status" class="status">초기화 대기 중...</div>
+        </div>
+        
+        <div class="test-area">
+            <h2>테스트 컨트롤</h2>
+            <button onclick="initializeSystem()">시스템 초기화</button>
+            <button onclick="testExplorerCreation()">탐색원 생성 테스트</button>
+            <button onclick="testExplorerUpdate()">탐색원 업데이트 테스트</button>
+            <button onclick="clearLog()">로그 지우기</button>
+        </div>
+        
+        <div class="test-area">
+            <h2>실시간 로그</h2>
+            <div id="log" class="log-area"></div>
+        </div>
+    </div>
+
+    <script>
+        // 탐색원 이동 시스템 모듈 (수정된 버전)
+        class ExplorerMovementSystem {
+            constructor() {
+                this.explorers = [];
+                this.isInitialized = false;
+                this.movementSpeed = 0.1;
+                this.arrivalThreshold = 25;
+                this.explorationRange = 15;
+                this.logMessages = [];
+                this.maxLogMessages = 100;
+                this.lastSaveTime = 0;
+                this.saveInterval = 3000;
+            }
+
+            addLogMessage(message) {
+                const timestamp = new Date().toLocaleString('ko-KR');
+                const logEntry = `[${timestamp}] ${message}`;
+                this.logMessages.push(logEntry);
+                
+                if (this.logMessages.length > this.maxLogMessages) {
+                    this.logMessages.shift();
+                }
+                
+                // UI에 로그 출력
+                const logArea = document.getElementById('log');
+                if (logArea) {
+                    logArea.innerHTML += logEntry + '<br>';
+                    logArea.scrollTop = logArea.scrollHeight;
+                }
+                
+                console.log(logEntry);
+            }
+
+            initialize(scene, config) {
+                if (this.isInitialized) {
+                    this.addLogMessage(`🔍 탐색원 이동 시스템: 이미 초기화됨`);
+                    return;
+                }
+                
+                this.scene = scene;
+                this.config = config || { width: 800, height: 600 };
+                this.isInitialized = true;
+                
+                this.addLogMessage(`🔍 탐색원 이동 시스템 초기화 완료 (scene: ${!!scene}, config: ${!!config})`);
+                
+                // 초기화 시 기본 탐색원들 자동 생성
+                if (this.explorers.length === 0) {
+                    this.createDefaultExplorers();
+                }
+                
+                console.log('🔍 탐색원 이동 시스템 초기화 완료');
+            }
+
+            createDefaultExplorer(index) {
+                if (!this.config) {
+                    this.addLogMessage(`❌ 탐색원 ${index} 생성 실패: 설정이 없음`);
+                    return;
+                }
+                
+                const defaultExplorer = {
+                    id: index,
+                    circle: {
+                        x: Math.random() * (this.config.width - 80) + 40,
+                        y: Math.random() * (this.config.height - 80) + 40
+                    },
+                    name: { text: `탐색원${index}` },
+                    role: { text: '탐색자' },
+                    targetX: Math.random() * (this.config.width - 80) + 40,
+                    targetY: Math.random() * (this.config.height - 80) + 40,
+                    discoveredCoords: [],
+                    isMoving: true,
+                    lastUpdateTime: Date.now()
+                };
+                
+                this.explorers[index] = defaultExplorer;
+                this.addLogMessage(`✅ 탐색원 ${index} 자동 생성 완료: ${defaultExplorer.name.text} - 위치(${Math.round(defaultExplorer.circle.x)}, ${Math.round(defaultExplorer.circle.y)})`);
+            }
+
+            createDefaultExplorers() {
+                this.addLogMessage(`🔧 기본 탐색원들 자동 생성 시작`);
+                
+                for (let i = 0; i < 9; i++) {
+                    this.createDefaultExplorer(i);
+                }
+                
+                this.addLogMessage(`✅ ${this.explorers.length}개의 기본 탐색원 생성 완료`);
+            }
+
+            updateExplorerByIndex(index) {
+                if (!this.isInitialized) {
+                    this.addLogMessage(`❌ 탐색원 ${index}: 시스템이 초기화되지 않음`);
+                    return;
+                }
+                
+                if (!this.explorers[index]) {
+                    this.addLogMessage(`⚠️ 탐색원 ${index}: 탐색원 데이터가 없음 - 자동 생성 시도`);
+                    this.createDefaultExplorer(index);
+                    return;
+                }
+                
+                const explorer = this.explorers[index];
+                this.addLogMessage(`🔍 탐색원 ${index} 업데이트: ${explorer.name.text} - 위치(${Math.round(explorer.circle.x)}, ${Math.round(explorer.circle.y)})`);
+            }
+        }
+
+        // 전역 변수로 시스템 인스턴스 생성
+        window.explorerMovementSystem = new ExplorerMovementSystem();
+
+        // 테스트 함수들
+        function initializeSystem() {
+            const status = document.getElementById('status');
+            status.textContent = '시스템 초기화 중...';
+            
+            window.explorerMovementSystem.initialize(null, { width: 800, height: 600 });
+            
+            status.textContent = `시스템 초기화 완료 - 탐색원 ${window.explorerMovementSystem.explorers.length}개 생성됨`;
+        }
+
+        function testExplorerCreation() {
+            const status = document.getElementById('status');
+            status.textContent = '탐색원 생성 테스트 중...';
+            
+            window.explorerMovementSystem.createDefaultExplorers();
+            
+            status.textContent = `탐색원 생성 테스트 완료 - 총 ${window.explorerMovementSystem.explorers.length}개`;
+        }
+
+        function testExplorerUpdate() {
+            const status = document.getElementById('status');
+            status.textContent = '탐색원 업데이트 테스트 중...';
+            
+            // 모든 탐색원 업데이트 테스트
+            for (let i = 0; i < 9; i++) {
+                window.explorerMovementSystem.updateExplorerByIndex(i);
+            }
+            
+            status.textContent = '탐색원 업데이트 테스트 완료';
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            window.explorerMovementSystem.logMessages = [];
+        }
+
+        // 페이지 로드 시 초기 상태 설정
+        window.onload = function() {
+            const status = document.getElementById('status');
+            status.textContent = '시스템 준비 완료 - 테스트를 시작하세요';
+        };
+    </script>
+</body>
+</html>

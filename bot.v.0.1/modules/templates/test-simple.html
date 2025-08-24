@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>간단한 카드 저장소 테스트</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>카드 저장소 시스템 간단 테스트</h1>
+    
+    <button onclick="testLoad()">1. 시스템 로드 테스트</button>
+    <button onclick="testAddData()">2. 데이터 추가 테스트</button>
+    <button onclick="testGetData()">3. 데이터 조회 테스트</button>
+    <button onclick="testExport()">4. 데이터 내보내기 테스트</button>
+    
+    <div id="result"></div>
+
+    <script src="card-storage-system.js"></script>
+    <script>
+        function showResult(message, isError = false) {
+            const div = document.getElementById('result');
+            div.innerHTML = `<div class="result ${isError ? 'error' : 'success'}">${message}</div>`;
+            console.log(message);
+        }
+
+        function testLoad() {
+            try {
+                if (typeof window.cardStorageSystem !== 'undefined') {
+                    showResult('✅ 카드 저장소 시스템 로드 성공');
+                } else {
+                    showResult('❌ 카드 저장소 시스템 로드 실패', true);
+                }
+            } catch (error) {
+                showResult(`❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testAddData() {
+            try {
+                if (window.cardStorageSystem) {
+                    window.cardStorageSystem.addNBCoin('1m', 2);
+                    window.cardStorageSystem.addNBMineral('1m', 3.5);
+                    window.cardStorageSystem.addBuyRecord('1m', 50000000, 2.5);
+                    showResult('✅ 테스트 데이터 추가 성공');
+                } else {
+                    showResult('❌ 카드 저장소 시스템이 없습니다', true);
+                }
+            } catch (error) {
+                showResult(`❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testGetData() {
+            try {
+                if (window.cardStorageSystem) {
+                    const stats = window.cardStorageSystem.getAllStatistics();
+                    showResult(`✅ 데이터 조회 성공. 타임프레임: ${Object.keys(stats).length}개`);
+                    console.log('통계:', stats);
+                } else {
+                    showResult('❌ 카드 저장소 시스템이 없습니다', true);
+                }
+            } catch (error) {
+                showResult(`❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testExport() {
+            try {
+                if (window.cardStorageSystem) {
+                    const data = window.cardStorageSystem.exportCardStorages();
+                    showResult(`✅ 데이터 내보내기 성공. 크기: ${data.length} 문자`);
+                    console.log('내보낸 데이터:', data);
+                } else {
+                    showResult('❌ 카드 저장소 시스템이 없습니다', true);
+                }
+            } catch (error) {
+                showResult(`❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        // 페이지 로드 시 자동 테스트
+        window.addEventListener('load', () => {
+            setTimeout(testLoad, 100);
+        });
+    </script>
+</body>
+</html>

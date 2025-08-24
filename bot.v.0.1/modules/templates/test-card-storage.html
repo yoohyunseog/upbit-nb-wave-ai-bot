@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카드 저장소 시스템 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+    </style>
+</head>
+<body>
+    <h1>카드 저장소 시스템 테스트</h1>
+    
+    <div class="test-section">
+        <h2>1. 카드 저장소 시스템 로드 테스트</h2>
+        <button onclick="testCardStorageSystemLoad()">카드 저장소 시스템 로드 테스트</button>
+        <div id="loadResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. N/B 코인 추가/제거 테스트</h2>
+        <button onclick="testAddNBCoin()">1m 분봉에 N/B 코인 +1</button>
+        <button onclick="testRemoveNBCoin()">1m 분봉에서 N/B 코인 -1</button>
+        <div id="nbCoinResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. N/B 미네랄 추가/제거 테스트</h2>
+        <button onclick="testAddNBMineral()">1m 분봉에 N/B 미네랄 +1.0%</button>
+        <button onclick="testRemoveNBMineral()">1m 분봉에서 N/B 미네랄 -1.0%</button>
+        <div id="nbMineralResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. 매수/매도 기록 테스트</h2>
+        <button onclick="testAddBuyRecord()">1m 분봉에 매수 기록 추가</button>
+        <button onclick="testAddSellRecord()">1m 분봉에 매도 기록 추가</button>
+        <div id="tradeResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. 데이터 내보내기/가져오기 테스트</h2>
+        <button onclick="testExportData()">데이터 내보내기</button>
+        <button onclick="testImportData()">데이터 가져오기</button>
+        <div id="exportResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>6. 모든 데이터 초기화</h2>
+        <button onclick="testResetAllData()">모든 데이터 초기화</button>
+        <div id="resetResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>7. 현재 저장된 데이터 확인</h2>
+        <button onclick="testGetAllData()">모든 데이터 조회</button>
+        <div id="allDataResult" class="result"></div>
+    </div>
+
+    <script src="card-storage-system.js"></script>
+    <script>
+        function showResult(elementId, message, isError = false, isSuccess = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = 'result';
+            if (isError) element.className += ' error';
+            if (isSuccess) element.className += ' success';
+        }
+
+        function testCardStorageSystemLoad() {
+            try {
+                if (typeof window.cardStorageSystem !== 'undefined') {
+                    showResult('loadResult', '✅ 카드 저장소 시스템이 성공적으로 로드되었습니다.', false, true);
+                    console.log('카드 저장소 시스템:', window.cardStorageSystem);
+                } else {
+                    showResult('loadResult', '❌ 카드 저장소 시스템을 찾을 수 없습니다.', true);
+                }
+            } catch (error) {
+                showResult('loadResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testAddNBCoin() {
+            try {
+                if (window.cardStorageSystem) {
+                    const newCount = window.cardStorageSystem.addNBCoin('1m', 1);
+                    showResult('nbCoinResult', `✅ 1m 분봉에 N/B 코인 +1 추가됨. 현재: ${newCount}개`, false, true);
+                } else {
+                    showResult('nbCoinResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('nbCoinResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testRemoveNBCoin() {
+            try {
+                if (window.cardStorageSystem) {
+                    const newCount = window.cardStorageSystem.removeNBCoin('1m', 1);
+                    showResult('nbCoinResult', `✅ 1m 분봉에서 N/B 코인 -1 제거됨. 현재: ${newCount}개`, false, true);
+                } else {
+                    showResult('nbCoinResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('nbCoinResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testAddNBMineral() {
+            try {
+                if (window.cardStorageSystem) {
+                    const newAmount = window.cardStorageSystem.addNBMineral('1m', 1.0);
+                    showResult('nbMineralResult', `✅ 1m 분봉에 N/B 미네랄 +1.0% 추가됨. 현재: ${newAmount.toFixed(2)}%`, false, true);
+                } else {
+                    showResult('nbMineralResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('nbMineralResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testRemoveNBMineral() {
+            try {
+                if (window.cardStorageSystem) {
+                    const newAmount = window.cardStorageSystem.removeNBMineral('1m', 1.0);
+                    showResult('nbMineralResult', `✅ 1m 분봉에서 N/B 미네랄 -1.0% 제거됨. 현재: ${newAmount.toFixed(2)}%`, false, true);
+                } else {
+                    showResult('nbMineralResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('nbMineralResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testAddBuyRecord() {
+            try {
+                if (window.cardStorageSystem) {
+                    window.cardStorageSystem.addBuyRecord('1m', 50000000, 2.5);
+                    showResult('tradeResult', '✅ 1m 분봉에 매수 기록 추가됨', false, true);
+                } else {
+                    showResult('tradeResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('tradeResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testAddSellRecord() {
+            try {
+                if (window.cardStorageSystem) {
+                    window.cardStorageSystem.addSellRecord('1m', 52000000, 4.0);
+                    showResult('tradeResult', '✅ 1m 분봉에 매도 기록 추가됨', false, true);
+                } else {
+                    showResult('tradeResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('tradeResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testExportData() {
+            try {
+                if (window.cardStorageSystem) {
+                    const data = window.cardStorageSystem.exportCardStorages();
+                    showResult('exportResult', `✅ 데이터 내보내기 성공: ${data.length} 문자`, false, true);
+                    console.log('내보낸 데이터:', data);
+                } else {
+                    showResult('exportResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('exportResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testImportData() {
+            try {
+                if (window.cardStorageSystem) {
+                    // 테스트용 데이터
+                    const testData = JSON.stringify({
+                        "1m": {
+                            "timeframe": "1m",
+                            "nbCoins": 5,
+                            "nbMinerals": 10.5,
+                            "buyCount": 2,
+                            "sellCount": 1,
+                            "totalProfit": 6.5,
+                            "lastBuyPrice": 50000000,
+                            "lastSellPrice": 52000000,
+                            "lastBuyTime": Date.now(),
+                            "lastSellTime": Date.now(),
+                            "buyHistory": [],
+                            "sellHistory": [],
+                            "createdAt": Date.now(),
+                            "lastUpdated": Date.now()
+                        }
+                    });
+                    
+                    const success = window.cardStorageSystem.importCardStorages(testData);
+                    if (success) {
+                        showResult('exportResult', '✅ 데이터 가져오기 성공', false, true);
+                    } else {
+                        showResult('exportResult', '❌ 데이터 가져오기 실패', true);
+                    }
+                } else {
+                    showResult('exportResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('exportResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testResetAllData() {
+            try {
+                if (window.cardStorageSystem) {
+                    window.cardStorageSystem.resetAllCardStorages();
+                    showResult('resetResult', '✅ 모든 데이터 초기화 완료', false, true);
+                } else {
+                    showResult('resetResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('resetResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        function testGetAllData() {
+            try {
+                if (window.cardStorageSystem) {
+                    const statistics = window.cardStorageSystem.getAllStatistics();
+                    const data = window.cardStorageSystem.exportCardStorages();
+                    showResult('allDataResult', `✅ 데이터 조회 성공. 타임프레임: ${Object.keys(statistics).length}개`, false, true);
+                    console.log('통계 데이터:', statistics);
+                    console.log('전체 데이터:', data);
+                } else {
+                    showResult('allDataResult', '❌ 카드 저장소 시스템이 로드되지 않았습니다.', true);
+                }
+            } catch (error) {
+                showResult('allDataResult', `❌ 오류: ${error.message}`, true);
+            }
+        }
+
+        // 페이지 로드 시 자동으로 카드 저장소 시스템 로드 테스트
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testCardStorageSystemLoad();
+                
+                // 자동으로 테스트 데이터 생성
+                setTimeout(() => {
+                    if (window.cardStorageSystem) {
+                        console.log('자동 테스트 데이터 생성 시작...');
+                        
+                        // 1m 분봉에 테스트 데이터 추가
+                        window.cardStorageSystem.addNBCoin('1m', 3);
+                        window.cardStorageSystem.addNBMineral('1m', 5.5);
+                        window.cardStorageSystem.addBuyRecord('1m', 50000000, 2.5);
+                        window.cardStorageSystem.addSellRecord('1m', 52000000, 4.0);
+                        
+                        // 5m 분봉에 테스트 데이터 추가
+                        window.cardStorageSystem.addNBCoin('5m', 2);
+                        window.cardStorageSystem.addNBMineral('5m', 3.2);
+                        window.cardStorageSystem.addBuyRecord('5m', 51000000, 3.0);
+                        
+                        console.log('자동 테스트 데이터 생성 완료');
+                        testGetAllData();
+                    }
+                }, 500);
+            }, 100);
+        });
+    </script>
+</body>
+</html>

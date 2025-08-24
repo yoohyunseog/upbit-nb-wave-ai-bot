@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그 저장 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log-area {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 수익률 로그 저장 테스트</h1>
+        
+        <div>
+            <h3>테스트 기능</h3>
+            <button onclick="testLogSave()">🧪 로그 저장 테스트</button>
+            <button onclick="checkLogs()">📋 저장된 로그 확인</button>
+            <button onclick="clearLogs()">🗑️ 로그 초기화</button>
+        </div>
+        
+        <div>
+            <h3>로그 출력</h3>
+            <div id="logOutput" class="log-area"></div>
+        </div>
+        
+        <div>
+            <h3>파일 저장 상태</h3>
+            <div id="fileStatus" class="log-area"></div>
+        </div>
+    </div>
+
+    <script>
+        // 로그 출력 함수
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        // 파일 상태 업데이트
+        function updateFileStatus(message, type = 'info') {
+            const fileStatus = document.getElementById('fileStatus');
+            const timestamp = new Date().toLocaleTimeString();
+            const statusEntry = document.createElement('div');
+            statusEntry.className = type;
+            statusEntry.textContent = `[${timestamp}] ${message}`;
+            fileStatus.appendChild(statusEntry);
+            fileStatus.scrollTop = fileStatus.scrollHeight;
+        }
+
+        // 로그 저장 테스트
+        function testLogSave() {
+            log('🧪 로그 저장 테스트 시작...');
+            
+            const today = new Date().toISOString().split('T')[0];
+            const buyLogFile = `log/trainer/buy-profit-rate-logs-${today}.txt`;
+            const sellLogFile = `log/trainer/sell-profit-rate-logs-${today}.txt`;
+            
+            // 매수 로그 테스트
+            const buyLogContent = `[${new Date().toLocaleTimeString()}] 테스트 매수 수익률 계산: 2.5% (테스트용)\n`;
+            saveLogToFile(buyLogFile, buyLogContent, 1);
+            
+            // 매도 로그 테스트
+            const sellLogContent = `[${new Date().toLocaleTimeString()}] 테스트 매도 수익률 계산: 1.8% (테스트용)\n`;
+            saveLogToFile(sellLogFile, sellLogContent, 1);
+            
+            log('✅ 테스트 로그 생성 완료');
+        }
+
+        // 파일에 로그 저장
+        function saveLogToFile(filename, content, logCount) {
+            log(`💾 파일 저장 시도: ${filename}`);
+            
+            fetch('/save-log-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: filename,
+                    content: content,
+                    logCount: logCount
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    log(`✅ 파일 저장 성공: ${filename} (${logCount}개 로그)`, 'success');
+                    updateFileStatus(`💾 실제 파일 저장: ${data.filepath}`, 'success');
+                } else {
+                    log(`❌ 파일 저장 실패: ${data.error}`, 'error');
+                    updateFileStatus(`❌ 저장 실패: ${filename} - ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                log(`❌ 저장 요청 실패: ${error.message}`, 'error');
+                updateFileStatus(`❌ 요청 실패: ${filename} - ${error.message}`, 'error');
+            });
+        }
+
+        // 저장된 로그 확인
+        function checkLogs() {
+            log('📋 저장된 로그 확인 중...');
+            
+            const today = new Date().toISOString().split('T')[0];
+            const buyLogFile = `log/trainer/buy-profit-rate-logs-${today}.txt`;
+            const sellLogFile = `log/trainer/sell-profit-rate-logs-${today}.txt`;
+            
+            // 파일 존재 여부 확인 (간단한 방법)
+            fetch(buyLogFile)
+                .then(response => {
+                    if (response.ok) {
+                        log(`✅ 매수 로그 파일 존재: ${buyLogFile}`, 'success');
+                    } else {
+                        log(`❌ 매수 로그 파일 없음: ${buyLogFile}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    log(`❌ 매수 로그 파일 확인 실패: ${error.message}`, 'error');
+                });
+            
+            fetch(sellLogFile)
+                .then(response => {
+                    if (response.ok) {
+                        log(`✅ 매도 로그 파일 존재: ${sellLogFile}`, 'success');
+                    } else {
+                        log(`❌ 매도 로그 파일 없음: ${sellLogFile}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    log(`❌ 매도 로그 파일 확인 실패: ${error.message}`, 'error');
+                });
+        }
+
+        // 로그 초기화
+        function clearLogs() {
+            document.getElementById('logOutput').innerHTML = '';
+            document.getElementById('fileStatus').innerHTML = '';
+            log('🗑️ 로그 출력 초기화 완료');
+        }
+
+        // 페이지 로드 시 초기화
+        window.onload = function() {
+            log('🚀 로그 저장 테스트 페이지 로드됨');
+            log('💡 서버가 http://localhost:8000 에서 실행 중인지 확인하세요');
+        };
+    </script>
+</body>
+</html>

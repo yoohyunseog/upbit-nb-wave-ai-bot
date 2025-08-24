@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 흐름 테스트</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000011;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #001122;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: linear-gradient(45deg, #00ff00, #44ff44);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .result {
+            background: #001a33;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 3px solid #00ff00;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success { border-left-color: #00ff88; }
+        .error { border-left-color: #ff0088; }
+        .warning { border-left-color: #ffaa00; }
+        .data-display {
+            background: #001a33;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #0088ff;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 데이터 흐름 테스트</h1>
+        
+        <div class="test-section">
+            <h3>📋 테스트 결과</h3>
+            <div id="test-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🎮 테스트 컨트롤</h3>
+            <button onclick="testDataFlow()">🔄 데이터 흐름 테스트</button>
+            <button onclick="clearResults()">🗑️ 결과 지우기</button>
+            <button onclick="openMainApp()">🏠 메인 앱 열기</button>
+            <button onclick="openViewer()">📊 뷰어 열기</button>
+            <button onclick="checkLocalStorage()">💾 localStorage 확인</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 localStorage 데이터</h3>
+            <div id="localStorage-data" class="data-display"></div>
+        </div>
+    </div>
+
+    <!-- 필요한 스크립트들 -->
+    <script src="card-storage-system.js"></script>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(resultDiv);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+        }
+
+        function openMainApp() {
+            window.open('index.html', '_blank');
+        }
+
+        function openViewer() {
+            window.open('card-storage-viewer.html', '_blank');
+        }
+
+        function checkLocalStorage() {
+            addResult('💾 localStorage 데이터 확인 중...');
+            
+            try {
+                const cardStorageData = localStorage.getItem('cardStorageData');
+                const displayDiv = document.getElementById('localStorage-data');
+                
+                if (cardStorageData) {
+                    const parsedData = JSON.parse(cardStorageData);
+                    displayDiv.innerHTML = `<strong>📦 cardStorageData (${Object.keys(parsedData).length}개 카드):</strong>\n${JSON.stringify(parsedData, null, 2)}`;
+                    addResult(`✅ localStorage에서 ${Object.keys(parsedData).length}개의 카드 데이터 발견`, 'success');
+                } else {
+                    displayDiv.innerHTML = '<strong>❌ cardStorageData가 없습니다.</strong>';
+                    addResult('⚠️ localStorage에 cardStorageData가 없습니다.', 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ localStorage 확인 오류: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDataFlow() {
+            clearResults();
+            addResult('🚀 데이터 흐름 테스트 시작', 'success');
+            
+            // 1단계: 카드 저장소 시스템 로드 확인
+            addResult('📋 1단계: 카드 저장소 시스템 로드 확인...');
+            if (typeof window.cardStorageSystem !== 'undefined') {
+                addResult('✅ 카드 저장소 시스템이 로드되었습니다.', 'success');
+            } else {
+                addResult('❌ 카드 저장소 시스템이 로드되지 않았습니다.', 'error');
+                return;
+            }
+
+            // 2단계: 초기화
+            addResult('📋 2단계: 카드 저장소 시스템 초기화...');
+            try {
+                window.cardStorageSystem.initialize();
+                addResult('✅ 카드 저장소 시스템 초기화 완료', 'success');
+            } catch (error) {
+                addResult(`❌ 초기화 오류: ${error.message}`, 'error');
+            }
+
+            // 3단계: 테스트 데이터 생성
+            addResult('📋 3단계: 테스트 데이터 생성...');
+            try {
+                // 1m 타임프레임에 테스트 데이터 추가
+                window.cardStorageSystem.addNBCoin('1m', 2);
+                window.cardStorageSystem.addNBMineral('1m', 3.5);
+                window.cardStorageSystem.addBuyRecord('1m', 50000000, 2.5);
+                window.cardStorageSystem.addSellRecord('1m', 52000000, 4.0);
+                
+                // 5m 타임프레임에 테스트 데이터 추가
+                window.cardStorageSystem.addNBCoin('5m', 1);
+                window.cardStorageSystem.addNBMineral('5m', 2.0);
+                window.cardStorageSystem.addBuyRecord('5m', 51000000, 3.0);
+                
+                addResult('✅ 테스트 데이터 생성 완료', 'success');
+            } catch (error) {
+                addResult(`❌ 테스트 데이터 생성 오류: ${error.message}`, 'error');
+            }
+
+            // 4단계: localStorage 저장 확인
+            addResult('📋 4단계: localStorage 저장 확인...');
+            try {
+                const savedData = localStorage.getItem('cardStorageData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    addResult(`✅ localStorage 저장 확인: ${Object.keys(parsedData).length}개 카드 데이터`, 'success');
+                    
+                    // 1m 카드 데이터 확인
+                    if (parsedData['1m']) {
+                        const card1m = parsedData['1m'];
+                        addResult(`📊 1m 카드: N/B 코인 ${card1m.nbCoins}개, N/B 미네랄 ${card1m.nbMinerals}%, 매수 ${card1m.buyCount}회, 매도 ${card1m.sellCount}회`, 'success');
+                    }
+                    
+                    // 5m 카드 데이터 확인
+                    if (parsedData['5m']) {
+                        const card5m = parsedData['5m'];
+                        addResult(`📊 5m 카드: N/B 코인 ${card5m.nbCoins}개, N/B 미네랄 ${card5m.nbMinerals}%, 매수 ${card5m.buyCount}회, 매도 ${card5m.sellCount}회`, 'success');
+                    }
+                } else {
+                    addResult('❌ localStorage에 데이터가 저장되지 않았습니다.', 'error');
+                }
+            } catch (error) {
+                addResult(`❌ localStorage 확인 오류: ${error.message}`, 'error');
+            }
+
+            // 5단계: 데이터 내보내기 테스트
+            addResult('📋 5단계: 데이터 내보내기 테스트...');
+            try {
+                const exportData = window.cardStorageSystem.exportData();
+                if (exportData && typeof exportData === 'object') {
+                    addResult(`✅ 데이터 내보내기 성공: ${Object.keys(exportData).length}개 카드 데이터`, 'success');
+                } else {
+                    addResult('⚠️ 데이터 내보내기 결과가 예상과 다름', 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ 데이터 내보내기 오류: ${error.message}`, 'error');
+            }
+
+            // 6단계: 통계 조회 테스트
+            addResult('📋 6단계: 통계 조회 테스트...');
+            try {
+                const stats1m = window.cardStorageSystem.getCardStatistics('1m');
+                const stats5m = window.cardStorageSystem.getCardStatistics('5m');
+                
+                if (stats1m && stats5m) {
+                    addResult(`📊 1m 통계: N/B 코인 ${stats1m.nbCoins}개, N/B 미네랄 ${stats1m.nbMinerals.toFixed(2)}%`, 'success');
+                    addResult(`📊 5m 통계: N/B 코인 ${stats5m.nbCoins}개, N/B 미네랄 ${stats5m.nbMinerals.toFixed(2)}%`, 'success');
+                } else {
+                    addResult('⚠️ 통계 조회 결과가 예상과 다름', 'warning');
+                }
+            } catch (error) {
+                addResult(`❌ 통계 조회 오류: ${error.message}`, 'error');
+            }
+
+            addResult('🎉 데이터 흐름 테스트 완료!', 'success');
+            addResult('💡 이제 메인 앱에서 N/B 코인/미네랄 버튼을 눌러보고, 뷰어에서 데이터를 확인해보세요!', 'info');
+        }
+
+        // 페이지 로드 시 localStorage 확인
+        window.addEventListener('load', () => {
+            addResult('📄 페이지 로드 완료 - 데이터 흐름 테스트 준비됨', 'success');
+            checkLocalStorage();
+        });
+    </script>
+</body>
+</html>

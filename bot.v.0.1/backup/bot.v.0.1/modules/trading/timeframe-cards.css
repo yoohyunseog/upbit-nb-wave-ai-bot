@@ -1,0 +1,443 @@
+/* ===== Timeframe Cards Styles ===== */
+
+/* 분봉 카드 섹션 - 스타크래프트 스타일 */
+.timeframe-cards-section {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 2px solid #00ff00;
+    border-radius: 0;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 
+        inset 0 0 20px rgba(0, 255, 0, 0.1),
+        0 0 15px rgba(0, 255, 0, 0.3),
+        0 4px 8px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.timeframe-cards-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00ff00, transparent);
+    animation: scanline 3s linear infinite;
+}
+
+@keyframes scanline {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 분봉 헤더 - 스타크래프트 스타일 */
+.timeframe-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #00ff00;
+    position: relative;
+}
+
+.timeframe-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 50px;
+    height: 2px;
+    background: #00ff00;
+    animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.timeframe-header h4 {
+    color: #00ff00;
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px #00ff00;
+    font-family: 'Courier New', monospace;
+}
+
+.timeframe-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 현재 분봉 배지 - 스타크래프트 스타일 */
+#currentTimeframe {
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 0;
+    font-weight: bold;
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+    color: #000;
+    border: 1px solid #00ff00;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.3);
+    animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 5px rgba(0, 255, 0, 0.5); }
+    50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 15px rgba(0, 255, 0, 0.8); }
+}
+
+/* 자동 순회 버튼 - 스타크래프트 스타일 */
+#btnAutoRotate {
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 0;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%2300ff00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>') 12 12, pointer;
+    box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+#btnAutoRotate::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+#btnAutoRotate:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 4px 8px rgba(0, 0, 0, 0.4),
+        0 0 10px rgba(0, 255, 0, 0.5);
+    background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+}
+
+#btnAutoRotate:hover::before {
+    left: 100%;
+}
+
+/* 분봉 카드 컨테이너 */
+.timeframe-cards-container {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 5px 0;
+    min-height: 80px;
+}
+
+/* 분봉 카드 - 스타크래프트 스타일 */
+.timeframe-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    min-width: 80px;
+    height: 60px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #00ff00;
+    border-radius: 0;
+    transition: all 0.3s ease;
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%2300ff00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>') 12 12, pointer;
+    flex-shrink: 0;
+    position: relative;
+    box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.timeframe-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.timeframe-card:hover {
+    background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+    border-color: #00ff00;
+    transform: translateY(-3px);
+    box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 6px 12px rgba(0, 0, 0, 0.4),
+        0 0 15px rgba(0, 255, 0, 0.4);
+}
+
+.timeframe-card:hover::before {
+    left: 100%;
+}
+
+.timeframe-card.active {
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+    border-color: #00ff00;
+    box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        0 0 20px rgba(0, 255, 0, 0.6),
+        0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-3px);
+    animation: active-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes active-pulse {
+    0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 20px rgba(0, 255, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3); }
+    50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 30px rgba(0, 255, 0, 0.8), 0 6px 12px rgba(0, 0, 0, 0.4); }
+}
+
+/* 분봉 아이콘 - 스타크래프트 스타일 */
+.timeframe-icon {
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: #00ff00;
+    text-shadow: 0 0 5px #00ff00;
+    filter: drop-shadow(0 0 2px #00ff00);
+}
+
+/* 분봉 이름 - 스타크래프트 스타일 */
+.timeframe-name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #00ff00;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 3px #00ff00;
+}
+
+/* 분봉 상태 - 스타크래프트 스타일 */
+.timeframe-status {
+    font-size: 10px;
+    color: #666;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+}
+
+.timeframe-status.active {
+    color: #00ff00;
+    font-weight: bold;
+    text-shadow: 0 0 5px #00ff00;
+    animation: status-pulse 1s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* 호버 효과 - 스타크래프트 스타일 */
+.timeframe-card:hover .timeframe-status {
+    color: #00ff00;
+    text-shadow: 0 0 3px #00ff00;
+}
+
+.timeframe-card.active:hover .timeframe-status {
+    color: #00ff00;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .timeframe-cards-container {
+        gap: 8px;
+    }
+    
+    .timeframe-card {
+        min-width: 70px;
+        height: 55px;
+        padding: 8px;
+    }
+    
+    .timeframe-icon {
+        font-size: 14px;
+    }
+    
+    .timeframe-name {
+        font-size: 11px;
+    }
+    
+    .timeframe-status {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 480px) {
+    .timeframe-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .timeframe-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .timeframe-cards-container {
+        gap: 6px;
+    }
+    
+    .timeframe-card {
+        min-width: 60px;
+        height: 50px;
+        padding: 6px;
+    }
+}
+
+/* 스크롤바 스타일링 - 스타크래프트 스타일 */
+.timeframe-cards-container {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%2300ff00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l5-5-5-5"/><path d="M17 17l5-5-5-5"/></svg>') 12 12, auto;
+}
+
+.timeframe-cards-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.timeframe-cards-container::-webkit-scrollbar-track {
+    background: rgba(0, 255, 0, 0.1);
+    border-radius: 0;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.timeframe-cards-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+    border-radius: 0;
+    border: 1px solid #00ff00;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.timeframe-cards-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #00cc00 0%, #009900 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 5px rgba(0, 255, 0, 0.5);
+}
+
+/* 애니메이션 */
+@keyframes cardPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.timeframe-card.active {
+    animation: cardPulse 0.3s ease-in-out;
+}
+
+/* 로딩 상태 */
+.timeframe-card.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.timeframe-card.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 커스텀 커서 스타일 - 더 간단한 버전 */
+.timeframe-cards-section {
+    cursor: crosshair;
+}
+
+/* 호버 시 커서 변경 */
+.timeframe-card:hover {
+    cursor: pointer;
+}
+
+/* 활성 카드 커서 */
+.timeframe-card.active {
+    cursor: pointer;
+}
+
+/* 전체 섹션에 커스텀 커서 적용 */
+.timeframe-cards-section * {
+    cursor: inherit;
+}
+
+/* 버튼 커서 */
+#btnAutoRotate {
+    cursor: pointer !important;
+}
+
+/* 스크롤 영역 커서 */
+.timeframe-cards-container {
+    cursor: grab;
+}
+
+.timeframe-cards-container:active {
+    cursor: grabbing;
+}
+
+/* 다크 테마 호환 */
+@media (prefers-color-scheme: dark) {
+    .timeframe-cards-section {
+        background: rgba(30, 30, 30, 0.95);
+        border-color: #444;
+    }
+    
+    .timeframe-card {
+        background: rgba(40, 40, 40, 0.8);
+        border-color: #555;
+    }
+    
+    .timeframe-card:hover {
+        background: rgba(52, 152, 219, 0.2);
+    }
+    
+    .timeframe-card.active {
+        background: rgba(52, 152, 219, 0.4);
+    }
+}

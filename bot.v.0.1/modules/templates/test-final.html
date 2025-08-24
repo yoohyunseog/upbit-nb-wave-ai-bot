@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>최종 테스트 - 카드 저장소 시스템</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        button { padding: 12px 24px; margin: 8px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 14px; }
+        button:hover { background: #0056b3; }
+        .summary { background: #e2e3e5; padding: 20px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎯 최종 테스트 - 카드 저장소 시스템</h1>
+    
+    <div class="summary">
+        <h3>📋 테스트 목표</h3>
+        <p>1. 카드 저장소 시스템이 제대로 로드되는지 확인</p>
+        <p>2. N/B 코인과 미네랄 추가/제거가 정상 작동하는지 확인</p>
+        <p>3. 데이터가 localStorage에 저장되는지 확인</p>
+        <p>4. 카드 저장소 뷰어에서 데이터가 표시되는지 확인</p>
+    </div>
+    
+    <button onclick="runAllTests()">🚀 전체 테스트 실행</button>
+    <button onclick="clearResults()">🗑️ 결과 초기화</button>
+    <button onclick="openViewer()">📦 카드 저장소 뷰어 열기</button>
+    
+    <div id="results"></div>
+
+    <script src="card-storage-system.js"></script>
+    <script>
+        let testResults = [];
+        
+        function addResult(testName, success, message) {
+            const result = { testName, success, message, timestamp: new Date().toLocaleTimeString() };
+            testResults.push(result);
+            displayResults();
+        }
+        
+        function displayResults() {
+            const container = document.getElementById('results');
+            let html = '<h2>📊 테스트 결과</h2>';
+            
+            testResults.forEach(result => {
+                const status = result.success ? '✅' : '❌';
+                const className = result.success ? 'success' : 'error';
+                html += `
+                    <div class="test-result ${className}">
+                        <strong>${status} ${result.testName}</strong> (${result.timestamp})<br>
+                        ${result.message}
+                    </div>
+                `;
+            });
+            
+            // 요약
+            const passed = testResults.filter(r => r.success).length;
+            const total = testResults.length;
+            html += `<div class="summary"><strong>📈 요약: ${passed}/${total} 테스트 통과</strong></div>`;
+            
+            container.innerHTML = html;
+        }
+        
+        function clearResults() {
+            testResults = [];
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            
+            // 테스트 1: 시스템 로드
+            try {
+                if (typeof window.cardStorageSystem !== 'undefined') {
+                    addResult('시스템 로드', true, '카드 저장소 시스템이 성공적으로 로드되었습니다.');
+                } else {
+                    addResult('시스템 로드', false, '카드 저장소 시스템을 찾을 수 없습니다.');
+                    return; // 다른 테스트 중단
+                }
+            } catch (error) {
+                addResult('시스템 로드', false, `오류: ${error.message}`);
+                return;
+            }
+            
+            // 테스트 2: N/B 코인 추가
+            try {
+                const initialCount = window.cardStorageSystem.getCardStorage('1m').nbCoins;
+                const newCount = window.cardStorageSystem.addNBCoin('1m', 2);
+                if (newCount === initialCount + 2) {
+                    addResult('N/B 코인 추가', true, `1m 분봉에 N/B 코인 2개 추가됨. ${initialCount} → ${newCount}`);
+                } else {
+                    addResult('N/B 코인 추가', false, `예상: ${initialCount + 2}, 실제: ${newCount}`);
+                }
+            } catch (error) {
+                addResult('N/B 코인 추가', false, `오류: ${error.message}`);
+            }
+            
+            // 테스트 3: N/B 미네랄 추가
+            try {
+                const initialAmount = window.cardStorageSystem.getCardStorage('1m').nbMinerals;
+                const newAmount = window.cardStorageSystem.addNBMineral('1m', 3.5);
+                if (Math.abs(newAmount - (initialAmount + 3.5)) < 0.01) {
+                    addResult('N/B 미네랄 추가', true, `1m 분봉에 N/B 미네랄 3.5% 추가됨. ${initialAmount.toFixed(2)}% → ${newAmount.toFixed(2)}%`);
+                } else {
+                    addResult('N/B 미네랄 추가', false, `예상: ${(initialAmount + 3.5).toFixed(2)}%, 실제: ${newAmount.toFixed(2)}%`);
+                }
+            } catch (error) {
+                addResult('N/B 미네랄 추가', false, `오류: ${error.message}`);
+            }
+            
+            // 테스트 4: 매수 기록 추가
+            try {
+                const initialBuyCount = window.cardStorageSystem.getCardStorage('1m').buyCount;
+                window.cardStorageSystem.addBuyRecord('1m', 50000000, 2.5);
+                const newBuyCount = window.cardStorageSystem.getCardStorage('1m').buyCount;
+                if (newBuyCount === initialBuyCount + 1) {
+                    addResult('매수 기록 추가', true, `1m 분봉에 매수 기록 추가됨. ${initialBuyCount} → ${newBuyCount}`);
+                } else {
+                    addResult('매수 기록 추가', false, `예상: ${initialBuyCount + 1}, 실제: ${newBuyCount}`);
+                }
+            } catch (error) {
+                addResult('매수 기록 추가', false, `오류: ${error.message}`);
+            }
+            
+            // 테스트 5: 매도 기록 추가
+            try {
+                const initialSellCount = window.cardStorageSystem.getCardStorage('1m').sellCount;
+                window.cardStorageSystem.addSellRecord('1m', 52000000, 4.0);
+                const newSellCount = window.cardStorageSystem.getCardStorage('1m').sellCount;
+                if (newSellCount === initialSellCount + 1) {
+                    addResult('매도 기록 추가', true, `1m 분봉에 매도 기록 추가됨. ${initialSellCount} → ${newSellCount}`);
+                } else {
+                    addResult('매도 기록 추가', false, `예상: ${initialSellCount + 1}, 실제: ${newSellCount}`);
+                }
+            } catch (error) {
+                addResult('매도 기록 추가', false, `오류: ${error.message}`);
+            }
+            
+            // 테스트 6: 데이터 내보내기
+            try {
+                const exportData = window.cardStorageSystem.exportCardStorages();
+                const parsedData = JSON.parse(exportData);
+                if (parsedData && typeof parsedData === 'object') {
+                    addResult('데이터 내보내기', true, `데이터 내보내기 성공. 크기: ${exportData.length} 문자`);
+                } else {
+                    addResult('데이터 내보내기', false, '내보낸 데이터가 유효하지 않습니다.');
+                }
+            } catch (error) {
+                addResult('데이터 내보내기', false, `오류: ${error.message}`);
+            }
+            
+            // 테스트 7: 통계 조회
+            try {
+                const statistics = window.cardStorageSystem.getAllStatistics();
+                const timeframes = Object.keys(statistics);
+                if (timeframes.length > 0) {
+                    addResult('통계 조회', true, `${timeframes.length}개의 타임프레임 데이터 조회 성공`);
+                } else {
+                    addResult('통계 조회', false, '조회된 타임프레임이 없습니다.');
+                }
+            } catch (error) {
+                addResult('통계 조회', false, `오류: ${error.message}`);
+            }
+            
+            // 테스트 8: localStorage 저장 확인
+            try {
+                const savedData = localStorage.getItem('cardStorageData');
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    addResult('localStorage 저장', true, '데이터가 localStorage에 성공적으로 저장되었습니다.');
+                } else {
+                    addResult('localStorage 저장', false, 'localStorage에서 데이터를 찾을 수 없습니다.');
+                }
+            } catch (error) {
+                addResult('localStorage 저장', false, `오류: ${error.message}`);
+            }
+        }
+        
+        function openViewer() {
+            try {
+                const viewerUrl = 'card-storage-viewer.html';
+                const newWindow = window.open(viewerUrl, '_blank');
+                if (newWindow) {
+                    addResult('뷰어 열기', true, '카드 저장소 뷰어가 새 창에서 열렸습니다.');
+                } else {
+                    addResult('뷰어 열기', false, '팝업이 차단되었습니다.');
+                }
+            } catch (error) {
+                addResult('뷰어 열기', false, `오류: ${error.message}`);
+            }
+        }
+        
+        // 페이지 로드 시 자동 테스트
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addResult('페이지 로드', true, '테스트 페이지가 성공적으로 로드되었습니다.');
+            }, 100);
+        });
+    </script>
+</body>
+</html>

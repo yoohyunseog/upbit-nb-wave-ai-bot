@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Trainer Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        #gameCanvas {
+            border: 2px solid #0f0;
+            background-color: #001122;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #00ff88;
+        }
+        .log {
+            background-color: #001122;
+            border: 1px solid #0f0;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Simple Trainer Movement Test</h1>
+    
+    <div class="controls">
+        <button onclick="moveToCenter()">신호 대기 센터로 이동</button>
+        <button onclick="moveToBTCMarket()">BTC 시장으로 이동</button>
+        <button onclick="moveToNBGuild()">N/B 길드로 이동</button>
+        <button onclick="resetPosition()">위치 리셋</button>
+    </div>
+    
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <div class="log" id="log"></div>
+
+    <!-- 모듈 로드 -->
+    <script src="trainer-movement-controller.js"></script>
+    <script src="trainer-visual-effects.js"></script>
+    <script src="trainer-decision-handler.js"></script>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const logElement = document.getElementById('log');
+        
+        // 간단한 로그 시스템
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+        
+        // 가짜 logManager 생성
+        window.logManager = {
+            addLog: log
+        };
+        
+        // 테스트용 트레이너 모델
+        const trainer = {
+            circle: { x: 400, y: 300 },
+            targetX: 400,
+            targetY: 300,
+            targetAction: '신호 대기',
+            name: { x: 400, y: 294 },
+            role: { x: 400, y: 306 },
+            isTrainer: true
+        };
+        
+        // 게임 설정
+        const config = {
+            width: 800,
+            height: 600
+        };
+        
+        // 그리기 함수
+        function draw() {
+            // 캔버스 클리어
+            ctx.fillStyle = '#001122';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 그리드 그리기
+            ctx.strokeStyle = '#003344';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // 신호 대기 센터 (중앙)
+            ctx.fillStyle = '#88ccff';
+            ctx.beginPath();
+            ctx.arc(400, 300, 40, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('신호 대기', 400, 295);
+            ctx.fillText('센터', 400, 310);
+            
+            // BTC 시장 (우하단)
+            ctx.fillStyle = '#0088ff';
+            ctx.beginPath();
+            ctx.arc(700, 500, 35, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.fillText('BTC', 700, 495);
+            ctx.fillText('시장', 700, 510);
+            
+            // N/B 길드 (좌상단)
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(100, 100, 30, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.fillText('N/B', 100, 95);
+            ctx.fillText('길드', 100, 110);
+            
+            // 트레이너 그리기
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath();
+            ctx.arc(trainer.circle.x, trainer.circle.y, 20, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 트레이너 이름
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Trainer', trainer.circle.x, trainer.circle.y - 25);
+            ctx.fillText(trainer.targetAction, trainer.circle.x, trainer.circle.y + 25);
+            
+            // 목표 위치 표시
+            ctx.strokeStyle = '#ff0088';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(trainer.circle.x, trainer.circle.y);
+            ctx.lineTo(trainer.targetX, trainer.targetY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 목표 위치 원
+            ctx.fillStyle = '#ff0088';
+            ctx.beginPath();
+            ctx.arc(trainer.targetX, trainer.targetY, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        // 이동 함수들
+        function moveToCenter() {
+            if (window.trainerMovementController) {
+                window.trainerMovementController.moveToSignalCenter(trainer, config);
+                log('🎯 신호 대기 센터로 이동 명령');
+            } else {
+                trainer.targetX = 400;
+                trainer.targetY = 300;
+                trainer.targetAction = '신호 대기';
+                log('🎯 신호 대기 센터로 이동 (폴백)');
+            }
+        }
+        
+        function moveToBTCMarket() {
+            if (window.trainerMovementController) {
+                window.trainerMovementController.moveToBTCMarket(trainer, config);
+                log('🎯 BTC 시장으로 이동 명령');
+            } else {
+                trainer.targetX = 700;
+                trainer.targetY = 500;
+                trainer.targetAction = 'BTC 시장 방문';
+                log('🎯 BTC 시장으로 이동 (폴백)');
+            }
+        }
+        
+        function moveToNBGuild() {
+            if (window.trainerMovementController) {
+                window.trainerMovementController.moveToNBGuild(trainer);
+                log('🎯 N/B 길드로 이동 명령');
+            } else {
+                trainer.targetX = 100;
+                trainer.targetY = 100;
+                trainer.targetAction = 'N/B 길드 방문';
+                log('🎯 N/B 길드로 이동 (폴백)');
+            }
+        }
+        
+        function resetPosition() {
+            trainer.circle.x = 400;
+            trainer.circle.y = 300;
+            trainer.targetX = 400;
+            trainer.targetY = 300;
+            trainer.targetAction = '신호 대기';
+            log('🔄 위치 리셋');
+        }
+        
+        // 게임 루프
+        function gameLoop() {
+            // 트레이너 이동 처리
+            if (window.trainerMovementController) {
+                window.trainerMovementController.updateTrainerMovement(trainer, config);
+            } else {
+                // 폴백 이동 로직
+                const dx = trainer.targetX - trainer.circle.x;
+                const dy = trainer.targetY - trainer.circle.y;
+                
+                if (Math.abs(dx) > 0.5) {
+                    trainer.circle.x += dx * 0.1;
+                }
+                if (Math.abs(dy) > 0.5) {
+                    trainer.circle.y += dy * 0.1;
+                }
+            }
+            
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 초기화
+        function init() {
+            log('🚀 Simple Trainer Test 시작');
+            
+            // 모듈 로드 확인
+            if (window.trainerMovementController) {
+                log('✅ TrainerMovementController 로드됨');
+            } else {
+                log('❌ TrainerMovementController 로드 실패');
+            }
+            
+            if (window.trainerVisualEffects) {
+                log('✅ TrainerVisualEffects 로드됨');
+            } else {
+                log('❌ TrainerVisualEffects 로드 실패');
+            }
+            
+            if (window.trainerDecisionHandler) {
+                log('✅ TrainerDecisionHandler 로드됨');
+            } else {
+                log('❌ TrainerDecisionHandler 로드 실패');
+            }
+            
+            // 게임 루프 시작
+            gameLoop();
+        }
+        
+        // 페이지 로드 후 초기화
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

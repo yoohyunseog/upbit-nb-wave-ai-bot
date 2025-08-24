@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카드 저장소 API 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { border-left: 4px solid #28a745; }
+        .error { border-left: 4px solid #dc3545; }
+        input, select {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>카드 저장소 API 테스트</h1>
+    
+    <div class="test-section">
+        <h2>1. 전체 카드 저장소 조회</h2>
+        <button onclick="getAllCardStorage()">전체 데이터 조회</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 특정 타임프레임 조회</h2>
+        <select id="timeframeSelect">
+            <option value="1m">1m</option>
+            <option value="3m">3m</option>
+            <option value="5m">5m</option>
+            <option value="10m">10m</option>
+            <option value="15m">15m</option>
+            <option value="30m">30m</option>
+            <option value="1h">1h</option>
+            <option value="1D">1D</option>
+        </select>
+        <button onclick="getTimeframeStorage()">타임프레임 조회</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. N/B 코인 추가/제거</h2>
+        <select id="timeframeSelect2">
+            <option value="1m">1m</option>
+            <option value="3m">3m</option>
+            <option value="5m">5m</option>
+            <option value="10m">10m</option>
+            <option value="15m">15m</option>
+            <option value="30m">30m</option>
+            <option value="1h">1h</option>
+            <option value="1D">1D</option>
+        </select>
+        <button onclick="addNBCoin()">N/B 코인 +1</button>
+        <button onclick="removeNBCoin()">N/B 코인 -1</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 카드 저장소 초기화</h2>
+        <select id="timeframeSelect3">
+            <option value="">전체 초기화</option>
+            <option value="1m">1m</option>
+            <option value="3m">3m</option>
+            <option value="5m">5m</option>
+            <option value="10m">10m</option>
+            <option value="15m">15m</option>
+            <option value="30m">30m</option>
+            <option value="1h">1h</option>
+            <option value="1D">1D</option>
+        </select>
+        <button onclick="resetCardStorage()">초기화</button>
+        <div id="result4" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. 강제 동기화 (브라우저 콘솔에서 실행)</h2>
+        <p>브라우저 개발자 도구 콘솔(F12)에서 다음 명령어를 실행하세요:</p>
+        <div class="result">
+            <code>forceSyncToServer()</code> - 클라이언트 데이터를 서버에 강제 동기화<br>
+            <code>debugCardStorage()</code> - 서버 상태 디버깅<br>
+            <code>checkServerConnection()</code> - 서버 연결 확인
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:5057/api/card-storage';
+
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const url = `${API_BASE}${endpoint}`;
+                const defaultOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    ...options
+                };
+
+                console.log(`🌐 API 호출: ${defaultOptions.method} ${url}`);
+                
+                const response = await fetch(url, defaultOptions);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'API 호출 실패');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error(`❌ API 호출 실패 (${endpoint}):`, error);
+                throw error;
+            }
+        }
+
+        async function getAllCardStorage() {
+            try {
+                const result = document.getElementById('result1');
+                result.textContent = '로딩 중...';
+                result.className = 'result';
+                
+                const response = await apiCall('');
+                result.textContent = JSON.stringify(response, null, 2);
+                result.className = 'result success';
+            } catch (error) {
+                const result = document.getElementById('result1');
+                result.textContent = `오류: ${error.message}`;
+                result.className = 'result error';
+            }
+        }
+
+        async function getTimeframeStorage() {
+            try {
+                const timeframe = document.getElementById('timeframeSelect').value;
+                const result = document.getElementById('result2');
+                result.textContent = '로딩 중...';
+                result.className = 'result';
+                
+                const response = await apiCall(`/${timeframe}`);
+                result.textContent = JSON.stringify(response, null, 2);
+                result.className = 'result success';
+            } catch (error) {
+                const result = document.getElementById('result2');
+                result.textContent = `오류: ${error.message}`;
+                result.className = 'result error';
+            }
+        }
+
+        async function addNBCoin() {
+            try {
+                const timeframe = document.getElementById('timeframeSelect2').value;
+                const result = document.getElementById('result3');
+                result.textContent = '로딩 중...';
+                result.className = 'result';
+                
+                const response = await apiCall(`/${timeframe}/nb-coin`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'add',
+                        count: 1
+                    })
+                });
+                result.textContent = JSON.stringify(response, null, 2);
+                result.className = 'result success';
+            } catch (error) {
+                const result = document.getElementById('result3');
+                result.textContent = `오류: ${error.message}`;
+                result.className = 'result error';
+            }
+        }
+
+        async function removeNBCoin() {
+            try {
+                const timeframe = document.getElementById('timeframeSelect2').value;
+                const result = document.getElementById('result3');
+                result.textContent = '로딩 중...';
+                result.className = 'result';
+                
+                const response = await apiCall(`/${timeframe}/nb-coin`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'remove',
+                        count: 1
+                    })
+                });
+                result.textContent = JSON.stringify(response, null, 2);
+                result.className = 'result success';
+            } catch (error) {
+                const result = document.getElementById('result3');
+                result.textContent = `오류: ${error.message}`;
+                result.className = 'result error';
+            }
+        }
+
+        async function resetCardStorage() {
+            try {
+                const timeframe = document.getElementById('timeframeSelect3').value;
+                const result = document.getElementById('result4');
+                result.textContent = '로딩 중...';
+                result.className = 'result';
+                
+                const body = timeframe ? { timeframe } : {};
+                const response = await apiCall('/reset', {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                });
+                result.textContent = JSON.stringify(response, null, 2);
+                result.className = 'result success';
+            } catch (error) {
+                const result = document.getElementById('result4');
+                result.textContent = `오류: ${error.message}`;
+                result.className = 'result error';
+            }
+        }
+
+        // 페이지 로드 시 전체 데이터 조회
+        window.onload = function() {
+            getAllCardStorage();
+        };
+    </script>
+</body>
+</html>

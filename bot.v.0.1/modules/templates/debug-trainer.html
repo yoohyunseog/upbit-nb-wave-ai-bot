@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trainer Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #0f0;
+            padding: 20px;
+        }
+        .debug-info {
+            background-color: #001122;
+            border: 1px solid #0f0;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .warning { color: #ff0; }
+        button {
+            background-color: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Trainer Debug</h1>
+    
+    <div class="debug-info">
+        <h3>모듈 로드 상태</h3>
+        <div id="module-status">확인 중...</div>
+    </div>
+    
+    <div class="debug-info">
+        <h3>테스트 결과</h3>
+        <div id="test-results">대기 중...</div>
+    </div>
+    
+    <button onclick="runTest()">테스트 실행</button>
+    <button onclick="checkModules()">모듈 상태 확인</button>
+
+    <!-- 모듈 로드 -->
+    <script src="trainer-movement-controller.js"></script>
+    <script src="trainer-visual-effects.js"></script>
+    <script src="trainer-decision-handler.js"></script>
+
+    <script>
+        function checkModules() {
+            const statusDiv = document.getElementById('module-status');
+            const modules = {
+                'TrainerMovementController': window.trainerMovementController,
+                'TrainerVisualEffects': window.trainerVisualEffects,
+                'TrainerDecisionHandler': window.trainerDecisionHandler
+            };
+            
+            let html = '';
+            for (const [name, module] of Object.entries(modules)) {
+                if (module) {
+                    html += `<div class="success">✅ ${name}: 로드됨</div>`;
+                } else {
+                    html += `<div class="error">❌ ${name}: 로드 실패</div>`;
+                }
+            }
+            
+            statusDiv.innerHTML = html;
+        }
+        
+        function runTest() {
+            const resultsDiv = document.getElementById('test-results');
+            let results = '<h4>테스트 결과:</h4>';
+            
+            // 1. 모듈 존재 확인
+            if (window.trainerMovementController) {
+                results += '<div class="success">✅ TrainerMovementController 테스트 통과</div>';
+                
+                // 2. 이동 테스트
+                const testModel = {
+                    circle: { x: 100, y: 100 },
+                    targetX: 200,
+                    targetY: 200,
+                    name: { x: 100, y: 94 },
+                    role: { x: 100, y: 106 }
+                };
+                
+                const oldX = testModel.circle.x;
+                const oldY = testModel.circle.y;
+                
+                window.trainerMovementController.updateTrainerMovement(testModel, { width: 800, height: 600 });
+                
+                if (testModel.circle.x !== oldX || testModel.circle.y !== oldY) {
+                    results += `<div class="success">✅ 이동 테스트 통과: (${oldX}, ${oldY}) → (${testModel.circle.x.toFixed(1)}, ${testModel.circle.y.toFixed(1)})</div>`;
+                } else {
+                    results += `<div class="warning">⚠️ 이동 테스트: 위치 변경 없음</div>`;
+                }
+                
+                // 3. 거리 계산 테스트
+                const distance = window.trainerMovementController.calculateDistanceToTarget(testModel);
+                results += `<div class="success">✅ 거리 계산: ${distance.toFixed(2)}px</div>`;
+                
+            } else {
+                results += '<div class="error">❌ TrainerMovementController 없음</div>';
+            }
+            
+            if (window.trainerVisualEffects) {
+                results += '<div class="success">✅ TrainerVisualEffects 테스트 통과</div>';
+            } else {
+                results += '<div class="error">❌ TrainerVisualEffects 없음</div>';
+            }
+            
+            if (window.trainerDecisionHandler) {
+                results += '<div class="success">✅ TrainerDecisionHandler 테스트 통과</div>';
+            } else {
+                results += '<div class="error">❌ TrainerDecisionHandler 없음</div>';
+            }
+            
+            resultsDiv.innerHTML = results;
+        }
+        
+        // 페이지 로드 시 자동 확인
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkModules();
+                runTest();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

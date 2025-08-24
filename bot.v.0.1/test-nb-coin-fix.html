@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N/B 코인 버튼 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #2a2a2a;
+            border-radius: 10px;
+        }
+        .button-group {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-success {
+            background: linear-gradient(45deg, #00ff00, #44ff44);
+            color: white;
+        }
+        .btn-danger {
+            background: linear-gradient(45deg, #ff8800, #ffaa44);
+            color: white;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #0066ff, #4488ff);
+            color: white;
+        }
+        .card {
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .card-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .bg-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .bg-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .log-area {
+            background-color: #000;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🪙 N/B 코인 버튼 테스트</h1>
+        
+        <div class="button-group">
+            <button class="btn btn-success" onclick="addNBCoin()">🪙 N/B MIN 코인 +1</button>
+            <button class="btn btn-danger" onclick="removeNBCoin()">🪙 N/B MIN 코인 -1</button>
+            <button class="btn btn-primary" onclick="resetGame()">🔄 완전 초기화 (N/B MIN 코인 0)</button>
+        </div>
+
+        <h3>좌측 패널 카드 시뮬레이션</h3>
+        <div class="left-panel">
+            <div class="card" id="timeframe-card-1m" data-timeframe="1m">
+                <div class="card-body">
+                    <span class="fw-bold">1m</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+            <div class="card" id="timeframe-card-5m" data-timeframe="5m">
+                <div class="card-body">
+                    <span class="fw-bold">5m</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+            <div class="card" id="timeframe-card-15m" data-timeframe="15m">
+                <div class="card-body">
+                    <span class="fw-bold">15m</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+        </div>
+
+        <h3>로그 출력</h3>
+        <div id="log-area" class="log-area"></div>
+    </div>
+
+    <script>
+        // 간단한 로그 시스템
+        function addLog(message, type = 'info') {
+            const logArea = document.getElementById('log-area');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.style.color = type === 'error' ? '#ff4444' : type === 'success' ? '#44ff44' : '#ffffff';
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 간단한 카드 저장소 시스템 시뮬레이션
+        window.cardStorageSystem = {
+            storages: {},
+            
+            getCardStorage(timeframe) {
+                if (!this.storages[timeframe]) {
+                    this.storages[timeframe] = { nbCoins: 0 };
+                }
+                return this.storages[timeframe];
+            },
+            
+            addNBCoin(timeframe, amount) {
+                const storage = this.getCardStorage(timeframe);
+                storage.nbCoins += amount;
+                addLog(`✅ ${timeframe} 분봉에 N/B 코인 ${amount}개 추가됨. 총 ${storage.nbCoins}개`, 'success');
+                return storage.nbCoins;
+            },
+            
+            removeNBCoin(timeframe, amount) {
+                const storage = this.getCardStorage(timeframe);
+                storage.nbCoins = Math.max(0, storage.nbCoins - amount);
+                addLog(`✅ ${timeframe} 분봉에서 N/B 코인 ${amount}개 제거됨. 총 ${storage.nbCoins}개`, 'success');
+                return storage.nbCoins;
+            },
+            
+            resetAllCardStorages() {
+                this.storages = {};
+                addLog('🔄 모든 카드 저장소 초기화됨', 'success');
+            }
+        };
+
+        // 게임 초기화 시스템 시뮬레이션
+        window.gameInitializer = {
+            gameData: { nbCoins: 0 },
+            
+            addNBCoinToTopTimeframeCard() {
+                try {
+                    // 좌측 패널의 분봉 카드들 찾기
+                    const leftPanelCards = document.querySelectorAll('.left-panel .card');
+                    if (leftPanelCards.length === 0) {
+                        addLog('⚠️ 좌측 패널 분봉 카드를 찾을 수 없음', 'error');
+                        return;
+                    }
+                    
+                    // 맨 위 카드 (첫 번째 카드) 선택
+                    const topCard = leftPanelCards[0];
+                    const timeframe = topCard.getAttribute('data-timeframe') || '1m';
+                    
+                    // 카드 저장소 시스템에 N/B 코인 추가
+                    if (window.cardStorageSystem) {
+                        const newCount = window.cardStorageSystem.addNBCoin(timeframe, 1);
+                        
+                        // N/B 코인 배지 찾기 또는 생성
+                        let nbCoinBadge = topCard.querySelector('[data-nb-coin]');
+                        
+                        if (nbCoinBadge) {
+                            // 기존 배지 업데이트
+                            nbCoinBadge.textContent = `N/B MAX COIN: ${newCount}`;
+                            nbCoinBadge.className = 'badge bg-success';
+                            nbCoinBadge.setAttribute('data-nb-coin', newCount);
+                        } else {
+                            // 새 배지 생성
+                            const cardBody = topCard.querySelector('.card-body');
+                            if (cardBody) {
+                                const newBadge = document.createElement('span');
+                                newBadge.className = 'badge bg-success';
+                                newBadge.textContent = `N/B MAX COIN: ${newCount}`;
+                                newBadge.setAttribute('data-nb-coin', newCount);
+                                newBadge.style.marginLeft = '10px';
+                                cardBody.appendChild(newBadge);
+                            }
+                        }
+                        
+                        addLog(`✅ ${timeframe} 분봉 카드에 N/B 코인 배지 업데이트됨: ${newCount}개`, 'success');
+                    }
+                } catch (error) {
+                    addLog(`❌ N/B 코인 추가 중 오류: ${error.message}`, 'error');
+                }
+            },
+            
+            removeNBCoinFromTopTimeframeCard() {
+                try {
+                    // 좌측 패널의 분봉 카드들 찾기
+                    const leftPanelCards = document.querySelectorAll('.left-panel .card');
+                    if (leftPanelCards.length === 0) {
+                        addLog('⚠️ 좌측 패널 분봉 카드를 찾을 수 없음', 'error');
+                        return;
+                    }
+                    
+                    // 맨 위 카드 (첫 번째 카드) 선택
+                    const topCard = leftPanelCards[0];
+                    const timeframe = topCard.getAttribute('data-timeframe') || '1m';
+                    
+                    // 해당 분봉의 현재 N/B 코인 상태 확인
+                    let currentNbCoins = 0;
+                    if (window.cardStorageSystem) {
+                        const storage = window.cardStorageSystem.getCardStorage(timeframe);
+                        currentNbCoins = storage.nbCoins || 0;
+                    }
+                    
+                    // N/B 코인이 이미 0이면 제거하지 않음
+                    if (currentNbCoins <= 0) {
+                        addLog(`⚠️ ${timeframe} 분봉의 N/B 코인이 이미 0개입니다. 제거하지 않습니다.`, 'error');
+                        return;
+                    }
+                    
+                    // 카드 저장소 시스템에서 N/B 코인 제거
+                    if (window.cardStorageSystem) {
+                        const newCount = window.cardStorageSystem.removeNBCoin(timeframe, 1);
+                        
+                        // N/B 코인 배지 업데이트
+                        const nbCoinBadge = topCard.querySelector('[data-nb-coin]');
+                        if (nbCoinBadge) {
+                            nbCoinBadge.textContent = `N/B MAX COIN: ${newCount}`;
+                            nbCoinBadge.className = newCount > 0 ? 'badge bg-success' : 'badge bg-secondary';
+                            nbCoinBadge.setAttribute('data-nb-coin', newCount);
+                            
+                            addLog(`✅ ${timeframe} 분봉 카드의 N/B 코인 배지 업데이트됨: ${newCount}개`, 'success');
+                        }
+                    }
+                } catch (error) {
+                    addLog(`❌ N/B 코인 제거 중 오류: ${error.message}`, 'error');
+                }
+            },
+            
+            forceCompleteReset() {
+                try {
+                    // 모든 카드 저장소 초기화
+                    if (window.cardStorageSystem) {
+                        window.cardStorageSystem.resetAllCardStorages();
+                    }
+                    
+                    // 모든 배지 제거
+                    const badges = document.querySelectorAll('[data-nb-coin]');
+                    badges.forEach(badge => badge.remove());
+                    
+                    addLog('🔄 완전 초기화 완료 - 모든 N/B 코인과 배지가 제거됨', 'success');
+                } catch (error) {
+                    addLog(`❌ 초기화 중 오류: ${error.message}`, 'error');
+                }
+            }
+        };
+
+        // 버튼 함수들
+        function addNBCoin() {
+            addLog('🪙 N/B 코인 +1 버튼 클릭됨', 'info');
+            if (window.gameInitializer && typeof window.gameInitializer.addNBCoin === 'function') {
+                window.gameInitializer.addNBCoin();
+            } else {
+                addLog('❌ gameInitializer.addNBCoin 함수를 찾을 수 없음', 'error');
+            }
+        }
+
+        function removeNBCoin() {
+            addLog('🪙 N/B 코인 -1 버튼 클릭됨', 'info');
+            if (window.gameInitializer && typeof window.gameInitializer.removeNBCoin === 'function') {
+                window.gameInitializer.removeNBCoin();
+            } else {
+                addLog('❌ gameInitializer.removeNBCoin 함수를 찾을 수 없음', 'error');
+            }
+        }
+
+        function resetGame() {
+            addLog('🔄 완전 초기화 버튼 클릭됨', 'info');
+            if (window.gameInitializer && typeof window.gameInitializer.forceCompleteReset === 'function') {
+                window.gameInitializer.forceCompleteReset();
+            } else {
+                addLog('❌ gameInitializer.forceCompleteReset 함수를 찾을 수 없음', 'error');
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', () => {
+            addLog('🚀 N/B 코인 테스트 페이지 로드됨', 'success');
+            addLog('📋 테스트 준비 완료 - 버튼을 클릭하여 기능을 테스트하세요', 'info');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading System</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000011;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .game-area {
+            flex: 1;
+            background: #001122;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .info-panel {
+            width: 350px;
+            background: #001122;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #00ff00;
+        }
+        .log-area {
+            width: 450px;
+            background: #001122;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #00ff00;
+            max-height: 700px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            border-left: 3px solid #00ff00;
+        }
+        .log-info { background: #001a33; border-left-color: #0088ff; }
+        .log-success { background: #002211; border-left-color: #00ff88; }
+        .log-warning { background: #332200; border-left-color: #ffaa00; }
+        .log-error { background: #330011; border-left-color: #ff0088; }
+        .status-display {
+            background: #001a33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #0088ff;
+        }
+        .control-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background: #001a33;
+            border-radius: 8px;
+            border: 1px solid #0088ff;
+        }
+        button {
+            background: linear-gradient(45deg, #00ff00, #44ff44);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #00ff88, #44ffaa);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .module-info {
+            background: #001a33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            border: 1px solid #0088ff;
+        }
+        h3 {
+            color: #00ff88;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h4 {
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        .status-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+            background: rgba(0, 255, 0, 0.1);
+        }
+        #game {
+            border-radius: 5px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-area">
+            <h3>🎮 AI Trading Game</h3>
+            <div id="game"></div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>📊 Info Panel</h3>
+            <div class="status-display">
+                <div class="status-item" id="selected-coin-name">코인: BTC</div>
+                <div class="status-item" id="selected-coin-balance">잔고: 0.0</div>
+                <div class="status-item" id="selected-coin-value">가치: ₩0</div>
+                <div class="status-item" id="selected-coin-price">현재가: ₩0</div>
+                <div class="status-item" id="selected-coin-pnl">수익율: 0.00%</div>
+                <div class="status-item" id="selected-coin-avg-price">평균단가: ₩0</div>
+                <div class="status-item" id="current-time">시간: 00:00:00</div>
+            </div>
+            
+            <div class="module-info">
+                <h4>🔧 모듈 상태</h4>
+                <div id="module-status">로딩 중...</div>
+            </div>
+            
+            <div class="control-panel">
+                <h4>🎮 컨트롤</h4>
+                            <div class="control-buttons">
+                <button class="btn btn-primary" onclick="resetGame()">🔄 완전 초기화 (N/B MIN 코인 0)</button>
+                <button class="btn btn-success" onclick="addNBCoin()">🪙 N/B MIN 코인 +1</button>
+                <button class="btn btn-danger" onclick="removeNBCoin()">🪙 N/B MIN 코인 -1</button>
+                <button class="btn btn-warning" onclick="removeDropItem()">📦 드랍 아이템 -1</button>
+                <a href="card-storage-viewer.html" class="btn btn-info" target="_blank">📦 카드 저장소 뷰어</a>
+            </div>
+                <button onclick="clearLogs()">🗑️ 로그 클리어</button>
+                <button onclick="saveState()">💾 상태 저장</button>
+                <button onclick="loadState()">📂 상태 로드</button>
+            </div>
+        </div>
+        
+        <div class="log-area">
+            <h3>📝 시스템 로그</h3>
+            <div id="log-container"></div>
+        </div>
+    </div>
+
+    <!-- 분리된 모듈들 로드 (순서 중요) -->
+    <script src="log-manager.js" defer></script>
+    <script src="learning-system.js" defer></script>
+    <script src="decision-system.js" defer></script>
+    <script src="game-state-manager.js" defer></script>
+    <script src="card-storage-system.js" defer></script>
+    
+    <!-- 트레이너 관련 분리된 모듈들 로드 -->
+    <script src="trainer-movement-controller.js" defer></script>
+    <script src="trainer-visual-effects.js" defer></script>
+    <script src="trainer-decision-handler.js" defer></script>
+    <script src="process-bar-controller.js" defer></script>
+    
+    <!-- 메인 게임 로직 (모든 모듈 로드 후) -->
+    <script src="template-loader.js" defer></script>
+    
+    <script>
+        // 모듈 상태 확인
+        function checkModules() {
+            const status = document.getElementById('module-status');
+            const modules = {
+                'Log Manager': typeof window.logManager !== 'undefined',
+                'Learning System': typeof window.learningSystem !== 'undefined',
+                'Decision System': typeof window.decisionSystem !== 'undefined',
+                'Game State Manager': typeof window.gameStateManager !== 'undefined',
+                'Card Storage System': typeof window.cardStorageSystem !== 'undefined',
+                'Trainer Movement Controller': typeof window.trainerMovementController !== 'undefined',
+                'Trainer Visual Effects': typeof window.trainerVisualEffects !== 'undefined',
+                'Trainer Decision Handler': typeof window.trainerDecisionHandler !== 'undefined'
+            };
+            
+            let statusHtml = '';
+            for (const [name, loaded] of Object.entries(modules)) {
+                const statusClass = loaded ? 'log-success' : 'log-error';
+                const statusText = loaded ? '✅ 로드됨' : '❌ 로드 실패';
+                statusHtml += `<div class="${statusClass}">${name}: ${statusText}</div>`;
+            }
+            
+            status.innerHTML = statusHtml;
+        }
+        
+        // 게임 리셋
+        function resetGame() {
+            console.log('🔄 완전 초기화 버튼 클릭됨');
+            
+            // 사용자 확인
+            if (!confirm('정말로 모든 데이터를 초기화하시겠습니까?\nN/B 코인과 좌측 패널이 모두 0으로 리셋됩니다.')) {
+                return;
+            }
+            
+            // 강제 완전 초기화 실행
+            if (window.gameInitializer) {
+                try {
+                    // 강제 완전 초기화 사용
+                    window.gameInitializer.forceCompleteReset();
+                    if (window.logManager) {
+                        window.logManager.addLog('🔄 강제 완전 초기화 시작 - 모든 데이터 삭제 후 페이지 새로고침');
+                    }
+                } catch (error) {
+                    console.error('❌ 강제 초기화 중 오류:', error);
+                    if (window.logManager) {
+                        window.logManager.addLog(`❌ 강제 초기화 오류: ${error.message}`);
+                    }
+                    // 오류 발생 시에도 페이지 새로고침
+                    setTimeout(() => {
+                        window.location.reload(true);
+                    }, 1000);
+                }
+            } else {
+                // 폴백: 기존 방식
+                if (window.gameStateManager) {
+                    window.gameStateManager.resetGameState();
+                    if (window.logManager) {
+                        window.logManager.addLog('🔄 게임이 리셋되었습니다.');
+                    }
+                }
+                // 폴백 시에도 페이지 새로고침
+                setTimeout(() => {
+                    window.location.reload(true);
+                }, 1000);
+            }
+        }
+        
+        // 로그 클리어
+        function clearLogs() {
+            if (window.logManager) {
+                window.logManager.clearLogs();
+            }
+        }
+        
+        // 상태 저장
+        function saveState() {
+            if (window.gameStateManager) {
+                window.gameStateManager.saveGameState({});
+                if (window.logManager) {
+                    window.logManager.addLog('💾 수동 상태 저장 완료');
+                }
+            }
+        }
+        
+        // 상태 로드
+        function loadState() {
+            if (window.gameStateManager) {
+                const state = window.gameStateManager.loadGameState();
+                if (state && window.logManager) {
+                    window.logManager.addLog('📂 수동 상태 로드 완료');
+                }
+            }
+        }
+
+        // N/B 코인 추가
+        function addNBCoin() {
+            try {
+                // gameInitializer를 통해 N/B 코인 추가 (중복 방지)
+                if (window.gameInitializer && typeof window.gameInitializer.addNBCoin === 'function') {
+                    window.gameInitializer.addNBCoin();
+                } else {
+                    console.log('❌ gameInitializer.addNBCoin 함수를 찾을 수 없음');
+                    if (window.logManager) {
+                        window.logManager.addLog('❌ 게임 초기화 시스템을 찾을 수 없습니다.', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('N/B 코인 추가 중 오류 발생:', error);
+                if (window.logManager) {
+                    window.logManager.addLog(`❌ N/B 코인 추가 실패: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // N/B 코인 제거
+        function removeNBCoin() {
+            try {
+                // gameInitializer를 통해 N/B 코인 제거 (중복 방지)
+                if (window.gameInitializer && typeof window.gameInitializer.removeNBCoin === 'function') {
+                    window.gameInitializer.removeNBCoin();
+                } else {
+                    console.log('❌ gameInitializer.removeNBCoin 함수를 찾을 수 없음');
+                    if (window.logManager) {
+                        window.logManager.addLog('❌ 게임 초기화 시스템을 찾을 수 없습니다.', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('N/B 코인 제거 중 오류 발생:', error);
+                if (window.logManager) {
+                    window.logManager.addLog(`❌ N/B 코인 제거 실패: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // 드랍 아이템 제거
+        function removeDropItem() {
+            if (window.gameInitializer && typeof window.gameInitializer.removeDropItem === 'function') {
+                window.gameInitializer.removeDropItem();
+            } else {
+                console.log('❌ gameInitializer.removeDropItem 함수를 찾을 수 없음');
+            }
+        }
+        
+        // 페이지 로드 시 모듈 상태 확인
+        window.addEventListener('load', () => {
+            // 모듈 로딩을 위해 충분한 시간 대기
+            setTimeout(checkModules, 2000);
+        });
+        
+        // 모듈 로딩 완료 대기 함수
+        function waitForModules() {
+            return new Promise((resolve) => {
+                const checkInterval = setInterval(() => {
+                    if (window.logManager && window.learningSystem && 
+                        window.decisionSystem && window.gameStateManager &&
+                        window.trainerMovementController && window.trainerVisualEffects &&
+                        window.trainerDecisionHandler) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Trainer Logs File Viewer</title>
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; background:#0e1621; color:#e6efff; }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        .header { display:flex; align-items:center; justify-content: space-between; margin-bottom: 16px; gap: 8px; flex-wrap: wrap; }
+        .title { font-size: 20px; font-weight: 700; }
+        .controls { display:flex; gap: 8px; align-items:center; flex-wrap: wrap; }
+        .card { background: #17212b; border: 1px solid #223042; border-radius: 8px; padding: 12px; }
+        .logs { margin-top: 8px; max-height: 70vh; overflow: auto; background:#0e1621; border:1px solid #223042; border-radius:6px; }
+        .line { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size:12px; padding:6px 8px; border-bottom: 1px dashed #223042; }
+        .line:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .muted { opacity: 0.8; }
+        input, select, button { background:#0e1621; color:#e6efff; border:1px solid #223042; border-radius:6px; padding:6px 8px; }
+        button { cursor:pointer; }
+        .pill { padding:6px 10px; border-radius:999px; }
+        .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .path { min-width: 320px; }
+    </style>
+    <script>
+        function getQueryParam(key){
+            const url = new URL(location.href);
+            return url.searchParams.get(key);
+        }
+        function defaultFile(){
+            // 요청된 파일이 있으면 사용, 없으면 예시 기본값
+            const q = getQueryParam('file');
+            return q || 'ai-trainer-logs-2025-08-23.txt';
+        }
+        async function fetchTextFile(path){
+            const res = await fetch(`/log/${encodeURIComponent(path)}`);
+            if(!res.ok){
+                throw new Error(`HTTP ${res.status}`);
+            }
+            return await res.text();
+        }
+        function render(content){
+            const filter = (document.getElementById('filter').value||'').toLowerCase();
+            const container = document.getElementById('log-lines');
+            container.innerHTML = '';
+            const lines = content.split('\n');
+            let count = 0;
+            lines.forEach((line) => {
+                if (!line) return;
+                if (filter && !line.toLowerCase().includes(filter)) return;
+                const div = document.createElement('div');
+                div.className = 'line';
+                div.textContent = line;
+                container.appendChild(div);
+                count++;
+            });
+            document.getElementById('count').textContent = count;
+        }
+        async function refresh(){
+            const path = document.getElementById('filepath').value.trim();
+            if(!path) return;
+            const btn = document.getElementById('refresh');
+            btn.disabled = true;
+            btn.textContent = '로딩...';
+            try {
+                const txt = await fetchTextFile(path);
+                render(txt);
+                document.getElementById('status').textContent = 'OK';
+            } catch (e) {
+                document.getElementById('status').textContent = `에러: ${e.message}`;
+                render('');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '새로고침';
+            }
+        }
+        let timer = null;
+        function toggleAuto(){
+            const on = document.getElementById('auto').checked;
+            const ms = parseInt(document.getElementById('interval').value, 10) || 3000;
+            if (timer) { clearInterval(timer); timer = null; }
+            if (on) { timer = setInterval(refresh, ms); }
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('filepath').value = defaultFile();
+            document.getElementById('refresh').addEventListener('click', refresh);
+            document.getElementById('filter').addEventListener('input', () => { if(!document.getElementById('auto').checked) refresh(); });
+            document.getElementById('auto').addEventListener('change', toggleAuto);
+            document.getElementById('interval').addEventListener('change', toggleAuto);
+            refresh();
+            document.getElementById('auto').checked = true;
+            toggleAuto();
+        });
+    </script>
+    </head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">AI Trainer Logs File Viewer <span class="muted">(/log/*.txt)</span></div>
+            <div class="controls">
+                <input id="filepath" class="path" placeholder="ai-trainer-logs-YYYY-MM-DD.txt" />
+                <input id="filter" placeholder="검색 (키워드)" />
+                <label><input type="checkbox" id="auto" /> 자동 새로고침</label>
+                <select id="interval">
+                    <option value="2000">2초</option>
+                    <option value="3000" selected>3초</option>
+                    <option value="5000">5초</option>
+                    <option value="10000">10초</option>
+                </select>
+                <button id="refresh" class="pill">새로고침</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="muted">표시 줄 수: <span id="count">0</span> | 상태: <span id="status">-</span></div>
+            <div id="log-lines" class="logs"></div>
+        </div>
+        <div class="muted" style="margin-top:8px;">예: /log/ai-trainer-logs-2025-08-23.txt → 상단 입력칸에 파일명만 입력</div>
+    </div>
+</body>
+</html>
+
+

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Module Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #0f0;
+            padding: 20px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #0f0;
+            border-radius: 5px;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .warning { color: #ff0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Quick Module Test</h1>
+    <div id="results"></div>
+
+    <!-- 모듈 로드 -->
+    <script src="trainer-movement-controller.js"></script>
+    <script src="trainer-visual-effects.js"></script>
+    <script src="trainer-decision-handler.js"></script>
+
+    <script>
+        function addResult(message, type = 'success') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = message;
+            document.getElementById('results').appendChild(div);
+            console.log(message);
+        }
+
+        // 테스트 실행
+        function runTests() {
+            addResult('=== 모듈 로드 테스트 시작 ===', 'warning');
+            
+            // 1. TrainerMovementController 테스트
+            if (window.trainerMovementController) {
+                addResult('✅ TrainerMovementController 로드됨');
+                addResult(`   - movementSpeed: ${window.trainerMovementController.movementSpeed}`);
+                addResult(`   - arrivalThreshold: ${window.trainerMovementController.arrivalThreshold}`);
+            } else {
+                addResult('❌ TrainerMovementController 로드 실패', 'error');
+            }
+            
+            // 2. TrainerVisualEffects 테스트
+            if (window.trainerVisualEffects) {
+                addResult('✅ TrainerVisualEffects 로드됨');
+                addResult(`   - colorMap 키 개수: ${Object.keys(window.trainerVisualEffects.colorMap).length}`);
+            } else {
+                addResult('❌ TrainerVisualEffects 로드 실패', 'error');
+            }
+            
+            // 3. TrainerDecisionHandler 테스트
+            if (window.trainerDecisionHandler) {
+                addResult('✅ TrainerDecisionHandler 로드됨');
+                addResult(`   - waitCheckTimer: ${window.trainerDecisionHandler.waitCheckTimer}`);
+            } else {
+                addResult('❌ TrainerDecisionHandler 로드 실패', 'error');
+            }
+            
+            // 4. 이동 테스트
+            if (window.trainerMovementController) {
+                const testModel = {
+                    circle: { x: 100, y: 100 },
+                    targetX: 200,
+                    targetY: 200,
+                    name: { x: 100, y: 94 },
+                    role: { x: 100, y: 106 }
+                };
+                
+                const distance = window.trainerMovementController.calculateDistanceToTarget(testModel);
+                addResult(`📏 거리 계산 테스트: ${distance.toFixed(2)}`);
+                
+                // 실제 이동 테스트
+                const oldX = testModel.circle.x;
+                const oldY = testModel.circle.y;
+                window.trainerMovementController.updateTrainerMovement(testModel, { width: 800, height: 600 });
+                addResult(`🔄 이동 테스트: (${oldX}, ${oldY}) → (${testModel.circle.x.toFixed(1)}, ${testModel.circle.y.toFixed(1)})`);
+            }
+            
+            addResult('=== 테스트 완료 ===', 'warning');
+        }
+
+        // 페이지 로드 후 테스트 실행
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>

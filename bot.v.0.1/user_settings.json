@@ -1,0 +1,33 @@
+{
+  "upbit": {
+    "upbitAccessKey": "OGBGdKZimGxy2JTjRmVv9E3kyQxh7hGDS4FACHqj",
+    "upbitSecretKey": "s0qrGlEg1TQKArxkXAz1UORdpfBrX9YsqCZ9SDwc",
+    "defaultKrwCoin": "BTC",
+    "test_mode": true
+  },
+  "trading": {
+    "default_timeframe": "minute1",
+    "auto_rotation": false,
+    "auto_rotation_interval": 5
+  },
+  "sound": {
+    "master_volume": 0.5,
+    "click_volume": 0.3,
+    "success_volume": 0.4,
+    "error_volume": 0.4,
+    "type_volume": 0.2,
+    "sequence_volume": 0.1,
+    "enabled": true
+  },
+  "display": {
+    "theme": "starcraft",
+    "language": "en",
+    "auto_refresh": true,
+    "refresh_interval": 30
+  },
+  "system": {
+    "background_monitoring": true,
+    "data_cache_duration": 30,
+    "log_level": "info"
+  }
+}

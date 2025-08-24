@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading System - Module Loader</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000011;
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+        }
+        .module-status {
+            background-color: #001122;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .module-loaded {
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+        .module-error {
+            border-color: #ff0088;
+            color: #ff0088;
+        }
+        .loading {
+            border-color: #ffff00;
+            color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 AI Trading System - Module Loader</h1>
+    
+    <div id="module-status-container">
+        <div class="module-status loading" id="trainer-movement-controller">
+            🔄 Trainer Movement Controller - 로딩 중...
+        </div>
+        <div class="module-status loading" id="trainer-visual-effects">
+            🔄 Trainer Visual Effects - 로딩 중...
+        </div>
+        <div class="module-status loading" id="trainer-decision-handler">
+            🔄 Trainer Decision Handler - 로딩 중...
+        </div>
+    </div>
+
+    <div id="status-message">
+        모듈 로딩 중... 잠시만 기다려주세요.
+    </div>
+
+    <!-- 분리된 모듈들 로드 -->
+    <script src="trainer-movement-controller.js"></script>
+    <script src="trainer-visual-effects.js"></script>
+    <script src="trainer-decision-handler.js"></script>
+    
+    <!-- 메인 템플릿 로더 -->
+    <script src="template-loader.js"></script>
+
+    <script>
+        // 모듈 로드 상태 확인
+        function checkModuleStatus() {
+            const modules = {
+                'trainer-movement-controller': window.trainerMovementController,
+                'trainer-visual-effects': window.trainerVisualEffects,
+                'trainer-decision-handler': window.trainerDecisionHandler
+            };
+
+            let allLoaded = true;
+            
+            Object.entries(modules).forEach(([id, module]) => {
+                const element = document.getElementById(id);
+                if (module) {
+                    element.className = 'module-status module-loaded';
+                    element.innerHTML = `✅ ${id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - 로드됨`;
+                } else {
+                    element.className = 'module-status module-error';
+                    element.innerHTML = `❌ ${id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - 로드 실패`;
+                    allLoaded = false;
+                }
+            });
+
+            const statusElement = document.getElementById('status-message');
+            if (allLoaded) {
+                statusElement.innerHTML = '🎉 모든 모듈이 성공적으로 로드되었습니다!';
+                statusElement.style.color = '#00ff88';
+                
+                // 3초 후 메인 시스템 시작
+                setTimeout(() => {
+                    statusElement.innerHTML = '🚀 AI Trading System 시작 중...';
+                    // 여기서 메인 시스템 초기화
+                }, 3000);
+            } else {
+                statusElement.innerHTML = '⚠️ 일부 모듈 로드에 실패했습니다. 페이지를 새로고침해주세요.';
+                statusElement.style.color = '#ff0088';
+            }
+        }
+
+        // 페이지 로드 완료 후 모듈 상태 확인
+        window.addEventListener('load', () => {
+            setTimeout(checkModuleStatus, 1000);
+        });
+
+        // 모듈 로드 실패 시 재시도
+        window.addEventListener('error', (e) => {
+            console.error('모듈 로드 오류:', e);
+            setTimeout(checkModuleStatus, 2000);
+        });
+    </script>
+</body>
+</html>

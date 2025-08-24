@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연결선 점검 테스트</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            margin: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-area {
+            border: 2px solid #00ff00;
+            padding: 20px;
+            margin: 20px 0;
+            background: #000;
+        }
+        .canvas-container {
+            border: 1px solid #333;
+            background: #000;
+            margin: 20px 0;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .status {
+            color: #ffff00;
+            font-weight: bold;
+        }
+        .log-area {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            padding: 10px;
+            background: #000;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 연결선 점검 테스트</h1>
+        
+        <div class="test-area">
+            <h2>시스템 상태</h2>
+            <div id="status" class="status">초기화 대기 중...</div>
+        </div>
+        
+        <div class="test-area">
+            <h2>연결선 테스트 컨트롤</h2>
+            <button onclick="initializeSystem()">시스템 초기화</button>
+            <button onclick="createTestObjects()">테스트 객체 생성</button>
+            <button onclick="testConnectionLines()">연결선 테스트</button>
+            <button onclick="moveObjects()">객체 이동</button>
+            <button onclick="clearCanvas()">캔버스 지우기</button>
+        </div>
+        
+        <div class="test-area">
+            <h2>연결선 시각화</h2>
+            <div class="canvas-container">
+                <canvas id="connectionCanvas" width="800" height="600"></canvas>
+            </div>
+        </div>
+        
+        <div class="test-area">
+            <h2>연결선 정보</h2>
+            <div id="connectionInfo"></div>
+        </div>
+        
+        <div class="test-area">
+            <h2>실시간 로그</h2>
+            <div id="log" class="log-area"></div>
+        </div>
+    </div>
+
+    <script>
+        // 연결선 점검 시스템
+        class ConnectionLineChecker {
+            constructor() {
+                this.canvas = document.getElementById('connectionCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.trainer = null;
+                this.explorers = [];
+                this.connectionLines = [];
+                this.isInitialized = false;
+            }
+
+            log(message) {
+                const timestamp = new Date().toLocaleString('ko-KR');
+                const logEntry = `[${timestamp}] ${message}`;
+                
+                const logArea = document.getElementById('log');
+                if (logArea) {
+                    logArea.innerHTML += logEntry + '<br>';
+                    logArea.scrollTop = logArea.scrollHeight;
+                }
+                
+                console.log(logEntry);
+            }
+
+            initialize() {
+                this.isInitialized = true;
+                this.log('🔗 연결선 점검 시스템 초기화 완료');
+                this.clearCanvas();
+            }
+
+            createTestObjects() {
+                // 트레이너 생성 (중앙)
+                this.trainer = {
+                    id: 'trainer',
+                    name: '트레이너',
+                    circle: { x: 400, y: 300 },
+                    isTrainer: true,
+                    color: '#ffff00'
+                };
+
+                // 탐색원들 생성
+                this.explorers = [];
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * 2 * Math.PI;
+                    const radius = 150;
+                    const x = 400 + Math.cos(angle) * radius;
+                    const y = 300 + Math.sin(angle) * radius;
+                    
+                    this.explorers.push({
+                        id: `explorer_${i}`,
+                        name: `탐색원${i}`,
+                        circle: { x: x, y: y },
+                        isExplorer: true,
+                        color: '#00ff88'
+                    });
+                }
+
+                this.log(`✅ 테스트 객체 생성 완료: 트레이너 1개, 탐색원 ${this.explorers.length}개`);
+                this.drawObjects();
+            }
+
+            drawObjects() {
+                this.clearCanvas();
+                
+                // 트레이너 그리기
+                if (this.trainer) {
+                    this.ctx.fillStyle = this.trainer.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.trainer.circle.x, this.trainer.circle.y, 20, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(this.trainer.name, this.trainer.circle.x, this.trainer.circle.y - 30);
+                }
+
+                // 탐색원들 그리기
+                this.explorers.forEach(explorer => {
+                    this.ctx.fillStyle = explorer.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(explorer.circle.x, explorer.circle.y, 15, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.font = '10px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(explorer.name, explorer.circle.x, explorer.circle.y - 25);
+                });
+            }
+
+            drawConnectionLines() {
+                if (!this.trainer) {
+                    this.log('❌ 트레이너가 없어서 연결선을 그릴 수 없습니다.');
+                    return;
+                }
+
+                this.ctx.strokeStyle = '#00ff88';
+                this.ctx.lineWidth = 2;
+                this.ctx.globalAlpha = 0.6;
+
+                this.explorers.forEach(explorer => {
+                    // 연결선 그리기
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.trainer.circle.x, this.trainer.circle.y);
+                    this.ctx.lineTo(explorer.circle.x, explorer.circle.y);
+                    this.ctx.stroke();
+
+                    // 연결선 중간에 작은 원 그리기 (데이터 전송 표시)
+                    const midX = (this.trainer.circle.x + explorer.circle.x) / 2;
+                    const midY = (this.trainer.circle.y + explorer.circle.y) / 2;
+                    
+                    this.ctx.fillStyle = '#00ff88';
+                    this.ctx.globalAlpha = 0.8;
+                    this.ctx.beginPath();
+                    this.ctx.arc(midX, midY, 3, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                });
+
+                this.ctx.globalAlpha = 1.0;
+                this.log(`🔗 ${this.explorers.length}개의 연결선 그리기 완료`);
+            }
+
+            testConnectionLines() {
+                this.log('🔗 연결선 테스트 시작');
+                
+                // 객체 그리기
+                this.drawObjects();
+                
+                // 연결선 그리기
+                this.drawConnectionLines();
+                
+                // 연결선 정보 업데이트
+                this.updateConnectionInfo();
+                
+                this.log('✅ 연결선 테스트 완료');
+            }
+
+            updateConnectionInfo() {
+                const infoDiv = document.getElementById('connectionInfo');
+                if (!infoDiv) return;
+
+                let info = '<h3>연결선 상태:</h3>';
+                info += `<p>트레이너: ${this.trainer ? '✅ 존재' : '❌ 없음'}</p>`;
+                info += `<p>탐색원: ${this.explorers.length}개</p>`;
+                info += `<p>연결선: ${this.explorers.length}개</p>`;
+                
+                if (this.trainer) {
+                    info += `<h4>트레이너 위치: (${Math.round(this.trainer.circle.x)}, ${Math.round(this.trainer.circle.y)})</h4>`;
+                    
+                    this.explorers.forEach((explorer, index) => {
+                        const distance = Math.sqrt(
+                            Math.pow(this.trainer.circle.x - explorer.circle.x, 2) +
+                            Math.pow(this.trainer.circle.y - explorer.circle.y, 2)
+                        );
+                        info += `<p>탐색원${index}: 위치(${Math.round(explorer.circle.x)}, ${Math.round(explorer.circle.y)}) - 거리: ${Math.round(distance)}px</p>`;
+                    });
+                }
+
+                infoDiv.innerHTML = info;
+            }
+
+            moveObjects() {
+                this.log('🚶 객체 이동 테스트');
+                
+                // 트레이너 이동
+                if (this.trainer) {
+                    this.trainer.circle.x += (Math.random() - 0.5) * 50;
+                    this.trainer.circle.y += (Math.random() - 0.5) * 50;
+                    
+                    // 화면 경계 내로 제한
+                    this.trainer.circle.x = Math.max(50, Math.min(750, this.trainer.circle.x));
+                    this.trainer.circle.y = Math.max(50, Math.min(550, this.trainer.circle.y));
+                }
+
+                // 탐색원들 이동
+                this.explorers.forEach(explorer => {
+                    explorer.circle.x += (Math.random() - 0.5) * 30;
+                    explorer.circle.y += (Math.random() - 0.5) * 30;
+                    
+                    // 화면 경계 내로 제한
+                    explorer.circle.x = Math.max(30, Math.min(770, explorer.circle.x));
+                    explorer.circle.y = Math.max(30, Math.min(570, explorer.circle.y));
+                });
+
+                // 다시 그리기
+                this.drawObjects();
+                this.drawConnectionLines();
+                this.updateConnectionInfo();
+                
+                this.log('✅ 객체 이동 완료');
+            }
+
+            clearCanvas() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.log('🧹 캔버스 지우기 완료');
+            }
+
+            // 연결선 문제 진단
+            diagnoseConnectionIssues() {
+                this.log('🔍 연결선 문제 진단 시작');
+                
+                // 1. 트레이너 존재 확인
+                if (!this.trainer) {
+                    this.log('❌ 문제: 트레이너가 존재하지 않음');
+                    return;
+                }
+                
+                // 2. 탐색원 존재 확인
+                if (this.explorers.length === 0) {
+                    this.log('❌ 문제: 탐색원이 존재하지 않음');
+                    return;
+                }
+                
+                // 3. 연결선 그리기 가능성 확인
+                this.explorers.forEach((explorer, index) => {
+                    if (!explorer.circle || typeof explorer.circle.x !== 'number' || typeof explorer.circle.y !== 'number') {
+                        this.log(`❌ 문제: 탐색원${index}의 위치 정보가 잘못됨`);
+                    }
+                });
+                
+                // 4. 거리 계산 테스트
+                this.explorers.forEach((explorer, index) => {
+                    const distance = Math.sqrt(
+                        Math.pow(this.trainer.circle.x - explorer.circle.x, 2) +
+                        Math.pow(this.trainer.circle.y - explorer.circle.y, 2)
+                    );
+                    
+                    if (distance > 500) {
+                        this.log(`⚠️ 경고: 탐색원${index}과 트레이너 간 거리가 너무 멈 (${Math.round(distance)}px)`);
+                    }
+                });
+                
+                this.log('✅ 연결선 문제 진단 완료');
+            }
+        }
+
+        // 전역 변수로 시스템 인스턴스 생성
+        window.connectionLineChecker = new ConnectionLineChecker();
+
+        // 테스트 함수들
+        function initializeSystem() {
+            const status = document.getElementById('status');
+            status.textContent = '시스템 초기화 중...';
+            
+            window.connectionLineChecker.initialize();
+            
+            status.textContent = '시스템 초기화 완료';
+        }
+
+        function createTestObjects() {
+            const status = document.getElementById('status');
+            status.textContent = '테스트 객체 생성 중...';
+            
+            window.connectionLineChecker.createTestObjects();
+            
+            status.textContent = '테스트 객체 생성 완료';
+        }
+
+        function testConnectionLines() {
+            const status = document.getElementById('status');
+            status.textContent = '연결선 테스트 중...';
+            
+            window.connectionLineChecker.testConnectionLines();
+            window.connectionLineChecker.diagnoseConnectionIssues();
+            
+            status.textContent = '연결선 테스트 완료';
+        }
+
+        function moveObjects() {
+            const status = document.getElementById('status');
+            status.textContent = '객체 이동 중...';
+            
+            window.connectionLineChecker.moveObjects();
+            
+            status.textContent = '객체 이동 완료';
+        }
+
+        function clearCanvas() {
+            const status = document.getElementById('status');
+            status.textContent = '캔버스 지우는 중...';
+            
+            window.connectionLineChecker.clearCanvas();
+            
+            status.textContent = '캔버스 지우기 완료';
+        }
+
+        // 페이지 로드 시 초기 상태 설정
+        window.onload = function() {
+            const status = document.getElementById('status');
+            status.textContent = '시스템 준비 완료 - 테스트를 시작하세요';
+        };
+    </script>
+</body>
+</html>

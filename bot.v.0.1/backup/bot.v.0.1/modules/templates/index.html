@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading System</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .game-area {
+            flex: 1;
+        }
+        .info-panel {
+            width: 300px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #444;
+        }
+        .log-area {
+            width: 400px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .log-info { background: #1e3a8a; }
+        .log-success { background: #059669; }
+        .log-warning { background: #d97706; }
+        .log-error { background: #dc2626; }
+        .status-display {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .control-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background: #333;
+            border-radius: 5px;
+        }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #3730a3;
+        }
+        .module-info {
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-area">
+            <div id="game"></div>
+        </div>
+        
+        <div class="info-panel">
+            <h3>📊 Info Panel</h3>
+            <div class="status-display">
+                <div id="selected-coin-name">코인: BTC</div>
+                <div id="selected-coin-balance">잔고: 0.0</div>
+                <div id="selected-coin-value">가치: ₩0</div>
+                <div id="selected-coin-price">현재가: ₩0</div>
+                <div id="selected-coin-pnl">수익율: 0.00%</div>
+                <div id="selected-coin-avg-price">평균단가: ₩0</div>
+                <div id="current-time">시간: 00:00:00</div>
+            </div>
+            
+            <div class="module-info">
+                <h4>🔧 모듈 상태</h4>
+                <div id="module-status">로딩 중...</div>
+            </div>
+            
+            <div class="control-panel">
+                <h4>🎮 컨트롤</h4>
+                <button onclick="resetGame()">게임 리셋</button>
+                <button onclick="clearLogs()">로그 클리어</button>
+                <button onclick="saveState()">상태 저장</button>
+                <button onclick="loadState()">상태 로드</button>
+            </div>
+        </div>
+        
+        <div class="log-area">
+            <h3>📝 시스템 로그</h3>
+            <div id="log-container"></div>
+        </div>
+    </div>
+
+    <!-- 분리된 모듈들 로드 (순서 중요) -->
+    <script src="log-manager.js" defer></script>
+    <script src="learning-system.js" defer></script>
+    <script src="decision-system.js" defer></script>
+    <script src="game-state-manager.js" defer></script>
+    
+    <!-- 메인 게임 로직 (모든 모듈 로드 후) -->
+    <script src="template-loader.js" defer></script>
+    
+    <script>
+        // 모듈 상태 확인
+        function checkModules() {
+            const status = document.getElementById('module-status');
+            const modules = {
+                'Log Manager': typeof window.logManager !== 'undefined',
+                'Learning System': typeof window.learningSystem !== 'undefined',
+                'Decision System': typeof window.decisionSystem !== 'undefined',
+                'Game State Manager': typeof window.gameStateManager !== 'undefined'
+            };
+            
+            let statusHtml = '';
+            for (const [name, loaded] of Object.entries(modules)) {
+                const statusClass = loaded ? 'log-success' : 'log-error';
+                const statusText = loaded ? '✅ 로드됨' : '❌ 로드 실패';
+                statusHtml += `<div class="${statusClass}">${name}: ${statusText}</div>`;
+            }
+            
+            status.innerHTML = statusHtml;
+        }
+        
+        // 게임 리셋
+        function resetGame() {
+            if (window.gameStateManager) {
+                window.gameStateManager.resetGameState();
+                if (window.logManager) {
+                    window.logManager.addLog('🔄 게임이 리셋되었습니다.');
+                }
+            }
+            location.reload();
+        }
+        
+        // 로그 클리어
+        function clearLogs() {
+            if (window.logManager) {
+                window.logManager.clearLogs();
+            }
+        }
+        
+        // 상태 저장
+        function saveState() {
+            if (window.gameStateManager) {
+                window.gameStateManager.saveGameState({});
+                if (window.logManager) {
+                    window.logManager.addLog('💾 수동 상태 저장 완료');
+                }
+            }
+        }
+        
+        // 상태 로드
+        function loadState() {
+            if (window.gameStateManager) {
+                const state = window.gameStateManager.loadGameState();
+                if (state && window.logManager) {
+                    window.logManager.addLog('📂 수동 상태 로드 완료');
+                }
+            }
+        }
+        
+        // 페이지 로드 시 모듈 상태 확인
+        window.addEventListener('load', () => {
+            // 모듈 로딩을 위해 충분한 시간 대기
+            setTimeout(checkModules, 2000);
+        });
+        
+        // 모듈 로딩 완료 대기 함수
+        function waitForModules() {
+            return new Promise((resolve) => {
+                const checkInterval = setInterval(() => {
+                    if (window.logManager && window.learningSystem && 
+                        window.decisionSystem && window.gameStateManager) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
+    </script>
+</body>
+</html>
